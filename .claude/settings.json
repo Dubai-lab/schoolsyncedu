@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(C:/Users/eg821/Desktop/schoolsync/node_modules/.bin/tsc --noEmit --project C:/Users/eg821/Desktop/schoolsync/tsconfig.json)",
+      "Bash(cmd /c \"npx tsc --noEmit 2>&1\")",
+      "Bash(cmd /c \"cd C:\\\\\\\\Users\\\\\\\\eg821\\\\\\\\Desktop\\\\\\\\schoolsync && npx tsc --noEmit 2>&1\")",
+      "Bash(cmd /c \"cd /d C:\\\\\\\\Users\\\\\\\\eg821\\\\\\\\Desktop\\\\\\\\schoolsync && npx.cmd tsc --noEmit\")",
+      "Bash(cmd /c \"findstr /n /i \\\\\"user_id\\\\\" C:\\\\\\\\Users\\\\\\\\eg821\\\\\\\\Desktop\\\\\\\\schoolsync\\\\\\\\db\\\\\\\\migrations\\\\\\\\001_init_schema.sql | findstr /i \\\\\"student\\\\\"\")",
+      "Bash(cmd /c \"findstr /n \\\\\"students\\\\\" C:\\\\\\\\Users\\\\\\\\eg821\\\\\\\\Desktop\\\\\\\\schoolsync\\\\\\\\db\\\\\\\\migrations\\\\\\\\001_init_schema.sql | head -30\")",
+      "Bash(sed -n '478,494p' c:/Users/eg821/desktop/schoolsync/db/migrations/001_init_schema.sql)",
+      "Bash(sed -n '836,860p' c:/Users/eg821/desktop/schoolsync/db/migrations/001_init_schema.sql)",
+      "Bash(sed -n '420,437p' c:/Users/eg821/desktop/schoolsync/db/migrations/001_init_schema.sql)",
+      "Bash(sed -n '564,600p' c:/Users/eg821/desktop/schoolsync/db/migrations/001_init_schema.sql)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -n \"recordPayment\\\\|record_payment\\\\|webhook\\\\|callback\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
+      "Bash(find /c/Users/eg821/desktop/schoolsync/src/pages/proprietor -name \"*.tsx\" -exec basename {} \\\\;)",
+      "Bash(grep -n \"record_subscription_payment\\\\|upgrade_subscription\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)"
+    ]
+  }
+}
