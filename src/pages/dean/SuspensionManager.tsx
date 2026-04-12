@@ -83,7 +83,7 @@ export default function SuspensionManager() {
                 {s.students ? `${s.students.last_name}, ${s.students.first_name}` : 'Unknown'}
               </p>
               <span className="text-xs text-slate-400">Grade {s.students?.current_grade_level}</span>
-              <Badge variant={isActive ? 'error' : 'default'} size="sm">
+              <Badge variant={isActive ? 'danger' : 'default'} size="sm">
                 {isActive ? `Active — ${daysLeft}d left` : s.status.replace(/_/g, ' ')}
               </Badge>
               {isActive && !s.parent_notified && (

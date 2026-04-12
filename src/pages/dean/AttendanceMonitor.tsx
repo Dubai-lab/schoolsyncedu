@@ -245,7 +245,7 @@ export default function AttendanceMonitor() {
                       <td className="px-4 py-3 w-48"><RateBar rate={r.attendance_rate} /></td>
                       <td className="px-4 py-3">
                         {isChronic ? (
-                          <Badge variant="error" size="sm">Chronic</Badge>
+                          <Badge variant="danger" size="sm">Chronic</Badge>
                         ) : isAtRisk ? (
                           <Badge variant="warning" size="sm">At Risk</Badge>
                         ) : (

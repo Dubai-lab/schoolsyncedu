@@ -208,7 +208,7 @@ export default function StudentWelfare() {
                       <p className="font-semibold text-slate-900 text-sm">
                         {r.students ? `${r.students.last_name}, ${r.students.first_name}` : 'Unknown'}
                       </p>
-                      <Badge variant={r.urgency === 'urgent' ? 'error' : r.urgency === 'high' ? 'warning' : 'default'} size="sm">
+                      <Badge variant={r.urgency === 'urgent' ? 'danger' : r.urgency === 'high' ? 'warning' : 'default'} size="sm">
                         {r.urgency}
                       </Badge>
                       <Badge variant={r.status === 'pending' ? 'info' : r.status === 'in_session' ? 'warning' : 'success'} size="sm">

@@ -36,8 +36,8 @@ const ACTION_OPTIONS = [
   { value: 'expulsion_recommendation', label: 'Expulsion Recommended' },
 ];
 
-const STATUS_COLORS: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
-  open: 'error',
+const STATUS_COLORS: Record<string, 'default' | 'warning' | 'info' | 'success' | 'danger'> = {
+  open: 'danger',
   under_review: 'warning',
   resolved: 'success',
 };

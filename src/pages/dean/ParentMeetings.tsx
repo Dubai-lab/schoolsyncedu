@@ -13,8 +13,8 @@ import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/c
 import { notify } from '@/components/shared/Toast';
 import { Plus, Calendar, CheckCircle2, XCircle, UserX } from 'lucide-react';
 
-const STATUS_COLORS: Record<string, 'info' | 'success' | 'default' | 'error'> = {
-  scheduled: 'info', completed: 'success', cancelled: 'default', no_show: 'error',
+const STATUS_COLORS: Record<string, 'info' | 'success' | 'default' | 'danger'> = {
+  scheduled: 'info', completed: 'success', cancelled: 'default', no_show: 'danger',
 };
 
 export default function ParentMeetings() {

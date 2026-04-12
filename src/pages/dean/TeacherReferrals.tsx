@@ -11,8 +11,8 @@ import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/c
 import { notify } from '@/components/shared/Toast';
 import { Users, CheckCircle2, XCircle, Clock, MessageSquare } from 'lucide-react';
 
-const STATUS_COLORS: Record<string, 'error' | 'warning' | 'success' | 'default'> = {
-  pending: 'error',
+const STATUS_COLORS: Record<string, 'danger' | 'warning' | 'success' | 'default'> = {
+  pending: 'danger',
   reviewed: 'warning',
   resolved: 'success',
   dismissed: 'default',
