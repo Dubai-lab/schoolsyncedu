@@ -10,6 +10,12 @@ export interface Grade extends SchoolScopedEntity {
   subject_id: UUID;
   academic_year: string;
   semester: string;
+  // Component scores (Liberian grading: Assignment/20 + Quiz/20 + Test/20 + Exam/40 = 100)
+  assignment_score: number | null;
+  quiz_score:       number | null;
+  test_score:       number | null;
+  exam_score:       number | null;
+  // Final computed total (sum of components, out of 100)
   score: number;
   letter_grade: string;
   gpa_points: number;

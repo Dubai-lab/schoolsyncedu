@@ -161,47 +161,72 @@ export const gradeService = {
     return data as Grade;
   },
 
-  /** Bulk enter grades for a class + subject */
+  /** Bulk enter grades for a class + subject — accepts component scores,
+   *  computes the final total automatically. */
   async bulkUpsertGrades(
     schoolId: UUID,
     _classId: UUID,
     subjectId: UUID,
     academicYear: string,
     semester: string,
-    grades: { studentId: UUID; score: number }[],
+    grades: {
+      studentId: UUID;
+      assignmentScore: number | null;
+      quizScore: number | null;
+      testScore: number | null;
+      examScore: number | null;
+    }[],
     enteredBy: UUID,
   ) {
-    const rows = grades.map((g) => {
-      const { letter_grade, gpa_points } = deriveGrade(g.score);
-      return {
-        school_id: schoolId,
-        student_id: g.studentId,
-        subject_id: subjectId,
-        academic_year: academicYear,
-        semester: semester,
-        score: g.score,
-        letter_grade,
-        gpa_points,
-        status: 'draft',
-        entered_by: enteredBy,
-        entered_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-    });
+    const rows = grades
+      .filter((g) => {
+        // Only save rows that have at least one component filled in
+        return (
+          g.assignmentScore !== null ||
+          g.quizScore !== null ||
+          g.testScore !== null ||
+          g.examScore !== null
+        );
+      })
+      .map((g) => {
+        // Total = sum of whatever components are filled; null components count as 0
+        const total =
+          (g.assignmentScore ?? 0) +
+          (g.quizScore ?? 0) +
+          (g.testScore ?? 0) +
+          (g.examScore ?? 0);
+        const { letter_grade, gpa_points } = deriveGrade(total);
+        return {
+          school_id:        schoolId,
+          student_id:       g.studentId,
+          subject_id:       subjectId,
+          academic_year:    academicYear,
+          semester:         semester,
+          assignment_score: g.assignmentScore,
+          quiz_score:       g.quizScore,
+          test_score:       g.testScore,
+          exam_score:       g.examScore,
+          score:            total,
+          letter_grade,
+          gpa_points,
+          status:           'draft',
+          entered_by:       enteredBy,
+          entered_at:       new Date().toISOString(),
+          updated_at:       new Date().toISOString(),
+        };
+      });
 
-    // Filter out entries where score is not set
-    const validRows = rows.filter((r) => r.score !== null && r.score !== undefined && !isNaN(r.score));
-    if (validRows.length === 0) return [];
+    if (rows.length === 0) return [];
 
     const { data, error } = await supabase
       .from('grades')
-      .upsert(validRows, { onConflict: 'school_id,student_id,subject_id,academic_year,semester', ignoreDuplicates: false })
+      .upsert(rows, { onConflict: 'school_id,student_id,subject_id,academic_year,semester', ignoreDuplicates: false })
       .select();
     if (error) throw error;
     return data as Grade[];
   },
 
-  /** Get existing grades for a class + subject + term (for pre-filling) */
+  /** Get existing grades for a class + subject + term (for pre-filling the entry form) */
   async getClassGrades(classId: UUID, subjectId: UUID, academicYear: string, semester: string) {
     // First get students in the class
     const { data: assignments } = await supabase
@@ -214,13 +239,13 @@ export const gradeService = {
 
     const { data, error } = await supabase
       .from('grades')
-      .select('*')
+      .select('id, student_id, score, assignment_score, quiz_score, test_score, exam_score, status')
       .eq('subject_id', subjectId)
       .eq('academic_year', academicYear)
       .eq('semester', semester)
       .in('student_id', studentIds);
     if (error) throw error;
-    return data as Grade[];
+    return data as Pick<Grade, 'id' | 'student_id' | 'score' | 'assignment_score' | 'quiz_score' | 'test_score' | 'exam_score' | 'status'>[];
   },
 
   /** Get grade report summary view */
