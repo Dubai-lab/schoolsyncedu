@@ -123,11 +123,12 @@ export default function SchoolSite() {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  // Inject a school-specific PWA manifest so the installed app shows
-  // the school's name and colour instead of the default "SchoolSync".
+  // Inject school-specific PWA manifest + register service worker so
+  // students can install the school's portal as a home screen app.
   useEffect(() => {
     if (!school || !slug) return;
 
+    // 1. Inject school-specific manifest
     const params = new URLSearchParams({
       name:  school.name,
       slug,
@@ -135,7 +136,6 @@ export default function SchoolSite() {
       ...(school.logo_url ? { logo: school.logo_url } : {}),
     });
 
-    // Remove any existing manifest link, then add the school-specific one
     const existing = document.querySelector('link[rel="manifest"]');
     if (existing) existing.remove();
 
@@ -144,13 +144,19 @@ export default function SchoolSite() {
     link.href = `/api/school-manifest?${params.toString()}`;
     document.head.appendChild(link);
 
-    // Restore the default manifest when the visitor leaves the school page
+    // 2. Register service worker (makes app installable on mobile)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // SW registration failure is non-fatal — site still works
+      });
+    }
+
+    // 3. Update page title to school name
+    document.title = school.name;
+
     return () => {
       link.remove();
-      const def = document.createElement('link');
-      def.rel = 'manifest';
-      def.href = '/manifest.webmanifest';
-      document.head.appendChild(def);
+      document.title = 'SchoolSync';
     };
   }, [school, slug]);
 
