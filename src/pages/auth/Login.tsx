@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { getHomePath } from '@/middleware/requireAuth';
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 
 export default function Login() {
@@ -41,8 +42,7 @@ export default function Login() {
         });
         return;
       }
-      const dest = user.role === 'super_admin' ? '/admin' : user.role === 'proprietor' ? '/proprietor' : '/dashboard';
-      navigate(dest, { replace: true });
+      navigate(getHomePath(user.role ?? ''), { replace: true });
     }
   }, [isAuthenticated, user, navigate, switchAccount, schoolSlug, signOut]);
 
@@ -84,8 +84,7 @@ export default function Login() {
           <div className="mt-3 flex gap-3">
             <button
               onClick={() => {
-                const dest = user.role === 'super_admin' ? '/admin' : user.role === 'proprietor' ? '/proprietor' : user.role === 'it_admin' ? '/it-admin' : '/dashboard';
-                navigate(dest);
+                navigate(getHomePath(user.role ?? ''));
               }}
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
             >

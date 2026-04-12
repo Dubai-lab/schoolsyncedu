@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { schoolSiteService } from '@/services/schoolSiteService';
+import { getHomePath } from '@/middleware/requireAuth';
 import type { School, SiteConfig, AuthPageConfig } from '@/types/school.types';
 import {
   Eye,
@@ -54,12 +55,7 @@ export default function SchoolLogin() {
   // Only navigate after a fresh sign-in (not on page load with stale session)
   useEffect(() => {
     if (isAuthenticated && user && justSignedIn) {
-      const dest =
-        user.role === 'super_admin' ? '/admin'
-        : user.role === 'proprietor' ? '/proprietor'
-        : user.role === 'it_admin' ? '/it-admin'
-        : '/dashboard';
-      navigate(dest, { replace: true });
+      navigate(getHomePath(user.role ?? ''), { replace: true });
     }
   }, [isAuthenticated, user, navigate, justSignedIn]);
 
@@ -301,8 +297,7 @@ export default function SchoolLogin() {
               <div className="mt-3 flex gap-3">
                 <button
                   onClick={() => {
-                    const dest = user.role === 'super_admin' ? '/admin' : user.role === 'proprietor' ? '/proprietor' : user.role === 'it_admin' ? '/it-admin' : '/dashboard';
-                    navigate(dest);
+                      navigate(getHomePath(user.role ?? ''));
                   }}
                   className="rounded-md px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
                   style={{ backgroundColor: accentColor }}

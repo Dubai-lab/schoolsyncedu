@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/utils/helpers';
 import { ChevronRight, Home } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { USER_ROLES } from '@/utils/constants';
+import { getHomePath } from '@/middleware/requireAuth';
 
 export interface BreadcrumbItem {
   label: string;
@@ -14,25 +14,11 @@ interface BreadcrumbProps {
   className?: string;
 }
 
-function getHomePathForRole(role: string): string {
-  switch (role) {
-    case USER_ROLES.TEACHER:       return '/teacher';
-    case USER_ROLES.REGISTRAR:     return '/registrar';
-    case USER_ROLES.BURSAR:        return '/bursar';
-    case USER_ROLES.IT_ADMIN:      return '/it-admin';
-    case USER_ROLES.STUDENT:       return '/student/dashboard';
-    case USER_ROLES.PROPRIETOR:    return '/proprietor';
-    case USER_ROLES.SUPER_ADMIN:   return '/admin';
-    case USER_ROLES.DEAN:          return '/dean';
-    default:                       return '/dashboard';
-  }
-}
-
 /** If no items are provided, auto-generates from the URL path */
 export default function Breadcrumb({ items, className }: BreadcrumbProps) {
   const location = useLocation();
   const { user } = useAuth();
-  const homePath = getHomePathForRole(user?.role ?? '');
+  const homePath = getHomePath(user?.role ?? '');
 
   const crumbs: BreadcrumbItem[] = items ?? buildFromPath(location.pathname);
 

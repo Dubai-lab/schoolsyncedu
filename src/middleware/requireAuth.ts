@@ -7,7 +7,7 @@ interface RequireAuthProps {
   children: ReactNode;
 }
 
-function getHomePath(role: string): string {
+export function getHomePath(role: string): string {
   switch (role) {
     case USER_ROLES.TEACHER:     return '/teacher';
     case USER_ROLES.REGISTRAR:   return '/registrar';
