@@ -103,6 +103,54 @@ export const registrarService = {
     return this.updateApplicationStatus(id, 'rejected', reviewNotes);
   },
 
+  /** Get enrollment status for an accepted application */
+  async getEnrollmentStatus(applicationId: string) {
+    const { data, error } = await supabase.rpc('get_application_enrollment_status', {
+      p_application_id: applicationId,
+    });
+    if (error) throw error;
+    return data as {
+      accepted: boolean;
+      student_id: string | null;
+      reg_fee_paid: boolean;
+      reg_fee_amount: number;
+      account_exists: boolean;
+      enrollment_status: string | null;
+    };
+  },
+
+  /** Enroll student after registration fee payment — creates login account */
+  async enrollStudent(studentId: string) {
+    const { data, error } = await supabase.rpc('enroll_student_after_payment', {
+      p_student_id: studentId,
+    });
+    if (error) throw error;
+    return data as {
+      success: boolean;
+      already_exists: boolean;
+      student_id: string;
+      registration_number: string;
+      message: string;
+    };
+  },
+
+  /** List students whose reg fee is paid but account not yet created */
+  async listReadyToEnroll(schoolId: string) {
+    const { data, error } = await supabase.rpc('list_ready_to_enroll', {
+      p_school_id: schoolId,
+    });
+    if (error) throw error;
+    return (data ?? []) as Array<{
+      application_id: string;
+      student_id: string;
+      first_name: string;
+      last_name: string;
+      registration_number: string;
+      class_name: string;
+      reg_fee_paid_at: string;
+    }>;
+  },
+
   // ==================== DASHBOARD STATS ====================
 
   /** Get registrar dashboard statistics */
@@ -145,6 +193,11 @@ export const registrarService = {
         .eq('status', 'active'),
     ]);
 
+    // Count students ready to enroll (reg fee paid, no account yet)
+    const readyToEnrollData = await supabase
+      .rpc('list_ready_to_enroll', { p_school_id: schoolId })
+      .catch(() => ({ data: [] }));
+
     return {
       totalApplications: totalApplications ?? 0,
       pendingReview: pendingReview ?? 0,
@@ -152,6 +205,7 @@ export const registrarService = {
       rejected: rejected ?? 0,
       totalStudents: totalStudents ?? 0,
       activeEnrollments: activeEnrollments ?? 0,
+      readyToEnroll: (readyToEnrollData.data as unknown[])?.length ?? 0,
     };
   },
 

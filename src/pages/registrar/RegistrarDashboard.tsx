@@ -18,6 +18,7 @@ import {
   UserPlus,
   FileText,
   Mail,
+  UserCheck,
 } from 'lucide-react';
 
 // ==================== STAT CARD ====================
@@ -118,14 +119,42 @@ export default function RegistrarDashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <StatCard label="Total Applications" value={stats?.totalApplications ?? 0} icon={ClipboardList} color="blue" />
         <StatCard label="Pending Review" value={stats?.pendingReview ?? 0} icon={Clock} color="amber" />
         <StatCard label="Accepted" value={stats?.accepted ?? 0} icon={FileCheck} color="green" />
         <StatCard label="Rejected" value={stats?.rejected ?? 0} icon={FileX} color="red" />
         <StatCard label="Total Students" value={stats?.totalStudents ?? 0} icon={GraduationCap} color="purple" />
         <StatCard label="Active Enrollments" value={stats?.activeEnrollments ?? 0} icon={Users} color="slate" />
+        <StatCard
+          label="Ready to Enroll"
+          value={stats?.readyToEnroll ?? 0}
+          icon={UserCheck}
+          color="green"
+          trend={stats?.readyToEnroll ? 'Fee paid — action needed' : undefined}
+        />
       </div>
+
+      {/* Ready to Enroll alert */}
+      {(stats?.readyToEnroll ?? 0) > 0 && (
+        <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
+          <UserCheck className="h-5 w-5 text-blue-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-blue-800">
+              {stats!.readyToEnroll} student{stats!.readyToEnroll !== 1 ? 's are' : ' is'} ready to enroll
+            </p>
+            <p className="text-xs text-blue-600 mt-0.5">
+              Registration fee paid — open each application and click <strong>Enroll Student</strong> to create their login account.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/registrar/applications?status=accepted')}
+            className="shrink-0 flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+          >
+            View <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div>
@@ -133,7 +162,7 @@ export default function RegistrarDashboard() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: 'Review Applications', desc: 'View & process submissions', icon: ClipboardList, path: '/registrar/applications' },
-            { label: 'Enroll Student', desc: 'Register manually', icon: UserPlus, path: '/students/new' },
+            { label: 'Finalize Enrollments', desc: 'Enroll fee-paid students', icon: UserCheck, path: '/registrar/applications?status=accepted' },
             { label: 'Letters', desc: 'Acceptance & admin letters', icon: Mail, path: '/letters' },
             { label: 'Student Records', desc: 'View all students', icon: FileText, path: '/students' },
           ].map((action) => (

@@ -26,6 +26,9 @@ import {
   Mail,
   Loader2,
   DollarSign,
+  UserCheck,
+  Key,
+  ShieldCheck,
 } from 'lucide-react';
 
 // ==================== STATUS CONFIG ====================
@@ -64,6 +67,7 @@ export default function ApplicationDetail() {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; title: string; message?: string } | null>(null);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [enrolling, setEnrolling] = useState(false);
 
   const { data: app, isLoading, refetch } = useFetch<StudentApplication>(
     ['application-detail', id ?? ''],
@@ -85,12 +89,41 @@ export default function ApplicationDetail() {
     value: c.id,
   }));
 
+  // Enrollment status — only meaningful once accepted
+  const { data: enrollmentStatus, refetch: refetchEnrollment } = useFetch(
+    ['enrollment-status', id ?? ''],
+    () => registrarService.getEnrollmentStatus(id!),
+    { enabled: !!id && app?.status === 'accepted' },
+  );
+
   // Pre-select the class the student chose on the application form
   useEffect(() => {
     if (app?.class_id && !selectedClassId) {
       setSelectedClassId(app.class_id);
     }
   }, [app?.class_id]);
+
+  const handleEnroll = async () => {
+    if (!enrollmentStatus?.student_id) return;
+    setEnrolling(true);
+    try {
+      const result = await registrarService.enrollStudent(enrollmentStatus.student_id);
+      if (result.success) {
+        setToast({
+          type: 'success',
+          title: result.already_exists ? 'Already Enrolled' : 'Student Enrolled!',
+          message: result.message,
+        });
+        refetch();
+        refetchEnrollment();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to enroll student';
+      setToast({ type: 'error', title: 'Enrollment Failed', message: msg });
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   const handleAction = async (action: 'accept' | 'reject' | 'under_review' | 'documents_requested' | 'waitlisted') => {
     if (!app) return;
@@ -104,9 +137,10 @@ export default function ApplicationDetail() {
         const result = await registrarService.acceptApplication(app.id, reviewNotes || undefined, selectedClassId || undefined);
         if (result.success) {
           const feeMsg = result.reg_fee_assigned
-            ? ' Registration fee assigned — student must pay to activate enrollment.'
-            : ' No registration fee structure found for this year.';
+            ? ' All class fees assigned. Once the registration fee is paid, come back here to complete enrollment.'
+            : ' No fee structures found for this class yet — ask the bursar to set them up.';
           setToast({ type: 'success', title: 'Student Accepted!', message: `Reg#: ${result.registration_number}.${feeMsg}` });
+          refetchEnrollment();
 
           // Send acceptance email to guardian — non-blocking
           if (app.guardian_email) {
@@ -426,6 +460,86 @@ export default function ApplicationDetail() {
                 <h2 className="text-sm font-semibold text-emerald-700">Registration Number</h2>
               </div>
               <p className="text-lg font-bold font-mono text-emerald-800">{app.registration_number}</p>
+            </Card>
+          )}
+
+          {/* Enrollment Status — shown once application is accepted */}
+          {app.status === 'accepted' && enrollmentStatus && (
+            <Card className={`p-6 ${
+              enrollmentStatus.account_exists
+                ? 'border-green-200 bg-green-50/50'
+                : enrollmentStatus.reg_fee_paid
+                ? 'border-blue-200 bg-blue-50/50'
+                : 'border-amber-200 bg-amber-50/50'
+            }`}>
+              <div className="flex items-center gap-2 mb-3">
+                {enrollmentStatus.account_exists ? (
+                  <ShieldCheck className="h-5 w-5 text-green-600" />
+                ) : enrollmentStatus.reg_fee_paid ? (
+                  <UserCheck className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <Key className="h-5 w-5 text-amber-600" />
+                )}
+                <h2 className="text-sm font-semibold text-slate-700">Enrollment Status</h2>
+              </div>
+
+              {/* Registration fee row */}
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 mb-3">
+                <span className="text-sm text-slate-500">Registration Fee</span>
+                {enrollmentStatus.reg_fee_paid ? (
+                  <span className="flex items-center gap-1 text-sm font-semibold text-green-700">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Paid
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-sm font-semibold text-amber-600">
+                    <Clock className="h-3.5 w-3.5" /> Awaiting Payment
+                  </span>
+                )}
+              </div>
+
+              {/* Account row */}
+              <div className="flex items-center justify-between py-2 mb-3">
+                <span className="text-sm text-slate-500">Login Account</span>
+                {enrollmentStatus.account_exists ? (
+                  <span className="flex items-center gap-1 text-sm font-semibold text-green-700">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Created
+                  </span>
+                ) : (
+                  <span className="text-sm text-slate-400">Not yet created</span>
+                )}
+              </div>
+
+              {/* Enroll button — only when fee paid and no account yet */}
+              {!enrollmentStatus.account_exists && enrollmentStatus.reg_fee_paid && (
+                <button
+                  onClick={handleEnroll}
+                  disabled={enrolling}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                >
+                  {enrolling ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserCheck className="h-4 w-4" />
+                  )}
+                  {enrolling ? 'Enrolling…' : 'Enroll Student'}
+                </button>
+              )}
+
+              {/* Already enrolled */}
+              {enrollmentStatus.account_exists && (
+                <p className="text-xs text-green-700 flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Student can log in with their registration number and the school default password.
+                </p>
+              )}
+
+              {/* Waiting for payment */}
+              {!enrollmentStatus.reg_fee_paid && !enrollmentStatus.account_exists && (
+                <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Waiting for the bursar to record registration fee payment.
+                </p>
+              )}
             </Card>
           )}
 
