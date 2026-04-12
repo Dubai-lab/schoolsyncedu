@@ -194,9 +194,13 @@ export const registrarService = {
     ]);
 
     // Count students ready to enroll (reg fee paid, no account yet)
-    const readyToEnrollData = await supabase
-      .rpc('list_ready_to_enroll', { p_school_id: schoolId })
-      .catch(() => ({ data: [] }));
+    let readyToEnrollData: { data: unknown[] } = { data: [] };
+    try {
+      const r = await supabase.rpc('list_ready_to_enroll', { p_school_id: schoolId });
+      readyToEnrollData = { data: r.data ?? [] };
+    } catch {
+      // non-critical — dashboard still loads
+    }
 
     return {
       totalApplications: totalApplications ?? 0,
