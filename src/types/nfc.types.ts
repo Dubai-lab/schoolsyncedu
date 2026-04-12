@@ -77,6 +77,10 @@ export interface IdCardDesignData {
   show_qr_code?: boolean;
   border_style?: 'none' | 'solid' | 'rounded';
   orientation?: 'landscape' | 'portrait';
+  // Front extras
+  card_title?: string;
+  photo_shape?: 'square' | 'circle' | 'rounded';
+  border_color?: string;
   // Back-of-card
   back_bg_color?: string;
   back_text_color?: string;

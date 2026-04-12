@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
-import { RequireAuth } from '@/middleware/requireAuth';
+import { RequireAuth, RequireRole } from '@/middleware/requireAuth';
+import { USER_ROLES } from '@/utils/constants';
 
 // Layouts
 import AuthLayout from '@/components/layout/AuthLayout';
@@ -305,31 +306,31 @@ export default function App() {
           <Route path="/settings/preferences" element={<UserPreferences />} />
           <Route path="/settings/system" element={<SystemConfig />} />
           <Route path="/settings/audit" element={<AuditLogs />} />
-          {/* Proprietor module */}
-          <Route path="/proprietor" element={<ProprietorDashboard />} />
-          <Route path="/proprietor/setup" element={<OnboardingWizard />} />
-          <Route path="/proprietor/it-admin" element={<ITAdminSetup />} />
-          <Route path="/proprietor/subscription" element={<SubscriptionManagement />} />
-          <Route path="/proprietor/financial" element={<FinancialOverview />} />
-          <Route path="/proprietor/audit" element={<AuditTrailViewer />} />
-          <Route path="/proprietor/site" element={<SiteCustomizer />} />
-          <Route path="/proprietor/fees" element={<FeeScheduleEditor />} />
-          <Route path="/proprietor/login-page" element={<AuthPageDesigner />} />
-          <Route path="/proprietor/payment-methods" element={<PaymentMethods />} />
-          {/* IT Admin module */}
-          <Route path="/it-admin" element={<ITAdminDashboard />} />
-          <Route path="/it-admin/users" element={<UserManagement />} />
-          <Route path="/it-admin/users/new" element={<UserManagement />} />
-          <Route path="/it-admin/site" element={<SiteManagement />} />
-          <Route path="/it-admin/fees" element={<FeeScheduleEditor />} />
-          <Route path="/it-admin/login-page" element={<AuthPageDesigner />} />
-          <Route path="/it-admin/system" element={<SystemOverview />} />
-          <Route path="/it-admin/settings" element={<SchoolSettingsITAdmin />} />
-          <Route path="/it-admin/cards" element={<ITCardDesigner />} />
-          <Route path="/it-admin/cards/generate" element={<ITCardGenerator />} />
-          <Route path="/it-admin/cards/nfc" element={<NfcAssignment />} />
-          <Route path="/it-admin/students" element={<StudentAccounts />} />
-          <Route path="/it-admin/email" element={<EmailSettings />} />
+          {/* Proprietor module — Proprietor only */}
+          <Route path="/proprietor" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><ProprietorDashboard /></RequireRole>} />
+          <Route path="/proprietor/setup" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><OnboardingWizard /></RequireRole>} />
+          <Route path="/proprietor/it-admin" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><ITAdminSetup /></RequireRole>} />
+          <Route path="/proprietor/subscription" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SubscriptionManagement /></RequireRole>} />
+          <Route path="/proprietor/financial" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><FinancialOverview /></RequireRole>} />
+          <Route path="/proprietor/audit" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><AuditTrailViewer /></RequireRole>} />
+          <Route path="/proprietor/site" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SiteCustomizer /></RequireRole>} />
+          <Route path="/proprietor/fees" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><FeeScheduleEditor /></RequireRole>} />
+          <Route path="/proprietor/login-page" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><AuthPageDesigner /></RequireRole>} />
+          <Route path="/proprietor/payment-methods" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><PaymentMethods /></RequireRole>} />
+          {/* IT Admin module — IT Admin only */}
+          <Route path="/it-admin" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITAdminDashboard /></RequireRole>} />
+          <Route path="/it-admin/users" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><UserManagement /></RequireRole>} />
+          <Route path="/it-admin/users/new" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><UserManagement /></RequireRole>} />
+          <Route path="/it-admin/site" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SiteManagement /></RequireRole>} />
+          <Route path="/it-admin/fees" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><FeeScheduleEditor /></RequireRole>} />
+          <Route path="/it-admin/login-page" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><AuthPageDesigner /></RequireRole>} />
+          <Route path="/it-admin/system" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SystemOverview /></RequireRole>} />
+          <Route path="/it-admin/settings" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SchoolSettingsITAdmin /></RequireRole>} />
+          <Route path="/it-admin/cards" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITCardDesigner /></RequireRole>} />
+          <Route path="/it-admin/cards/generate" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITCardGenerator /></RequireRole>} />
+          <Route path="/it-admin/cards/nfc" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><NfcAssignment /></RequireRole>} />
+          <Route path="/it-admin/students" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><StudentAccounts /></RequireRole>} />
+          <Route path="/it-admin/email" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><EmailSettings /></RequireRole>} />
           {/* Registrar module */}
           <Route path="/registrar" element={<RegistrarDashboard />} />
           <Route path="/registrar/applications" element={<ApplicationReview />} />
@@ -338,13 +339,13 @@ export default function App() {
           <Route path="/bursar" element={<BursarDashboard />} />
           <Route path="/bursar/fee-structures" element={<FeeStructures />} />
           <Route path="/bursar/application-fees" element={<ApplicationFeePayments />} />
-          {/* Admin module */}
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/schools" element={<SchoolManagement />} />
-          <Route path="/admin/pricing" element={<PricingPlans />} />
-          <Route path="/admin/billing" element={<BillingCenter />} />
-          <Route path="/admin/discounts" element={<AdminDiscounts />} />
-          <Route path="/admin/health" element={<SystemHealth />} />
+          {/* Admin module — Super Admin only */}
+          <Route path="/admin" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDashboard /></RequireRole>} />
+          <Route path="/admin/schools" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SchoolManagement /></RequireRole>} />
+          <Route path="/admin/pricing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><PricingPlans /></RequireRole>} />
+          <Route path="/admin/billing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><BillingCenter /></RequireRole>} />
+          <Route path="/admin/discounts" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDiscounts /></RequireRole>} />
+          <Route path="/admin/health" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SystemHealth /></RequireRole>} />
           {/* WAEC module */}
           <Route path="/waec" element={<WaecDashboard />} />
           <Route path="/waec/register" element={<CandidateRegistration />} />

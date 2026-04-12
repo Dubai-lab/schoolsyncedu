@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/utils/helpers';
 import { ChevronRight, Home } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { USER_ROLES } from '@/utils/constants';
 
 export interface BreadcrumbItem {
   label: string;
@@ -12,15 +14,30 @@ interface BreadcrumbProps {
   className?: string;
 }
 
+function getHomePathForRole(role: string): string {
+  switch (role) {
+    case USER_ROLES.TEACHER:       return '/teacher';
+    case USER_ROLES.REGISTRAR:     return '/registrar';
+    case USER_ROLES.BURSAR:        return '/bursar';
+    case USER_ROLES.IT_ADMIN:      return '/it-admin';
+    case USER_ROLES.STUDENT:       return '/student/dashboard';
+    case USER_ROLES.PROPRIETOR:    return '/proprietor';
+    case USER_ROLES.SUPER_ADMIN:   return '/admin';
+    default:                       return '/dashboard';
+  }
+}
+
 /** If no items are provided, auto-generates from the URL path */
 export default function Breadcrumb({ items, className }: BreadcrumbProps) {
   const location = useLocation();
+  const { user } = useAuth();
+  const homePath = getHomePathForRole(user?.role ?? '');
 
   const crumbs: BreadcrumbItem[] = items ?? buildFromPath(location.pathname);
 
   return (
     <nav aria-label="Breadcrumb" className={cn('flex items-center gap-1.5 text-sm', className)}>
-      <Link to="/dashboard" className="text-slate-400 hover:text-slate-600 transition-colors">
+      <Link to={homePath} className="text-slate-400 hover:text-slate-600 transition-colors">
         <Home className="h-4 w-4" />
       </Link>
 

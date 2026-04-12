@@ -1,9 +1,23 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useLocation } from 'react-router-dom';
 import { createElement, type ReactNode } from 'react';
+import { USER_ROLES, type UserRole } from '@/utils/constants';
 
 interface RequireAuthProps {
   children: ReactNode;
+}
+
+function getHomePath(role: string): string {
+  switch (role) {
+    case USER_ROLES.TEACHER:     return '/teacher';
+    case USER_ROLES.REGISTRAR:   return '/registrar';
+    case USER_ROLES.BURSAR:      return '/bursar';
+    case USER_ROLES.IT_ADMIN:    return '/it-admin';
+    case USER_ROLES.STUDENT:     return '/student/dashboard';
+    case USER_ROLES.PROPRIETOR:  return '/proprietor';
+    case USER_ROLES.SUPER_ADMIN: return '/admin';
+    default:                     return '/dashboard';
+  }
 }
 
 export function RequireAuth({ children }: RequireAuthProps) {
@@ -22,6 +36,29 @@ export function RequireAuth({ children }: RequireAuthProps) {
     return createElement(Navigate, {
       to: '/auth/login',
       state: { from: location },
+      replace: true,
+    });
+  }
+
+  return children;
+}
+
+interface RequireRoleProps {
+  children: ReactNode;
+  roles: UserRole[];
+}
+
+/**
+ * Guards a route or group of routes so only users with an allowed role can access.
+ * Unauthorized users are redirected to their own home dashboard.
+ */
+export function RequireRole({ children, roles }: RequireRoleProps) {
+  const { user } = useAuth();
+  const role = (user?.role ?? '') as UserRole;
+
+  if (!roles.includes(role)) {
+    return createElement(Navigate, {
+      to: getHomePath(role),
       replace: true,
     });
   }

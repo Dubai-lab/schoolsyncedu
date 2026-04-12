@@ -114,7 +114,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'Finance',
     items: [
-      { label: 'Fees', path: '/fees', icon: DollarSign, roles: [...FINANCE_ROLES, USER_ROLES.PARENT] },
+      { label: 'Fees', path: '/fees', icon: DollarSign, roles: [USER_ROLES.ADMIN_STAFF, USER_ROLES.PARENT] },
       { label: 'Reports', path: '/reports/financial', icon: BarChart3, roles: FINANCE_ROLES },
     ],
   },
@@ -128,9 +128,9 @@ const navGroups: NavGroup[] = [
   {
     title: 'Services',
     items: [
-      { label: 'Library', path: '/library', icon: Library, roles: [...ADMIN_ROLES.filter(r => r !== USER_ROLES.IT_ADMIN), USER_ROLES.LIBRARIAN] },
-      { label: 'Guidance', path: '/guidance', icon: Brain, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL, USER_ROLES.DEAN, USER_ROLES.COUNSELOR] },
-      { label: 'ID Cards', path: '/idcards', icon: Nfc, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL, USER_ROLES.ADMIN_STAFF] },
+      { label: 'Library', path: '/library', icon: Library, roles: [USER_ROLES.VICE_PRINCIPAL, USER_ROLES.ADMIN_STAFF, USER_ROLES.LIBRARIAN] },
+      { label: 'Guidance', path: '/guidance', icon: Brain, roles: [USER_ROLES.VICE_PRINCIPAL, USER_ROLES.DEAN, USER_ROLES.COUNSELOR] },
+      { label: 'ID Cards', path: '/idcards', icon: Nfc, roles: [USER_ROLES.VICE_PRINCIPAL, USER_ROLES.ADMIN_STAFF] },
     ],
   },
   {
