@@ -38,6 +38,8 @@ export interface School {
   custom_domain: string | null;
   site_published: boolean;
   site_config: SiteConfig;
+  /** Whether the school portal is accessible. False = suspended (subscription expired). */
+  is_online: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

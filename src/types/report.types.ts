@@ -145,7 +145,16 @@ export interface Subscription {
   payment_method: PaymentMethod | null;
   auto_renew: boolean;
   discount_id: UUID | null;
+  grace_days_remaining: number;
+  suspended_at: Timestamp | null;
+  suspension_reason: string | null;
   created_at: Timestamp;
+}
+
+/** Subscription joined with school name for admin views */
+export interface SubscriptionWithSchool extends Subscription {
+  school_name: string;
+  plan_name: string;
 }
 
 /** discounts table */

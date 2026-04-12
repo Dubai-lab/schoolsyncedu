@@ -76,6 +76,33 @@ export const studentService = {
 
   /** Create a new student + guardian in one transaction-ish flow */
   async create(schoolId: UUID, form: CreateStudentForm) {
+    // ── Enforce subscription student limit ────────────────────────────────
+    // Get current active subscription plan limit for this school
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select('subscription_plans(student_limit)')
+      .eq('school_id', schoolId)
+      .in('status', ['active', 'trial', 'grace'])
+      .maybeSingle();
+
+    const planLimit = (subData?.subscription_plans as { student_limit?: number } | null)?.student_limit ?? null;
+
+    if (planLimit !== null) {
+      const { count: currentCount } = await supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .eq('school_id', schoolId)
+        .eq('status', 'enrolled');
+
+      if ((currentCount ?? 0) >= planLimit) {
+        throw new Error(
+          `Student limit reached. Your current plan allows up to ${planLimit.toLocaleString()} enrolled students. ` +
+          `Please upgrade your plan or contact SchoolSync support.`
+        );
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     // Insert student
     const { data: student, error: studentErr } = await supabase
       .from('students')

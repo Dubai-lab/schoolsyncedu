@@ -5,6 +5,7 @@ import type { PlatformAdminUser, SystemLog } from '@/types/user.types';
 import type {
   SubscriptionPlan,
   Subscription,
+  SubscriptionWithSchool,
   Discount,
   BillingInvoice,
   ActiveSubscription,
@@ -96,6 +97,36 @@ export const schoolManagementService = {
     const { error } = await supabase.from('schools').delete().eq('id', id);
     if (error) throw error;
   },
+
+  /** Toggle a school online or offline manually */
+  async toggleOnline(id: UUID, isOnline: boolean) {
+    const { data, error } = await supabase
+      .from('schools')
+      .update({ is_online: isOnline, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as School;
+  },
+
+  /** Suspend a school (set offline + update subscription status) */
+  async suspendSchool(schoolId: UUID, reason = 'Manually suspended by admin') {
+    const { error } = await supabase.rpc('suspend_school', {
+      p_school_id: schoolId,
+      p_reason: reason,
+    });
+    if (error) throw error;
+  },
+
+  /** Reactivate a school + grant grace days */
+  async reactivateSchool(schoolId: UUID, graceDays = 7) {
+    const { error } = await supabase.rpc('reactivate_school', {
+      p_school_id: schoolId,
+      p_grace_days: graceDays,
+    });
+    if (error) throw error;
+  },
 };
 
 // ==================== PRICING PLANS ====================
@@ -163,6 +194,36 @@ export const billingService = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data as Subscription[];
+  },
+
+  /** List subscriptions joined with school name and plan name */
+  async listSubscriptionsWithDetails() {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*, schools(name), subscription_plans(name)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((row) => {
+      const r = row as unknown as Record<string, unknown>;
+      return {
+        ...(r as unknown as Subscription),
+        school_name: (r.schools as { name: string } | null)?.name ?? 'Unknown',
+        plan_name: (r.subscription_plans as { name: string } | null)?.name ?? 'Unknown',
+      };
+    }) as SubscriptionWithSchool[];
+  },
+
+  /** Extend subscription grace period without fully reactivating */
+  async extendGracePeriod(subscriptionId: UUID, days: number) {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        expires_at: new Date(Date.now() + days * 86400000).toISOString(),
+        grace_days_remaining: days,
+        status: 'grace',
+      })
+      .eq('id', subscriptionId);
+    if (error) throw error;
   },
 
   async listInvoices() {
@@ -246,6 +307,36 @@ export const discountService = {
   async delete(id: UUID) {
     const { error } = await supabase.from('discounts').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  /** Validate a coupon code for a given plan. Returns the discount if valid, null otherwise. */
+  async validateCoupon(couponCode: string, planId: UUID): Promise<Discount | null> {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('discounts')
+      .select('*')
+      .eq('coupon_code', couponCode.trim().toUpperCase())
+      .eq('is_active', true)
+      .or(`applicable_plans.cs.{${planId}},applicable_plans.eq.{}`)
+      .or(`start_date.is.null,start_date.lte.${today}`)
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .maybeSingle();
+    if (error) return null;
+    if (!data) return null;
+    // Check max uses
+    const d = data as Discount;
+    if (d.max_uses !== null && d.current_uses >= d.max_uses) return null;
+    return d;
+  },
+
+  /** Increment uses after applying a discount (fetch current value then +1) */
+  async incrementCouponUses(id: UUID) {
+    const { data } = await supabase.from('discounts').select('current_uses').eq('id', id).single();
+    if (!data) return;
+    await supabase
+      .from('discounts')
+      .update({ current_uses: (data.current_uses as number) + 1 })
+      .eq('id', id);
   },
 };
 

@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   AlertCircle,
   Megaphone,
+  WifiOff,
 } from 'lucide-react';
 
 export default function SchoolLogin() {
@@ -140,6 +141,38 @@ export default function SchoolLogin() {
         <h1 className="text-2xl font-bold text-gray-900">School Not Found</h1>
         <p className="mt-2 text-gray-500">The school you're looking for doesn't exist or hasn't published their site yet.</p>
         <Link to="/auth/login" className="mt-6 text-blue-600 underline hover:text-blue-800">Go to SchoolSync Login</Link>
+      </div>
+    );
+  }
+
+  // ── School is offline (subscription suspended/expired) ──
+  if (!school.is_online) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
+        <div className="mx-auto max-w-sm text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+            <WifiOff className="h-10 w-10 text-amber-600" />
+          </div>
+          {school.logo_url && (
+            <img src={school.logo_url} alt={school.name} className="mx-auto mb-3 h-12 w-12 rounded-lg object-cover" />
+          )}
+          <h1 className="text-xl font-bold text-slate-900">{school.name}</h1>
+          <h2 className="mt-3 text-lg font-semibold text-amber-700">Portal Temporarily Offline</h2>
+          <p className="mt-3 text-sm text-slate-500 leading-relaxed">
+            This school's portal is currently unavailable. This usually happens when a subscription payment is overdue.
+            Please contact your school administration to resolve the issue.
+          </p>
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-800">
+            <p className="font-medium mb-1">For school administrators:</p>
+            <p>Contact SchoolSync support to renew your subscription or request a grace period.</p>
+          </div>
+          <Link
+            to={`/school/${slug}`}
+            className="mt-6 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to school site
+          </Link>
+        </div>
       </div>
     );
   }

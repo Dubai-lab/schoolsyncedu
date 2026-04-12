@@ -1,16 +1,75 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
-import { pricingPlanService } from '@/services/adminService';
+import { pricingPlanService, billingService } from '@/services/adminService';
+import { useAuth } from '@/hooks/useAuth';
 import type { SubscriptionPlan } from '@/types/report.types';
-import { CheckCircle, X, ArrowRight, HelpCircle } from 'lucide-react';
+import { CheckCircle, X, ArrowRight, HelpCircle, CheckCircle2 } from 'lucide-react';
 
 export default function PricingPage() {
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
   const { data: allPlans = [], isLoading } = useFetch<SubscriptionPlan[]>(
     ['public-pricing-plans'],
     () => pricingPlanService.list(),
   );
+
+  // Fetch current subscription if logged in as proprietor/school admin
+  const { data: subscriptions = [] } = useFetch(
+    ['my-subscriptions', user?.school_id ?? ''],
+    () => billingService.listSubscriptionsWithDetails(),
+    { enabled: !!user?.school_id },
+  );
+
+  // Active subscription for this school
+  const activeSub = subscriptions.find(
+    (s) => s.school_id === user?.school_id && ['active', 'trial', 'grace'].includes(s.status)
+  );
+  const expiredSub = subscriptions.find(
+    (s) => s.school_id === user?.school_id && ['suspended', 'cancelled', 'archived'].includes(s.status)
+  );
+
+  /** Returns the right CTA button for a plan card */
+  function PlanButton({ plan, isPopular }: { plan: SubscriptionPlan; isPopular: boolean }) {
+    const base = isPopular
+      ? 'mt-8 flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all bg-primary-600 text-white shadow-md hover:bg-primary-700'
+      : 'mt-8 flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all border border-slate-300 text-slate-700 hover:bg-slate-50';
+
+    // Current active plan
+    if (activeSub && activeSub.plan_name === plan.name) {
+      return (
+        <div className={`${base} opacity-80 cursor-default pointer-events-none`}>
+          <CheckCircle2 className="h-4 w-4" /> Current Plan
+        </div>
+      );
+    }
+
+    // Expired / suspended — show Renew
+    if (expiredSub && expiredSub.plan_name === plan.name) {
+      return (
+        <Link to={`/pay?school=${user?.school_id}&email=${user?.email}`} className={base}>
+          Renew Now <ArrowRight className="h-4 w-4" />
+        </Link>
+      );
+    }
+
+    // On trial — show Upgrade Now
+    if (activeSub?.status === 'trial') {
+      return (
+        <Link to={`/pay?school=${user?.school_id}&email=${user?.email}`} className={base}>
+          Upgrade Now <ArrowRight className="h-4 w-4" />
+        </Link>
+      );
+    }
+
+    // Default — new visitor, start free trial
+    return (
+      <Link to={`/register?plan=${plan.slug}`} className={base}>
+        Start Free Trial <ArrowRight className="h-4 w-4" />
+      </Link>
+    );
+  }
 
   const plans = allPlans.filter((p) => p.is_visible && p.is_active);
 
@@ -153,16 +212,7 @@ export default function PricingPage() {
                         ))}
                     </ul>
 
-                    <Link
-                      to={`/register?plan=${plan.slug}`}
-                      className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all ${
-                        isPopular
-                          ? 'bg-primary-600 text-white shadow-md hover:bg-primary-700'
-                          : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      Start Free Trial <ArrowRight className="h-4 w-4" />
-                    </Link>
+                    <PlanButton plan={plan} isPopular={isPopular} />
                   </div>
                 );
               })}

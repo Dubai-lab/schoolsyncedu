@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useFetch, useMutate } from '@/hooks/useFetch';
-import { billingService } from '@/services/adminService';
-import type { BillingInvoice, Subscription, PlatformPayment } from '@/types/report.types';
+import { billingService, schoolManagementService } from '@/services/adminService';
+import type { BillingInvoice, SubscriptionWithSchool, PlatformPayment } from '@/types/report.types';
 import Table from '@/components/ui/Table';
 import type { Column } from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
@@ -10,7 +10,7 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Card } from '@/components/ui/Card';
 import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { notify } from '@/components/shared/Toast';
-import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban } from 'lucide-react';
+import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock } from 'lucide-react';
 
 type Tab = 'invoices' | 'subscriptions' | 'payments';
 type StatusFilter = 'all' | BillingInvoice['status'];
@@ -21,29 +21,34 @@ function fmt(amount: number) {
 
 const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
   switch (s) {
-    case 'paid': case 'active': return 'success';
-    case 'sent': case 'trial': return 'info';
-    case 'overdue': case 'suspended': case 'cancelled': return 'danger';
-    case 'draft': case 'grace': return 'default';
-    case 'void': case 'archived': return 'warning';
-    default: return 'default';
+    case 'paid': case 'active':                          return 'success';
+    case 'sent': case 'trial':                           return 'info';
+    case 'overdue': case 'suspended': case 'cancelled':  return 'danger';
+    case 'draft': case 'grace':                          return 'default';
+    case 'void': case 'archived':                        return 'warning';
+    default:                                             return 'default';
   }
 };
 
 export default function BillingCenter() {
-  const [tab, setTab] = useState<Tab>('invoices');
+  const [tab, setTab]               = useState<Tab>('invoices');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [viewInvoice, setViewInvoice] = useState<BillingInvoice | null>(null);
-  const [voidTarget, setVoidTarget] = useState<BillingInvoice | null>(null);
+  const [viewInvoice, setViewInvoice]   = useState<BillingInvoice | null>(null);
+  const [voidTarget, setVoidTarget]     = useState<BillingInvoice | null>(null);
+
+  // Subscription actions
+  const [suspendSub, setSuspendSub]           = useState<SubscriptionWithSchool | null>(null);
+  const [graceSub, setGraceSub]               = useState<SubscriptionWithSchool | null>(null);
+  const [graceExtendDays, setGraceExtendDays] = useState(7);
 
   const { data: invoices = [], isLoading: loadingInv } = useFetch<BillingInvoice[]>(
     ['admin-invoices'],
     () => billingService.listInvoices()
   );
 
-  const { data: subscriptions = [], isLoading: loadingSubs } = useFetch<Subscription[]>(
-    ['admin-subscriptions'],
-    () => billingService.listSubscriptions()
+  const { data: subscriptions = [], isLoading: loadingSubs } = useFetch<SubscriptionWithSchool[]>(
+    ['admin-subscriptions-detail'],
+    () => billingService.listSubscriptionsWithDetails()
   );
 
   const { data: platformPayments = [], isLoading: loadingPayments } = useFetch<(PlatformPayment & { schools?: { name: string } })[]>(
@@ -61,10 +66,27 @@ export default function BillingCenter() {
     [['admin-invoices']]
   );
 
+  const suspendMutation = useMutate(
+    (schoolId: string) => schoolManagementService.suspendSchool(schoolId, 'Suspended from Billing Center'),
+    [['admin-subscriptions-detail'], ['admin-schools']]
+  );
+
+  const reactivateMutation = useMutate(
+    ({ schoolId, days }: { schoolId: string; days: number }) =>
+      schoolManagementService.reactivateSchool(schoolId, days),
+    [['admin-subscriptions-detail'], ['admin-schools']]
+  );
+
+  const extendGraceMutation = useMutate(
+    ({ subId, days }: { subId: string; days: number }) =>
+      billingService.extendGracePeriod(subId, days),
+    [['admin-subscriptions-detail']]
+  );
+
   const handleMarkPaid = (inv: BillingInvoice) => {
     markPaidMutation.mutate(inv.id, {
       onSuccess: () => notify.success(`Invoice ${inv.invoice_number} marked as paid`),
-      onError: () => notify.error('Failed to update invoice'),
+      onError:   () => notify.error('Failed to update invoice'),
     });
   };
 
@@ -72,15 +94,35 @@ export default function BillingCenter() {
     if (!voidTarget) return;
     voidMutation.mutate(voidTarget.id, {
       onSuccess: () => { notify.success(`Invoice ${voidTarget.invoice_number} voided`); setVoidTarget(null); },
-      onError: () => notify.error('Failed to void invoice'),
+      onError:   () => notify.error('Failed to void invoice'),
+    });
+  };
+
+  const handleSuspendSub = () => {
+    if (!suspendSub) return;
+    suspendMutation.mutate(suspendSub.school_id, {
+      onSuccess: () => { notify.success(`${suspendSub.school_name} suspended`); setSuspendSub(null); },
+      onError:   () => notify.error('Failed to suspend school'),
+    });
+  };
+
+  const handleExtendGrace = () => {
+    if (!graceSub) return;
+    extendGraceMutation.mutate({ subId: graceSub.id, days: graceExtendDays }, {
+      onSuccess: () => {
+        notify.success(`Grace period extended by ${graceExtendDays} days for ${graceSub.school_name}`);
+        setGraceSub(null);
+        setGraceExtendDays(7);
+      },
+      onError: () => notify.error('Failed to extend grace period'),
     });
   };
 
   const filteredInvoices = statusFilter === 'all' ? invoices : invoices.filter((i) => i.status === statusFilter);
-  const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_usd, 0);
-  const paidCount = invoices.filter((i) => i.status === 'paid').length;
-  const overdueCount = invoices.filter((i) => i.status === 'overdue').length;
-  const pendingCount = invoices.filter((i) => i.status === 'sent' || i.status === 'draft').length;
+  const totalRevenue  = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_usd, 0);
+  const paidCount     = invoices.filter((i) => i.status === 'paid').length;
+  const overdueCount  = invoices.filter((i) => i.status === 'overdue').length;
+  const pendingCount  = invoices.filter((i) => i.status === 'sent' || i.status === 'draft').length;
 
   const invoiceColumns: Column<BillingInvoice>[] = [
     {
@@ -128,10 +170,10 @@ export default function BillingCenter() {
           </Button>
           {row.status !== 'paid' && row.status !== 'void' && (
             <>
-              <Button variant="ghost" size="sm" onClick={() => handleMarkPaid(row)}>
+              <Button variant="ghost" size="sm" onClick={() => handleMarkPaid(row)} title="Mark Paid">
                 <CheckCircle className="w-4 h-4 text-green-600" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setVoidTarget(row)}>
+              <Button variant="ghost" size="sm" onClick={() => setVoidTarget(row)} title="Void">
                 <Ban className="w-4 h-4 text-red-500" />
               </Button>
             </>
@@ -174,17 +216,85 @@ export default function BillingCenter() {
     },
   ];
 
-  const subColumns: Column<Subscription>[] = [
-    { key: 'school_id', header: 'School ID', render: (row) => <span className="font-mono text-xs">{row.school_id.slice(0, 8)}...</span> },
-    { key: 'plan_id', header: 'Plan ID', render: (row) => <span className="font-mono text-xs">{row.plan_id.slice(0, 8)}...</span> },
-    { key: 'status', header: 'Status', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
-    { key: 'started_at', header: 'Started', render: (row) => new Date(row.started_at).toLocaleDateString() },
-    { key: 'expires_at', header: 'Expires', render: (row) => new Date(row.expires_at).toLocaleDateString() },
-    { key: 'auto_renew', header: 'Auto-Renew', render: (row) => row.auto_renew ? <Badge variant="success">Yes</Badge> : <span className="text-gray-400">No</span> },
-    { key: 'payment_method', header: 'Payment', render: (row) => row.payment_method ? <Badge variant="outline">{row.payment_method}</Badge> : '—' },
+  const subColumns: Column<SubscriptionWithSchool>[] = [
+    {
+      key: 'school_name',
+      header: 'School',
+      render: (row) => <span className="font-medium text-gray-900">{row.school_name}</span>,
+    },
+    {
+      key: 'plan_name',
+      header: 'Plan',
+      render: (row) => <Badge variant="outline">{row.plan_name}</Badge>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge>,
+    },
+    {
+      key: 'started_at',
+      header: 'Started',
+      render: (row) => new Date(row.started_at).toLocaleDateString(),
+    },
+    {
+      key: 'expires_at',
+      header: 'Expires',
+      render: (row) => {
+        const d = new Date(row.expires_at);
+        const expired = d < new Date();
+        return (
+          <span className={expired ? 'text-red-600 font-medium' : ''}>
+            {d.toLocaleDateString()}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'auto_renew',
+      header: 'Auto-Renew',
+      render: (row) => row.auto_renew ? <Badge variant="success">Yes</Badge> : <span className="text-gray-400">No</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          {row.status === 'suspended' ? (
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => { setGraceSub(row); setGraceExtendDays(7); }}
+              title="Reactivate with grace period"
+            >
+              <Wifi className="w-4 h-4 text-green-600" />
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => { setGraceSub(row); setGraceExtendDays(7); }}
+                title="Extend grace period"
+              >
+                <CalendarClock className="w-4 h-4 text-blue-600" />
+              </Button>
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => setSuspendSub(row)}
+                title="Suspend school"
+              >
+                <WifiOff className="w-4 h-4 text-amber-500" />
+              </Button>
+            </>
+          )}
+        </div>
+      ),
+    },
   ];
 
-  const tabClass = (t: Tab) => `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === t ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`;
+  const tabClass = (t: Tab) =>
+    `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+      tab === t ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+    }`;
 
   return (
     <div className="space-y-6">
@@ -244,7 +354,9 @@ export default function BillingCenter() {
         <button className={tabClass('payments')} onClick={() => setTab('payments')}>
           Payments {platformPayments.length > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{platformPayments.length}</span>}
         </button>
-        <button className={tabClass('subscriptions')} onClick={() => setTab('subscriptions')}>Subscriptions</button>
+        <button className={tabClass('subscriptions')} onClick={() => setTab('subscriptions')}>
+          Subscriptions {subscriptions.length > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{subscriptions.length}</span>}
+        </button>
       </div>
 
       {tab === 'invoices' && (
@@ -287,19 +399,26 @@ export default function BillingCenter() {
             data={platformPayments}
             keyExtractor={(r) => r.id}
             loading={loadingPayments}
-            emptyMessage="No payment records found. Payments are recorded here after a successful Flutterwave transaction."
+            emptyMessage="No payment records found."
           />
         </>
       )}
 
       {tab === 'subscriptions' && (
-        <Table<Subscription>
-          columns={subColumns}
-          data={subscriptions}
-          keyExtractor={(r) => r.id}
-          loading={loadingSubs}
-          emptyMessage="No subscriptions found."
-        />
+        <>
+          <div className="text-sm text-gray-500 mb-2">
+            <span className="font-semibold text-gray-800">{subscriptions.filter((s) => s.status === 'active').length}</span> active,{' '}
+            <span className="font-semibold text-amber-600">{subscriptions.filter((s) => s.status === 'grace').length}</span> in grace period,{' '}
+            <span className="font-semibold text-red-600">{subscriptions.filter((s) => s.status === 'suspended').length}</span> suspended.
+          </div>
+          <Table<SubscriptionWithSchool>
+            columns={subColumns}
+            data={subscriptions}
+            keyExtractor={(r) => r.id}
+            loading={loadingSubs}
+            emptyMessage="No subscriptions found."
+          />
+        </>
       )}
 
       {/* ===== VIEW INVOICE MODAL ===== */}
@@ -339,6 +458,73 @@ export default function BillingCenter() {
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => setVoidTarget(null)}>Cancel</Button>
           <Button variant="danger" size="sm" loading={voidMutation.isPending} onClick={handleVoid}>Void Invoice</Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ===== SUSPEND SUBSCRIPTION CONFIRM ===== */}
+      <Dialog open={!!suspendSub} onClose={() => setSuspendSub(null)} className="max-w-sm">
+        <DialogHeader onClose={() => setSuspendSub(null)}>
+          <DialogTitle>Suspend School</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <p className="text-sm text-gray-600">
+            This will take <strong>{suspendSub?.school_name}</strong> offline immediately and set their subscription to <em>suspended</em>. They will lose portal access.
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => setSuspendSub(null)}>Cancel</Button>
+          <Button variant="danger" size="sm" loading={suspendMutation.isPending} onClick={handleSuspendSub}>
+            <WifiOff className="w-4 h-4 mr-1" /> Suspend
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ===== EXTEND GRACE / REACTIVATE ===== */}
+      <Dialog open={!!graceSub} onClose={() => { setGraceSub(null); setGraceExtendDays(7); }} className="max-w-sm">
+        <DialogHeader onClose={() => { setGraceSub(null); setGraceExtendDays(7); }}>
+          <DialogTitle>
+            {graceSub?.status === 'suspended' ? 'Reactivate School' : 'Extend Grace Period'}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <p className="text-sm text-gray-600 mb-4">
+            {graceSub?.status === 'suspended'
+              ? `Reactivate ${graceSub?.school_name} and give them a grace period to make payment.`
+              : `Extend grace period for ${graceSub?.school_name}.`}
+          </p>
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600">Number of Days</label>
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={graceExtendDays}
+              onChange={(e) => setGraceExtendDays(Math.max(1, Number(e.target.value)))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+            />
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => { setGraceSub(null); setGraceExtendDays(7); }}>Cancel</Button>
+          {graceSub?.status === 'suspended' ? (
+            <Button
+              size="sm"
+              loading={reactivateMutation.isPending}
+              onClick={() => {
+                if (!graceSub) return;
+                reactivateMutation.mutate({ schoolId: graceSub.school_id, days: graceExtendDays }, {
+                  onSuccess: () => { notify.success(`${graceSub.school_name} reactivated`); setGraceSub(null); },
+                  onError:   () => notify.error('Failed to reactivate'),
+                });
+              }}
+            >
+              <Wifi className="w-4 h-4 mr-1" /> Reactivate ({graceExtendDays}d)
+            </Button>
+          ) : (
+            <Button size="sm" loading={extendGraceMutation.isPending} onClick={handleExtendGrace}>
+              <CalendarClock className="w-4 h-4 mr-1" /> Extend ({graceExtendDays}d)
+            </Button>
+          )}
         </DialogFooter>
       </Dialog>
     </div>

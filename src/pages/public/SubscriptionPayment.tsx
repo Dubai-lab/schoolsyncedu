@@ -8,6 +8,8 @@ import {
   mapFlutterwaveMethod,
   type PaymentPageData,
 } from '@/services/flutterwaveService';
+import { discountService } from '@/services/adminService';
+import type { Discount } from '@/types/report.types';
 import {
   CreditCard,
   CheckCircle2,
@@ -16,6 +18,8 @@ import {
   ArrowRight,
   BookOpen,
   AlertTriangle,
+  Tag,
+  X,
 } from 'lucide-react';
 
 export default function SubscriptionPayment() {
@@ -24,12 +28,19 @@ export default function SubscriptionPayment() {
   const schoolId = searchParams.get('school');
   const email = searchParams.get('email');
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [paymentData, setPaymentData] = useState<PaymentPageData | null>(null);
-  const [processing, setProcessing] = useState(false);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState('');
+  const [paymentData, setPaymentData]       = useState<PaymentPageData | null>(null);
+  const [processing, setProcessing]         = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceNumber, setInvoiceNumber]   = useState('');
+
+  // Coupon / discount state
+  const [couponInput, setCouponInput]   = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
+  const [couponError, setCouponError]   = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
 
   // Fetch the school, subscription, and plan info via RPC
   useEffect(() => {
@@ -45,10 +56,52 @@ export default function SubscriptionPayment() {
       .finally(() => setLoading(false));
   }, [schoolId, email]);
 
+  // Compute discounted price
+  function discountedPrice(basePrice: number): number {
+    if (!appliedDiscount) return basePrice;
+    if (appliedDiscount.type === 'percentage') {
+      return Math.max(0, basePrice - (basePrice * appliedDiscount.value) / 100);
+    }
+    return Math.max(0, basePrice - appliedDiscount.value);
+  }
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !paymentData) return;
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponSuccess('');
+    try {
+      const discount = await discountService.validateCoupon(couponInput.trim(), paymentData.plan.id);
+      if (!discount) {
+        setCouponError('Invalid or expired coupon code.');
+        setAppliedDiscount(null);
+      } else {
+        setAppliedDiscount(discount);
+        const saving = discount.type === 'percentage'
+          ? `${discount.value}% off`
+          : `$${discount.value} off`;
+        setCouponSuccess(`Coupon applied! ${saving} — ${discount.name}`);
+      }
+    } catch {
+      setCouponError('Could not validate coupon. Please try again.');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedDiscount(null);
+    setCouponInput('');
+    setCouponError('');
+    setCouponSuccess('');
+  };
+
   // Build Flutterwave config
+  const finalAmount = paymentData ? discountedPrice(paymentData.plan.price_usd) : 0;
+
   const flutterwaveConfig = paymentData
     ? buildFlutterwaveConfig({
-        amount: paymentData.plan.price_usd,
+        amount: finalAmount,
         email: paymentData.owner.email,
         name: paymentData.owner.name,
         phone: paymentData.owner.phone,
@@ -72,8 +125,10 @@ export default function SubscriptionPayment() {
     if (!paymentData || !flutterwaveConfig) return;
 
     // Capture config values at the time of click (avoids stale closure)
-    const capturedConfig = flutterwaveConfig;
-    const capturedData = paymentData;
+    const capturedConfig   = flutterwaveConfig;
+    const capturedData     = paymentData;
+    const capturedDiscount = appliedDiscount;
+    const capturedAmount   = finalAmount;
 
     handleFlutterPayment({
       callback: async (response) => {
@@ -86,11 +141,15 @@ export default function SubscriptionPayment() {
             const result = await recordSubscriptionPayment({
               schoolId: capturedData.school.id,
               subscriptionId: capturedData.subscription.id,
-              amountUsd: capturedData.plan.price_usd,
+              amountUsd: capturedAmount,
               gatewayRef: String(response.transaction_id ?? response.flw_ref ?? ''),
               txRef: capturedConfig.tx_ref,
               paymentMethod: mapFlutterwaveMethod((response as unknown as Record<string, string>).payment_type),
             });
+            // Increment coupon uses if a discount was applied
+            if (capturedDiscount) {
+              discountService.incrementCouponUses(capturedDiscount.id).catch(() => {/* non-critical */});
+            }
             // Both fresh activation and already-active count as success
             setInvoiceNumber(result.invoiceNumber ?? '');
             setPaymentSuccess(true);
@@ -263,6 +322,41 @@ export default function SubscriptionPayment() {
                 </div>
               </div>
 
+              {/* Coupon code input */}
+              <div className="mt-6">
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                  <Tag className="inline h-3.5 w-3.5 mr-1" />
+                  Discount / Coupon Code
+                </label>
+                {appliedDiscount ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
+                    <span className="flex-1 text-green-700 font-medium">{couponSuccess}</span>
+                    <button onClick={handleRemoveCoupon} className="text-green-600 hover:text-green-800">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                      placeholder="Enter code"
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase tracking-wider focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponInput.trim()}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                    >
+                      {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                    </button>
+                  </div>
+                )}
+                {couponError && <p className="mt-1.5 text-xs text-red-600">{couponError}</p>}
+              </div>
+
               <div className="mt-6 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">School</span>
@@ -276,9 +370,25 @@ export default function SubscriptionPayment() {
                   <span className="text-slate-500">Email</span>
                   <span className="font-medium text-slate-700">{paymentData.owner.email}</span>
                 </div>
+                {appliedDiscount && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Subtotal</span>
+                      <span className="text-slate-700">${paymentData.plan.price_usd} USD</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-600 font-medium">Discount ({appliedDiscount.name})</span>
+                      <span className="text-green-600 font-medium">
+                        -{appliedDiscount.type === 'percentage'
+                          ? `${appliedDiscount.value}%`
+                          : `$${appliedDiscount.value}`}
+                      </span>
+                    </div>
+                  </>
+                )}
                 <div className="border-t border-slate-100 pt-3 flex justify-between text-base">
                   <span className="font-semibold text-slate-900">Total</span>
-                  <span className="font-bold text-slate-900">${paymentData.plan.price_usd} USD</span>
+                  <span className="font-bold text-slate-900">${finalAmount.toFixed(2)} USD</span>
                 </div>
               </div>
             </div>
@@ -309,7 +419,7 @@ export default function SubscriptionPayment() {
                   </>
                 ) : (
                   <>
-                    <CreditCard className="h-4 w-4" /> Pay ${paymentData.plan.price_usd} USD
+                    <CreditCard className="h-4 w-4" /> Pay ${finalAmount.toFixed(2)} USD
                   </>
                 )}
               </button>
