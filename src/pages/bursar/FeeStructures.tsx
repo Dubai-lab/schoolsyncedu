@@ -19,8 +19,8 @@ import {
   Layers,
   X,
   Check,
-  Users,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 
 // ==================== OPTIONS ====================
@@ -67,7 +67,6 @@ export default function FeeStructures() {
   const [form, setForm] = useState<FeeForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [assigning, setAssigning] = useState<string | null>(null);
 
   // Academic year from school settings (set by IT Admin)
   const { data: currentAcademicYear } = useFetch(
@@ -120,6 +119,7 @@ export default function FeeStructures() {
           description: form.description || undefined,
           dueDate: form.dueDate,
         });
+        // auto_assign_fees_for_new_structure is called inside createFeeStructure
       }
       setForm(emptyForm);
       setShowForm(false);
@@ -142,27 +142,6 @@ export default function FeeStructures() {
       console.error('Failed to delete:', err);
     } finally {
       setDeleting(null);
-    }
-  };
-
-  const handleBulkAssign = async (fee: FeeStructure) => {
-    const target = fee.grade_level || 'selected class';
-    if (!confirm(`Assign "${fee.fee_type}" fee to all enrolled students in ${target}?`)) return;
-    setAssigning(fee.id);
-    try {
-      const result = await bursarService.bulkAssignFees(
-        schoolId,
-        fee.id,
-        fee.class_id ?? null,
-        fee.grade_level,
-        fee.academic_year,
-      );
-      alert(`Successfully assigned to ${result.assigned} student${result.assigned !== 1 ? 's' : ''}`);
-    } catch (err) {
-      console.error('Bulk assign failed:', err);
-      alert('Failed to assign fees');
-    } finally {
-      setAssigning(null);
     }
   };
 
@@ -335,7 +314,7 @@ export default function FeeStructures() {
           <Layers className="mx-auto h-12 w-12 text-slate-300" />
           <p className="mt-3 text-sm text-slate-500">No fee structures yet</p>
           <p className="mt-1 text-xs text-slate-400">
-            Create fee structures for each class to start assigning fees to students
+            Create a fee structure for a class — it will automatically be assigned to all enrolled students
           </p>
         </div>
       ) : (
@@ -348,6 +327,10 @@ export default function FeeStructures() {
                   <Layers className="h-5 w-5 text-primary-600" />
                   <h2 className="text-lg font-semibold text-slate-900">Class: {className}</h2>
                   <Badge variant="default">{fees.length} fee{fees.length !== 1 ? 's' : ''}</Badge>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+                  <Zap className="h-3.5 w-3.5" />
+                  Auto-assigned to enrolled students
                 </div>
               </div>
 
@@ -389,18 +372,6 @@ export default function FeeStructures() {
                               title="Edit"
                             >
                               <Edit3 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleBulkAssign(fee)}
-                              className="rounded-md p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-                              title="Assign to all students in this class"
-                              disabled={assigning === fee.id}
-                            >
-                              {assigning === fee.id ? (
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-                              ) : (
-                                <Users className="h-4 w-4" />
-                              )}
                             </button>
                             <button
                               onClick={() => handleDelete(fee.id)}

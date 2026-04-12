@@ -96,6 +96,12 @@ export const bursarService = {
       .select()
       .single();
     if (error) throw error;
+
+    // Auto-assign this fee to all currently enrolled students in the class
+    await supabase.rpc('auto_assign_fees_for_new_structure', {
+      p_fee_structure_id: data.id,
+    });
+
     return data as FeeStructure;
   },
 
@@ -227,7 +233,10 @@ export const bursarService = {
 
     if (inserts.length === 0) return { assigned: 0 };
 
-    const { error } = await supabase.from('student_fees').insert(inserts);
+    // ignoreDuplicates: true → ON CONFLICT DO NOTHING — never re-charges paid students
+    const { error } = await supabase
+      .from('student_fees')
+      .upsert(inserts, { onConflict: 'student_id,fee_structure_id', ignoreDuplicates: true });
     if (error) throw error;
     return { assigned: inserts.length };
   },
