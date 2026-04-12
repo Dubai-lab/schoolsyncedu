@@ -199,15 +199,31 @@ export const promotionService = {
     return (data ?? []) as StudentPromotion[];
   },
 
-  /** Get unique academic years that have grades */
+  /** Get academic years available for promotion.
+   *  Always includes the school's current_academic_year setting so the registrar
+   *  can select it even before all grades are entered/approved. */
   async getAcademicYearsWithGrades(schoolId: UUID): Promise<string[]> {
-    const { data, error } = await supabase
+    // Pull years from approved grades
+    const { data: gradesData } = await supabase
       .from('grades')
       .select('academic_year')
       .eq('school_id', schoolId)
       .eq('status', 'approved');
-    if (error) throw error;
-    const years = [...new Set((data ?? []).map((g) => g.academic_year as string))].sort().reverse();
-    return years;
+
+    // Also pull the school's active academic year setting
+    const { data: settingData } = await supabase
+      .from('school_settings')
+      .select('setting_value')
+      .eq('school_id', schoolId)
+      .eq('setting_key', 'current_academic_year')
+      .maybeSingle();
+
+    const fromGrades = (gradesData ?? []).map((g) => g.academic_year as string).filter(Boolean);
+    const currentYear = settingData?.setting_value ?? null;
+
+    const allYears = new Set(fromGrades);
+    if (currentYear) allYears.add(currentYear);
+
+    return [...allYears].sort().reverse();
   },
 };

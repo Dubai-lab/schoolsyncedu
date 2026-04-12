@@ -172,8 +172,9 @@ export default function StudentPromotion() {
             </p>
           )}
           {selectedYear && !isLoading && totalStudents === 0 && (
-            <p className="text-sm text-emerald-600 pb-1 flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" /> All students for this year have already been processed.
+            <p className="text-sm text-slate-500 pb-1 flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              No pending students — either all have been processed or no approved grades exist for this year yet.
             </p>
           )}
         </div>
