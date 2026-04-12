@@ -94,7 +94,8 @@ export default function NfcAttendance() {
 
         ndef.addEventListener('reading', (event: unknown) => {
           const e = event as { serialNumber?: string; message?: { records?: { data?: ArrayBuffer }[] } };
-          const chipId = e.serialNumber ?? '';
+          // Normalize to match the format used during encoding: no colons, uppercase
+          const chipId = (e.serialNumber ?? '').replace(/:/g, '').toUpperCase();
           if (chipId) {
             handleNfcTap(chipId);
           }
@@ -119,7 +120,7 @@ export default function NfcAttendance() {
     try {
       const { data: card, error } = await supabase
         .from('nfc_cards')
-        .select('student_id, students:student_id(id, first_name, last_name, registration_number)')
+        .select('id, student_id, students:student_id(id, first_name, last_name, registration_number)')
         .eq('school_id', schoolId)
         .eq('nfc_chip_id', nfcChipId)
         .eq('status', 'active')
@@ -138,7 +139,7 @@ export default function NfcAttendance() {
 
       // Log the NFC tap
       await supabase.from('nfc_attendance_logs').insert({
-        card_id: card.student_id, // simplified — ideally should be the card's own ID
+        card_id: (card as Record<string, unknown>).id as string,
         student_id: student.id,
         tapped_at: new Date().toISOString(),
         reader_type: 'web_nfc',

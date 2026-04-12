@@ -197,6 +197,7 @@ export const nfcCardService = {
   },
 
   async getAssignments(schoolId: UUID) {
+    // Filter by school via the nfc_cards join using PostgREST embedded filter syntax
     const { data, error } = await supabase
       .from('nfc_chip_assignments')
       .select(`
@@ -206,9 +207,14 @@ export const nfcCardService = {
         )
       `)
       .eq('nfc_cards.school_id', schoolId)
+      .not('nfc_cards', 'is', null)
       .order('assignment_date', { ascending: false });
     if (error) throw error;
-    return data;
+    // Client-side safety filter in case the embedded filter doesn't propagate
+    return (data ?? []).filter((row: Record<string, unknown>) => {
+      const card = row.nfc_cards as Record<string, unknown> | null;
+      return card !== null;
+    });
   },
 
   async getStudentsWithoutCards(schoolId: UUID) {

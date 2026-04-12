@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { nfcCardService } from '@/services/nfcService';
@@ -105,6 +105,7 @@ export default function NfcAssignment() {
   // Android NFC scan state
   const [nfcSupported, setNfcSupported] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const nfcAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     // NDEFReader is available on Android Chrome (PWA and browser)
@@ -139,6 +140,12 @@ export default function NfcAssignment() {
 
   // ── Android Web NFC scan ──────────────────────────────────────────
 
+  function stopNfcScan() {
+    nfcAbortRef.current?.abort();
+    nfcAbortRef.current = null;
+    setIsScanning(false);
+  }
+
   async function scanWithNfc() {
     if (!('NDEFReader' in window)) {
       notify.error('NFC scanning is not supported on this device.');
@@ -148,29 +155,35 @@ export default function NfcAssignment() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ndef = new (window as any).NDEFReader();
-      await ndef.scan();
+      const abort = new AbortController();
+      nfcAbortRef.current = abort;
+
+      await ndef.scan({ signal: abort.signal });
       notify.success('Hold the NFC card to the back of your phone…');
 
       ndef.addEventListener('reading', ({ serialNumber }: { serialNumber: string }) => {
         const chipId = serialNumber.replace(/:/g, '').toUpperCase();
         setNfcChipId(chipId);
         setAssignMethod('pwa_scan');
-        setIsScanning(false);
+        // Stop scanning after first successful read
+        stopNfcScan();
         notify.success(`NFC chip detected: ${chipId}`);
       });
 
       ndef.addEventListener('readingerror', () => {
         notify.error('Could not read NFC chip. Try again.');
-        setIsScanning(false);
+        stopNfcScan();
       });
     } catch (err) {
+      // AbortError is expected when we cancel the scan — not a real error
+      if (err instanceof Error && err.name === 'AbortError') return;
       const msg = err instanceof Error ? err.message : 'NFC scan failed';
       if (msg.includes('permission')) {
         notify.error('NFC permission denied. Enable NFC in your phone settings.');
       } else {
         notify.error(msg);
       }
-      setIsScanning(false);
+      stopNfcScan();
     }
   }
 
@@ -181,10 +194,17 @@ export default function NfcAssignment() {
       if (!selectedCard || !nfcChipId.trim()) throw new Error('Missing data');
 
       // Step 1: Write chip data onto the card record (printed → encoded)
+      const expiryDate = selectedCard.valid_until
+        ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       await nfcCardService.encodeNfc(
         selectedCard.id,
         nfcChipId.trim(),
-        { student_id: selectedCard.student_id, card_number: selectedCard.card_number },
+        {
+          student_id: selectedCard.student_id,
+          school_id: schoolId,
+          permissions: ['attendance', 'library', 'gate_access'],
+          expiry: expiryDate,
+        },
         user?.id ?? '',
       );
 
@@ -202,10 +222,10 @@ export default function NfcAssignment() {
     {
       onSuccess: () => {
         notify.success(`Card ${selectedCard?.card_number} encoded and activated.`);
+        stopNfcScan();
         setSelectedCard(null);
         setNfcChipId('');
         setAssignMethod('manual');
-        setIsScanning(false);
       },
     },
   );
@@ -539,7 +559,7 @@ export default function NfcAssignment() {
       )}
 
       {/* NFC Encode Dialog */}
-      <Dialog open={!!selectedCard} onClose={() => { setSelectedCard(null); setNfcChipId(''); setIsScanning(false); }}>
+      <Dialog open={!!selectedCard} onClose={() => { stopNfcScan(); setSelectedCard(null); setNfcChipId(''); }}>
         <DialogHeader>
           <DialogTitle>Encode & Activate NFC Card</DialogTitle>
         </DialogHeader>
@@ -628,7 +648,7 @@ export default function NfcAssignment() {
           )}
         </DialogBody>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { setSelectedCard(null); setNfcChipId(''); setIsScanning(false); }}>
+          <Button variant="ghost" onClick={() => { stopNfcScan(); setSelectedCard(null); setNfcChipId(''); }}>
             Cancel
           </Button>
           <Button
