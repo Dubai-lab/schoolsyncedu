@@ -179,7 +179,7 @@ export default function GlobalSearch() {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setQuery(val);
-    clearTimeout(debounceRef.current);
+    clearTimeout(debounceRef.current ?? undefined);
     if (val.trim().length < 2) {
       setResults([]);
       setIsOpen(false);

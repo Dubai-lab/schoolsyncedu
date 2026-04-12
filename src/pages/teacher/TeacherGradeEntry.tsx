@@ -74,46 +74,6 @@ function clampedInput(value: string, max: number): string {
   return value;
 }
 
-// ── Component Score Input ──────────────────────────────────────────────
-
-function ComponentInput({
-  value,
-  max,
-  onChange,
-  label,
-}: {
-  value: string;
-  max: number;
-  onChange: (v: string) => void;
-  label: string;
-}) {
-  const num = value !== '' ? Number(value) : null;
-  const isOver = num !== null && num > max;
-
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[10px] text-slate-400 font-medium">{label}</span>
-      <div className="relative">
-        <input
-          type="number"
-          min={0}
-          max={max}
-          step={0.5}
-          value={value}
-          onChange={(e) => onChange(clampedInput(e.target.value, max))}
-          className={`w-14 rounded-md border px-1.5 py-1 text-center text-sm focus:outline-none focus:ring-1 transition-colors ${
-            isOver
-              ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-400 focus:ring-red-300'
-              : 'border-slate-200 focus:border-primary-400 focus:ring-primary-400'
-          }`}
-          placeholder="—"
-        />
-      </div>
-      <span className="text-[9px] text-slate-300">/{max}</span>
-    </div>
-  );
-}
-
 // ── Main Page ──────────────────────────────────────────────────────────
 
 export default function TeacherGradeEntry() {
