@@ -123,6 +123,37 @@ export default function SchoolSite() {
       .finally(() => setLoading(false));
   }, [slug]);
 
+  // Inject a school-specific PWA manifest so the installed app shows
+  // the school's name and colour instead of the default "SchoolSync".
+  useEffect(() => {
+    if (!school || !slug) return;
+
+    const params = new URLSearchParams({
+      name:  school.name,
+      slug,
+      color: school.primary_color || '#1e3a5f',
+      ...(school.logo_url ? { logo: school.logo_url } : {}),
+    });
+
+    // Remove any existing manifest link, then add the school-specific one
+    const existing = document.querySelector('link[rel="manifest"]');
+    if (existing) existing.remove();
+
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = `/api/school-manifest?${params.toString()}`;
+    document.head.appendChild(link);
+
+    // Restore the default manifest when the visitor leaves the school page
+    return () => {
+      link.remove();
+      const def = document.createElement('link');
+      def.rel = 'manifest';
+      def.href = '/manifest.webmanifest';
+      document.head.appendChild(def);
+    };
+  }, [school, slug]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
