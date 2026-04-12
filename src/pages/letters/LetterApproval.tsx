@@ -8,7 +8,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Card } from '@/components/ui/Card';
-import { CheckCircle, XCircle, RotateCcw, MessageSquare, ChevronDown, ChevronUp, Eye, Mail, Lock } from 'lucide-react';
+import { XCircle, RotateCcw, MessageSquare, ChevronDown, ChevronUp, Eye, Mail, Lock } from 'lucide-react';
 import type { LetterApprovalStatus } from '@/types/letter.types';
 import { notify } from '@/components/shared/Toast';
 
