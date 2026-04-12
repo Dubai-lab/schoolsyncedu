@@ -9,6 +9,7 @@ import {
   Users,
   GraduationCap,
   CalendarCheck,
+
   DollarSign,
   Mail,
   Library,
@@ -155,6 +156,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Registrar Home', path: '/registrar', icon: ClipboardCheck, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Applications', path: '/registrar/applications', icon: ClipboardList, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Year-End Promotion', path: '/registrar/promotion', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL] },
     ],
   },
   {

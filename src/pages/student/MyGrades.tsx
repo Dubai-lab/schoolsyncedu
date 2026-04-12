@@ -222,6 +222,7 @@ export default function MyGrades() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
   const userId = user?.id ?? '';
+  const [yearFilter, setYearFilter] = useState('');
   const [termFilter, setTermFilter] = useState('');
 
   // Privacy lock state
@@ -296,12 +297,24 @@ export default function MyGrades() {
     );
   }
 
-  // Group grades by term/semester
-  const terms = [...new Set(grades.map((g: Record<string, unknown>) => (g.term as string) || (g.academic_term as string) || 'Current'))];
+  // Unique academic years from all grades (most recent first)
+  const academicYears = [...new Set(
+    grades.map((g: Record<string, unknown>) => (g.academic_year as string) || '')
+  )].filter(Boolean).sort().reverse();
+
+  // Reset term filter when year changes
+  const handleYearChange = (year: string) => { setYearFilter(year); setTermFilter(''); };
+
+  // Filter by year first, then by term
+  const yearFiltered = yearFilter
+    ? grades.filter((g: Record<string, unknown>) => (g.academic_year as string) === yearFilter)
+    : grades;
+
+  const terms = [...new Set(yearFiltered.map((g: Record<string, unknown>) => (g.semester as string) || (g.term as string) || ''))].filter(Boolean);
 
   const filteredGrades = termFilter
-    ? grades.filter((g: Record<string, unknown>) => ((g.term as string) || (g.academic_term as string) || 'Current') === termFilter)
-    : grades;
+    ? yearFiltered.filter((g: Record<string, unknown>) => ((g.semester as string) || (g.term as string) || '') === termFilter)
+    : yearFiltered;
 
   // Calculate summary
   const scores = filteredGrades.filter((g: Record<string, unknown>) => g.score != null).map((g: Record<string, unknown>) => Number(g.score));
@@ -422,13 +435,41 @@ export default function MyGrades() {
         </Card>
       </div>
 
+      {/* Academic year filter */}
+      {academicYears.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Academic Year</p>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => handleYearChange('')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                !yearFilter ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-50 text-slate-500 border-slate-200'
+              }`}
+            >
+              All Years
+            </button>
+            {academicYears.map((y) => (
+              <button
+                key={y}
+                onClick={() => handleYearChange(y)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  yearFilter === y ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Term filter */}
       {terms.length > 1 && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setTermFilter('')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              !termFilter ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-50 text-slate-500 border-slate-200'
+              !termFilter ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-50 text-slate-500 border-slate-200'
             }`}
           >
             All Terms
@@ -438,7 +479,7 @@ export default function MyGrades() {
               key={t}
               onClick={() => setTermFilter(t)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                termFilter === t ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-50 text-slate-500 border-slate-200'
+                termFilter === t ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-50 text-slate-500 border-slate-200'
               }`}
             >
               {t}
@@ -467,8 +508,8 @@ export default function MyGrades() {
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Subject</th>
                   <th className="px-4 py-3 text-center font-medium text-slate-600">Score</th>
                   <th className="px-4 py-3 text-center font-medium text-slate-600">Grade</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">Year</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Term</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -489,11 +530,11 @@ export default function MyGrades() {
                           {getGradeLetter(score)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {(g.term as string) || (g.academic_term as string) || 'Current'}
+                      <td className="px-4 py-3 text-slate-500 text-xs">
+                        {(g.academic_year as string) || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-400 text-xs">
-                        {g.created_at ? new Date(g.created_at as string).toLocaleDateString() : '—'}
+                      <td className="px-4 py-3 text-slate-500 text-xs">
+                        {(g.semester as string) || (g.term as string) || '—'}
                       </td>
                     </tr>
                   );

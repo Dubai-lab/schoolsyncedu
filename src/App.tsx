@@ -159,6 +159,7 @@ import ReceiptView from '@/pages/fees/ReceiptView';
 import RegistrarDashboard from '@/pages/registrar/RegistrarDashboard';
 import ApplicationReview from '@/pages/registrar/ApplicationReview';
 import ApplicationDetail from '@/pages/registrar/ApplicationDetail';
+import StudentPromotion from '@/pages/registrar/StudentPromotion';
 
 // Bursar pages
 import BursarDashboard from '@/pages/bursar/BursarDashboard';
@@ -345,6 +346,7 @@ export default function App() {
           <Route path="/registrar" element={<RegistrarDashboard />} />
           <Route path="/registrar/applications" element={<ApplicationReview />} />
           <Route path="/registrar/applications/:id" element={<ApplicationDetail />} />
+          <Route path="/registrar/promotion" element={<StudentPromotion />} />
           {/* Bursar / Finance module */}
           <Route path="/bursar" element={<BursarDashboard />} />
           <Route path="/bursar/fee-structures" element={<FeeStructures />} />
