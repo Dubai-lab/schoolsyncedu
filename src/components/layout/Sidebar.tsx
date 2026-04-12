@@ -32,6 +32,10 @@ import {
   ClipboardCheck,
   Layers,
   KeyRound,
+  AlertTriangle,
+  ShieldOff,
+  HeartPulse,
+  TrendingDown,
 } from 'lucide-react';
 
 // ==================== NAV CONFIG ====================
@@ -131,6 +135,19 @@ const navGroups: NavGroup[] = [
       { label: 'Library', path: '/library', icon: Library, roles: [USER_ROLES.VICE_PRINCIPAL, USER_ROLES.ADMIN_STAFF, USER_ROLES.LIBRARIAN] },
       { label: 'Guidance', path: '/guidance', icon: Brain, roles: [USER_ROLES.VICE_PRINCIPAL, USER_ROLES.DEAN, USER_ROLES.COUNSELOR] },
       { label: 'ID Cards', path: '/idcards', icon: Nfc, roles: [USER_ROLES.VICE_PRINCIPAL, USER_ROLES.ADMIN_STAFF] },
+    ],
+  },
+  {
+    title: 'Dean of Students',
+    items: [
+      { label: 'Dean Home', path: '/dean', icon: LayoutDashboard, roles: [USER_ROLES.DEAN] },
+      { label: 'Incident Log', path: '/dean/incidents', icon: AlertTriangle, roles: [USER_ROLES.DEAN] },
+      { label: 'Teacher Referrals', path: '/dean/referrals', icon: Users, roles: [USER_ROLES.DEAN] },
+      { label: 'Suspensions', path: '/dean/suspensions', icon: ShieldOff, roles: [USER_ROLES.DEAN] },
+      { label: 'Parent Meetings', path: '/dean/meetings', icon: Calendar, roles: [USER_ROLES.DEAN] },
+      { label: 'Student Welfare', path: '/dean/welfare', icon: HeartPulse, roles: [USER_ROLES.DEAN] },
+      { label: 'Attendance Monitor', path: '/dean/attendance', icon: TrendingDown, roles: [USER_ROLES.DEAN] },
+      { label: 'Reports', path: '/dean/reports', icon: BarChart3, roles: [USER_ROLES.DEAN] },
     ],
   },
   {

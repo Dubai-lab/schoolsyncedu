@@ -168,6 +168,16 @@ import ApplicationFeePayments from '@/pages/bursar/ApplicationFeePayments';
 // IT Admin school settings
 import SchoolSettingsITAdmin from '@/pages/it-admin/SchoolSettings';
 
+// Dean of Students pages
+import DeanDashboard from '@/pages/dean/DeanDashboard';
+import DeanIncidentLog from '@/pages/dean/IncidentLog';
+import DeanTeacherReferrals from '@/pages/dean/TeacherReferrals';
+import DeanSuspensionManager from '@/pages/dean/SuspensionManager';
+import DeanParentMeetings from '@/pages/dean/ParentMeetings';
+import DeanStudentWelfare from '@/pages/dean/StudentWelfare';
+import DeanAttendanceMonitor from '@/pages/dean/AttendanceMonitor';
+import DeanReports from '@/pages/dean/DeanReports';
+
 // Teacher portal pages
 import TeacherDashboard from '@/pages/teacher/TeacherDashboard';
 import TeacherClasses from '@/pages/teacher/TeacherClasses';
@@ -351,6 +361,16 @@ export default function App() {
           <Route path="/waec/register" element={<CandidateRegistration />} />
           <Route path="/waec/candidates" element={<CandidateList />} />
           <Route path="/waec/results" element={<ExamResults />} />
+
+          {/* Dean of Students module */}
+          <Route path="/dean" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanDashboard /></RequireRole>} />
+          <Route path="/dean/incidents" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanIncidentLog /></RequireRole>} />
+          <Route path="/dean/referrals" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanTeacherReferrals /></RequireRole>} />
+          <Route path="/dean/suspensions" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanSuspensionManager /></RequireRole>} />
+          <Route path="/dean/meetings" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanParentMeetings /></RequireRole>} />
+          <Route path="/dean/welfare" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanStudentWelfare /></RequireRole>} />
+          <Route path="/dean/attendance" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanAttendanceMonitor /></RequireRole>} />
+          <Route path="/dean/reports" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanReports /></RequireRole>} />
 
           {/* Teacher portal */}
           <Route path="/teacher" element={<TeacherDashboard />} />

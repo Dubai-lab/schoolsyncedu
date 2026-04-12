@@ -17,6 +17,9 @@ export function useFetch<T>(
 
 /**
  * Wrapper around useMutation with automatic cache invalidation.
+ * After any successful mutation the listed query keys are invalidated
+ * so every component subscribed to those keys immediately re-fetches —
+ * no manual browser refresh needed.
  */
 export function useMutate<TData, TVariables>(
   mutationFn: (vars: TVariables) => Promise<TData>,
@@ -27,8 +30,14 @@ export function useMutate<TData, TVariables>(
   return useMutation<TData, Error, TVariables>({
     mutationFn,
     onSuccess: (...args) => {
-      invalidateKeys?.forEach((key) => qc.invalidateQueries({ queryKey: key }));
+      // Invalidate and immediately refetch all related queries
+      invalidateKeys?.forEach((key) =>
+        qc.invalidateQueries({ queryKey: key, refetchType: 'active' }),
+      );
       options?.onSuccess?.(...args);
+    },
+    onError: (...args) => {
+      options?.onError?.(...args);
     },
     ...options,
   });

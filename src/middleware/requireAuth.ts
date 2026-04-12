@@ -16,6 +16,7 @@ function getHomePath(role: string): string {
     case USER_ROLES.STUDENT:     return '/student/dashboard';
     case USER_ROLES.PROPRIETOR:  return '/proprietor';
     case USER_ROLES.SUPER_ADMIN: return '/admin';
+    case USER_ROLES.DEAN:        return '/dean';
     default:                     return '/dashboard';
   }
 }
