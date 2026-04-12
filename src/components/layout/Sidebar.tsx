@@ -79,6 +79,7 @@ const navGroups: NavGroup[] = [
       { label: 'Students', path: '/students', icon: GraduationCap, roles: [...ADMIN_ROLES, USER_ROLES.DEAN] },
       { label: 'Classes', path: '/classes', icon: Users, roles: ADMIN_ROLES },
       { label: 'Subjects', path: '/subjects', icon: BookOpen, roles: ADMIN_ROLES },
+      { label: 'Terms', path: '/classes/terms', icon: Calendar, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL, USER_ROLES.IT_ADMIN] },
       { label: 'Grades', path: '/grades', icon: FileText, roles: [...ADMIN_ROLES, USER_ROLES.PARENT] },
       { label: 'Grade Approval', path: '/grades/approval', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.PARENT] },

@@ -74,6 +74,7 @@ import ClassList from '@/pages/classes/ClassList';
 import ClassForm from '@/pages/classes/ClassForm';
 import ClassTimetable from '@/pages/classes/ClassTimetable';
 import SubjectList from '@/pages/classes/SubjectList';
+import TermManagement from '@/pages/classes/TermManagement';
 
 // Guidance pages
 import CounselingRecords from '@/pages/guidance/CounselingRecords';
@@ -243,6 +244,8 @@ export default function App() {
           <Route path="/classes/:id/edit" element={<ClassForm />} />
           {/* Subjects */}
           <Route path="/subjects" element={<SubjectList />} />
+          {/* Terms */}
+          <Route path="/classes/terms" element={<TermManagement />} />
           <Route path="/classes/timetable" element={<ClassTimetable />} />
           {/* Timetable module */}
           <Route path="/timetable" element={<TimetableView />} />

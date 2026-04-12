@@ -5,7 +5,9 @@ import { useFetch, useMutate } from '@/hooks/useFetch';
 import { teacherService } from '@/services/teacherService';
 import { gradeService } from '@/services/gradeService';
 import { registrarService } from '@/services/registrarService';
-import { GRADE_SCALE, ACADEMIC_YEAR_TERMS } from '@/utils/constants';
+import { academicCalendarService } from '@/services/classService';
+import type { AcademicCalendar } from '@/types/school.types';
+import { GRADE_SCALE } from '@/utils/constants';
 import { notify } from '@/components/shared/Toast';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -21,11 +23,6 @@ interface StudentGradeRow {
   idNumber: string | null;
   score: string;
 }
-
-const semesterOptions = Object.entries(ACADEMIC_YEAR_TERMS).map(([, v]) => ({
-  label: v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-  value: v,
-}));
 
 function letterFromScore(score: number): string {
   for (const [letter, range] of Object.entries(GRADE_SCALE)) {
@@ -55,16 +52,30 @@ export default function TeacherGradeEntry() {
 
   useEffect(() => {
     if (schoolYear && !academicYear) {
-      setAcademicYear(schoolYear);
+      setAcademicYear(schoolYear as string);
     }
   }, [schoolYear, academicYear]);
 
-  // Build year options around the school year
-  const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 5 }, (_, i) => {
-    const y = currentYear - 2 + i;
-    return { label: `${y}-${y + 1}`, value: `${y}-${y + 1}` };
-  });
+  // Fetch terms created by principal for this academic year
+  const { data: dbTerms = [] } = useFetch(
+    ['academic-calendar-terms', schoolId, academicYear],
+    () => academicCalendarService.list(schoolId),
+    { enabled: !!schoolId && !!academicYear },
+  );
+
+  const TERM_LABEL_MAP: Record<string, string> = {
+    first_term: 'First Term',
+    second_term: 'Second Term',
+    third_term: 'Third Term',
+  };
+
+  const termOptions = (dbTerms as unknown as AcademicCalendar[])
+    .filter((t) => t.academic_year === academicYear)
+    .sort((a, b) => (a.term_name > b.term_name ? 1 : -1))
+    .map((t) => ({
+      label: TERM_LABEL_MAP[t.term_name] ?? t.term_name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      value: t.term_name,
+    }));
 
   // Only teacher's classes (school-scoped)
   const { data: myClasses } = useFetch(
@@ -195,19 +206,13 @@ export default function TeacherGradeEntry() {
           disabled={!selectedClass}
         />
         <Select
-          label="Academic Year"
-          options={yearOptions}
-          value={academicYear}
-          onChange={(e) => setAcademicYear(e.target.value)}
-          className="w-40"
-        />
-        <Select
-          label="Semester"
-          options={semesterOptions}
+          label="Term"
+          options={termOptions}
           value={semester}
           onChange={(e) => setSemester(e.target.value)}
-          placeholder="Select semester"
+          placeholder={termOptions.length === 0 ? 'No terms created yet' : 'Select term'}
           className="w-44"
+          disabled={termOptions.length === 0}
         />
       </div>
 
@@ -215,7 +220,10 @@ export default function TeacherGradeEntry() {
         <Card>
           <CardContent className="py-16 text-center">
             <BookOpen className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-            <p className="text-sm text-slate-400">Select class, subject, and semester to start entering grades.</p>
+            <p className="text-sm text-slate-400">Select class, subject, and term to start entering grades.</p>
+            {termOptions.length === 0 && academicYear && (
+              <p className="mt-1 text-xs text-amber-500">No terms have been created yet. Ask the Principal to set up terms for {academicYear}.</p>
+            )}
           </CardContent>
         </Card>
       ) : studentsLoading ? (

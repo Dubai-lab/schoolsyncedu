@@ -32,13 +32,14 @@ export const studentPortalService = {
 
   // ==================== GRADES ====================
 
-  /** Get all my grades */
+  /** Get approved grades only (students must not see unapproved/draft grades) */
   async getMyGrades(schoolId: UUID, studentId: UUID) {
     const { data, error } = await supabase
       .from('grades')
       .select('*, subjects(name, code)')
       .eq('school_id', schoolId)
       .eq('student_id', studentId)
+      .eq('status', 'approved')
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data ?? [];
