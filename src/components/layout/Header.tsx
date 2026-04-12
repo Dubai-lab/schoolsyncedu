@@ -11,6 +11,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import GlobalSearch from '@/components/shared/GlobalSearch';
 
 export default function Header() {
   const { user, schoolSlug, signOut } = useAuth();
@@ -67,14 +68,7 @@ export default function Header() {
 
       {/* Search bar */}
       <div className="hidden sm:flex flex-1 items-center max-w-md">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search students, classes, reports..."
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 focus:border-primary-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-100 transition-colors"
-          />
-        </div>
+        <GlobalSearch />
       </div>
 
       <div className="flex-1 sm:hidden" />
