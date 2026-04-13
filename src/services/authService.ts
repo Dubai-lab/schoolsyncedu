@@ -117,11 +117,14 @@ export async function sendOTPEmail(email: string, otp: string, schoolName?: stri
   if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL not configured');
 
   const functionUrl = `${supabaseUrl}/functions/v1/send-otp-email`;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const response = await fetch(functionUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'apikey': anonKey,
+      'Authorization': `Bearer ${anonKey}`,
     },
     body: JSON.stringify({
       to: email,
