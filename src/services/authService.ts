@@ -122,7 +122,6 @@ export async function sendOTPEmail(email: string, otp: string, schoolName?: stri
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${supabase.auth.session?.access_token ?? ''}`,
     },
     body: JSON.stringify({
       to: email,

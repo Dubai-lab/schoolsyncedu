@@ -3,7 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
 import { pricingPlanService } from '@/services/adminService';
 import { supabase } from '@/lib/supabase';
-import { requestOTPEmail, checkEmailVerificationStatus } from '@/services/authService';
+import { requestOTPEmail } from '@/services/authService';
 import OTPVerificationModal from '@/components/shared/OTPVerificationModal';
 import type { SubscriptionPlan } from '@/types/report.types';
 import {
@@ -70,7 +70,6 @@ export default function RegisterSchool() {
   const [emailVerified, setEmailVerified] = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [showOTPModal, setShowOTPModal] = useState(false);
-  const [checkingEmailStatus, setCheckingEmailStatus] = useState(false);
 
   const [owner, setOwner] = useState<OwnerForm>({
     full_name: '',
