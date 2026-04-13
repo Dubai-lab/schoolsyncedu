@@ -25,7 +25,10 @@ import {
   Building2,
   Shield,
   Globe,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
+import { savedCardsService } from '@/services/proprietorService';
 
 export default function ProprietorDashboard() {
   const { user } = useAuth();
@@ -68,11 +71,21 @@ export default function ProprietorDashboard() {
     { enabled: !!schoolId }
   );
 
+  const { data: hasSavedCard = false } = useFetch<boolean>(
+    ['prop-has-saved-card', schoolId!],
+    () => savedCardsService.hasDefault(schoolId!),
+    { enabled: !!schoolId }
+  );
+
   const pendingInvoices = invoices.filter((i) => i.status === 'sent' || i.status === 'overdue');
   const [now] = useState(() => Date.now());
   const daysRemaining = subscription?.expires_at
     ? Math.max(0, Math.ceil((new Date(subscription.expires_at).getTime() - now) / 86400000))
     : null;
+
+  const isSuspended = subscription?.status === 'suspended';
+  const isGrace = subscription?.status === 'grace';
+  const isExpiringSoon = ['trial', 'active'].includes(subscription?.status ?? '') && daysRemaining !== null && daysRemaining <= 7;
 
   const subStatusVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' => {
     switch (s) {
@@ -104,8 +117,78 @@ export default function ProprietorDashboard() {
         </p>
       </div>
 
-      {/* Subscription Banner */}
-      {subscription && (
+      {/* ── Urgent: school suspended ─────────────────────────────────── */}
+      {isSuspended && (
+        <div className="rounded-xl border-2 border-red-400 bg-red-50 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <AlertTriangle className="w-7 h-7 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-red-800 text-lg">Your school is offline</p>
+                <p className="text-sm text-red-700 mt-1">
+                  Your subscription has expired. Staff and students <strong>cannot log in</strong> until you renew.
+                  Renew now to restore access immediately.
+                </p>
+              </div>
+            </div>
+            <Button className="bg-red-600 hover:bg-red-700 text-white shrink-0" onClick={() => navigate('/proprietor/subscription')}>
+              <RefreshCw className="w-4 h-4 mr-1.5" /> Renew Now
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Urgent: grace period ─────────────────────────────────────── */}
+      {isGrace && daysRemaining !== null && (
+        <div className="rounded-xl border border-orange-300 bg-orange-50 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <AlertTriangle className="w-6 h-6 text-orange-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-orange-800 text-base">Grace period — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left</p>
+                <p className="text-sm text-orange-700 mt-0.5">
+                  Your trial/subscription expired. You're in a grace period. Renew before it ends or your school will go offline automatically.
+                </p>
+              </div>
+            </div>
+            <Button className="bg-orange-600 hover:bg-orange-700 text-white shrink-0" onClick={() => navigate('/proprietor/subscription')}>
+              <RefreshCw className="w-4 h-4 mr-1.5" /> Renew Now
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Warning: expiring soon ────────────────────────────────────── */}
+      {isExpiringSoon && !isSuspended && !isGrace && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800 flex-1">
+            <strong>{subscription?.status === 'trial' ? 'Free trial' : 'Subscription'} ends in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}.</strong>{' '}
+            Renew now to avoid any interruption.
+          </p>
+          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+            onClick={() => navigate('/proprietor/subscription')}>
+            Renew
+          </Button>
+        </div>
+      )}
+
+      {/* ── Prompt: no saved payment method ──────────────────────────── */}
+      {!hasSavedCard && !isSuspended && subscription && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
+          <p className="text-sm text-blue-800 flex-1">
+            <strong>Save a payment card</strong> for seamless subscription renewals — no need to re-enter details each time.
+          </p>
+          <Button size="sm" variant="outline" className="shrink-0"
+            onClick={() => navigate('/proprietor/subscription?tab=cards')}>
+            Add Card
+          </Button>
+        </div>
+      )}
+
+      {/* ── Subscription status card ─────────────────────────────────── */}
+      {subscription && !isSuspended && !isGrace && (
         <Card className="p-5 border-l-4 border-l-primary-500">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-4">
@@ -115,15 +198,13 @@ export default function ProprietorDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-gray-900 dark:text-white">{subscription.plan.name}</h3>
-                  <Badge variant={subStatusVariant(subscription.status)}>
-                    {subscription.status}
-                  </Badge>
+                  <Badge variant={subStatusVariant(subscription.status)}>{subscription.status}</Badge>
                 </div>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {subscription.plan.student_limit} students &middot; ${subscription.plan.price_usd}/{subscription.plan.billing_cycle}
                   {daysRemaining !== null && (
                     <span className={daysRemaining <= 7 ? ' text-red-600 font-medium' : ''}>
-                      {' '}&middot; {daysRemaining} days remaining
+                      {' '}&middot; {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining
                     </span>
                   )}
                 </p>

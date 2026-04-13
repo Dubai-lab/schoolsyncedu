@@ -310,3 +310,73 @@ export interface AuditLog {
   metadata: Record<string, unknown> | null;
   created_at: string;
 }
+
+// ==================== SAVED PAYMENT TOKENS ====================
+
+export type SavedPaymentToken = {
+  id: string;
+  school_id: string;
+  provider: string;
+  card_last4: string | null;
+  card_type: string | null;
+  card_expiry: string | null;
+  card_name: string | null;
+  email: string | null;
+  flw_token: string;
+  is_default: boolean;
+  created_at: string;
+};
+
+export const savedCardsService = {
+  async list(schoolId: UUID): Promise<SavedPaymentToken[]> {
+    const { data, error } = await supabase
+      .from('saved_payment_tokens')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as SavedPaymentToken[];
+  },
+
+  async save(schoolId: UUID, token: Omit<SavedPaymentToken, 'id' | 'school_id' | 'created_at'>): Promise<SavedPaymentToken> {
+    const { data, error } = await supabase
+      .from('saved_payment_tokens')
+      .insert({ ...token, school_id: schoolId })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as SavedPaymentToken;
+  },
+
+  async setDefault(id: string, schoolId: UUID): Promise<void> {
+    // Clear all defaults first
+    await supabase
+      .from('saved_payment_tokens')
+      .update({ is_default: false })
+      .eq('school_id', schoolId);
+    // Set new default
+    const { error } = await supabase
+      .from('saved_payment_tokens')
+      .update({ is_default: true })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async remove(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('saved_payment_tokens')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async hasDefault(schoolId: UUID): Promise<boolean> {
+    const { count } = await supabase
+      .from('saved_payment_tokens')
+      .select('*', { count: 'exact', head: true })
+      .eq('school_id', schoolId)
+      .eq('is_default', true);
+    return (count ?? 0) > 0;
+  },
+};
