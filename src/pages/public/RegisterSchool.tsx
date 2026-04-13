@@ -3,6 +3,8 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
 import { pricingPlanService } from '@/services/adminService';
 import { supabase } from '@/lib/supabase';
+import { requestOTPEmail, checkEmailVerificationStatus } from '@/services/authService';
+import OTPVerificationModal from '@/components/shared/OTPVerificationModal';
 import type { SubscriptionPlan } from '@/types/report.types';
 import {
   Building2,
@@ -15,6 +17,7 @@ import {
   EyeOff,
   Loader2,
   Mail,
+  Shield,
 } from 'lucide-react';
 
 type Step = 1 | 2 | 3 | 4;
@@ -62,6 +65,12 @@ export default function RegisterSchool() {
   const [error, setError] = useState('');
   const [registered, setRegistered] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+
+  // Email verification OTP states
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [checkingEmailStatus, setCheckingEmailStatus] = useState(false);
 
   const [owner, setOwner] = useState<OwnerForm>({
     full_name: '',
@@ -132,8 +141,14 @@ export default function RegisterSchool() {
   const handleNext = () => {
     setError('');
     let err = '';
-    if (step === 1) err = validateStep1();
-    else if (step === 2) err = validateStep2();
+    if (step === 1) {
+      err = validateStep1();
+      // Step 1: Check if email is verified before allowing next step
+      if (!err && !emailVerified) {
+        setError('Please verify your email before proceeding');
+        return;
+      }
+    } else if (step === 2) err = validateStep2();
     else if (step === 3) err = validateStep3();
     if (err) { setError(err); return; }
     setStep((s) => Math.min(s + 1, 4) as Step);
@@ -142,6 +157,32 @@ export default function RegisterSchool() {
   const handleBack = () => {
     setError('');
     setStep((s) => Math.max(s - 1, 1) as Step);
+  };
+
+  const handleRequestOTP = async () => {
+    const validationError = validateStep1();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setVerifyingEmail(true);
+    setError('');
+
+    try {
+      await requestOTPEmail(owner.email, school.name || 'SchoolSync');
+      setShowOTPModal(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send verification email. Please try again.';
+      setError(message);
+    } finally {
+      setVerifyingEmail(false);
+    }
+  };
+
+  const handleEmailVerified = async () => {
+    setEmailVerified(true);
+    setShowOTPModal(false);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -340,6 +381,55 @@ export default function RegisterSchool() {
                     className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                     placeholder="you@example.com"
                   />
+                </div>
+              </div>
+
+              {/* Email verification section */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {emailVerified ? (
+                      <>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Email Verified</p>
+                          <p className="text-xs text-slate-500">{owner.email}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200">
+                          <Shield className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Verify Your Email</p>
+                          <p className="text-xs text-slate-500">Required to proceed with registration</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {!emailVerified && (
+                    <button
+                      type="button"
+                      onClick={handleRequestOTP}
+                      disabled={verifyingEmail || !owner.email}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {verifyingEmail ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4" />
+                          Verify Email
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -640,6 +730,15 @@ export default function RegisterSchool() {
             </div>
           </div>
         </form>
+
+        {/* OTP Verification Modal */}
+        <OTPVerificationModal
+          email={owner.email}
+          schoolName={school.name || 'SchoolSync'}
+          isOpen={showOTPModal}
+          onVerified={handleEmailVerified}
+          onCancel={() => setShowOTPModal(false)}
+        />
       </div>
     </div>
   );
