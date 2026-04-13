@@ -136,6 +136,8 @@ export interface SubscriptionPlan {
   cta_button_text: string;
   /** Discount percentage shown when billing cycle toggled to Yearly (0–100) */
   yearly_discount_percent: number;
+  /** Per-plan notification schedule config (day arrays for each reminder type) */
+  notification_config: Record<string, unknown> | null;
   created_at: Timestamp;
 }
 

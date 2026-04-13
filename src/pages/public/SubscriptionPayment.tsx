@@ -166,7 +166,7 @@ export default function SubscriptionPayment() {
                   plan_name: capturedData.plan.name,
                   amount_usd: capturedAmount,
                   invoice_number: result.invoiceNumber ?? '',
-                  expires_at: result.expiresAt ?? '',
+                  expires_at: (result as Record<string, unknown>).expiresAt as string ?? '',
                 },
               });
             } catch { /* non-critical */ }

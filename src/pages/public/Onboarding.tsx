@@ -171,19 +171,25 @@ const FAQS = [
 
 // ─── Animation variants ───────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cubicEase = [0.22, 1, 0.36, 1] as any;
+
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: cubicEase } } as any,
 };
 
 const fadeLeft = {
   hidden: { opacity: 0, x: -50 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: cubicEase } } as any,
 };
 
 const fadeRight = {
   hidden: { opacity: 0, x: 50 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: cubicEase } } as any,
 };
 
 const stagger = {
@@ -193,7 +199,8 @@ const stagger = {
 
 const scaleIn = {
   hidden: { opacity: 0, scale: 0.85 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: cubicEase } } as any,
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -301,7 +308,7 @@ function BarChart({ bars, label }: { bars: number[]; label: string }) {
   );
 }
 
-function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
+function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
     <motion.div
@@ -349,7 +356,6 @@ export default function Onboarding() {
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   const stepsRef = useRef(null);
   const modulesRef = useRef(null);
@@ -593,12 +599,12 @@ export default function Onboarding() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.4, ease: cubicEase as never }}
               className="grid grid-cols-1 gap-8 lg:grid-cols-2 items-center"
             >
               {/* Text */}
               <div>
-                <div className={`inline-flex items-center gap-2 rounded-xl p-3 mb-4 ${MODULES[activeModule].bg ?? 'bg-slate-100'}`}>
+                <div className={`inline-flex items-center gap-2 rounded-xl p-3 mb-4 bg-slate-100`}>
                   {(() => { const Icon = MODULES[activeModule].icon; return <Icon className={`h-6 w-6 ${MODULES[activeModule].color}`} />; })()}
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900">{MODULES[activeModule].title}</h3>
@@ -720,8 +726,8 @@ export default function Onboarding() {
             variants={stagger}
             className="space-y-3"
           >
-            {FAQS.map((item, i) => (
-              <FAQItem key={item.q} q={item.q} a={item.a} index={i} />
+            {FAQS.map((item) => (
+              <FAQItem key={item.q} q={item.q} a={item.a} />
             ))}
           </motion.div>
         </div>

@@ -113,7 +113,7 @@ export default function PricingPlans() {
       trial_days: p.trial_days, grace_days: p.grace_days,
       cta_button_text: p.cta_button_text ?? 'Start Free Trial',
       yearly_discount_percent: p.yearly_discount_percent ?? 20,
-      notification_config: { ...DEFAULT_NOTIFICATION_CONFIG, ...(p.notification_config as NotificationConfig | undefined) },
+      notification_config: { ...DEFAULT_NOTIFICATION_CONFIG, ...(p.notification_config as unknown as NotificationConfig | undefined) },
     });
   };
   const closeForm = () => { setCreating(false); setEditing(null); setForm(emptyForm); };
@@ -124,12 +124,12 @@ export default function PricingPlans() {
       return;
     }
     if (creating) {
-      createMutation.mutate(form as Omit<SubscriptionPlan, 'id' | 'created_at'>, {
+      createMutation.mutate(form as unknown as Omit<SubscriptionPlan, 'id' | 'created_at'>, {
         onSuccess: () => { notify.success('Plan created'); closeForm(); },
         onError: () => notify.error('Failed to create plan'),
       });
     } else if (editing) {
-      updateMutation.mutate({ id: editing.id, payload: form }, {
+      updateMutation.mutate({ id: editing.id, payload: form as unknown as Partial<SubscriptionPlan> }, {
         onSuccess: () => { notify.success('Plan updated'); closeForm(); },
         onError: () => notify.error('Failed to update plan'),
       });
