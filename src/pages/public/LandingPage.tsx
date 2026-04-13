@@ -257,14 +257,14 @@ export default function LandingPage() {
                       ))}
                     </ul>
                     <Link
-                      to="/register"
+                      to={`/register?plan=${plan.slug}`}
                       className={`mt-8 block w-full rounded-lg py-2.5 text-center text-sm font-semibold transition-all ${
                         isPopular
                           ? 'bg-primary-600 text-white shadow-sm hover:bg-primary-700'
                           : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      Start Free Trial
+                      {plan.cta_button_text?.trim() || 'Start Free Trial'}
                     </Link>
                   </div>
                 );

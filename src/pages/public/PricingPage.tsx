@@ -63,10 +63,11 @@ export default function PricingPage() {
       );
     }
 
-    // Default — new visitor, start free trial
+    // Default — new visitor, show the admin-configured CTA text
+    const ctaText = plan.cta_button_text?.trim() || 'Start Free Trial';
     return (
       <Link to={`/register?plan=${plan.slug}`} className={base}>
-        Start Free Trial <ArrowRight className="h-4 w-4" />
+        {ctaText} <ArrowRight className="h-4 w-4" />
       </Link>
     );
   }
@@ -113,7 +114,14 @@ export default function PricingPage() {
                   : 'text-white/70 hover:text-white'
               }`}
             >
-              Yearly <span className="ml-1 text-xs text-green-400">Save 20%</span>
+              Yearly
+              {(() => {
+                // Show the highest yearly_discount_percent across visible plans (or nothing if all are 0)
+                const maxDiscount = Math.max(...plans.map((p) => p.yearly_discount_percent ?? 0));
+                return maxDiscount > 0
+                  ? <span className="ml-1 text-xs text-green-400">Save {maxDiscount}%</span>
+                  : null;
+              })()}
             </button>
           </div>
         </div>
@@ -134,11 +142,12 @@ export default function PricingPage() {
             }`}>
               {plans.map((plan, idx) => {
                 const isPopular = plans.length >= 3 ? idx === 1 : false;
+                const discountFactor = 1 - (plan.yearly_discount_percent ?? 0) / 100;
                 const price =
                   billingCycle === 'yearly'
                     ? plan.billing_cycle === 'yearly'
                       ? plan.price_usd
-                      : +(plan.price_usd * 12 * 0.8).toFixed(2)
+                      : +(plan.price_usd * 12 * discountFactor).toFixed(2)
                     : plan.billing_cycle === 'monthly'
                     ? plan.price_usd
                     : +(plan.price_usd / 12).toFixed(2);
@@ -172,9 +181,9 @@ export default function PricingPage() {
                           /{billingCycle === 'yearly' ? 'year' : 'month'}
                         </span>
                       </div>
-                      {billingCycle === 'yearly' && plan.billing_cycle === 'monthly' && (
+                      {billingCycle === 'yearly' && plan.billing_cycle === 'monthly' && (plan.yearly_discount_percent ?? 0) > 0 && (
                         <p className="mt-1 text-xs text-green-600 font-medium">
-                          Save ${(plan.price_usd * 12 * 0.2).toFixed(2)} per year
+                          Save ${(plan.price_usd * 12 * (plan.yearly_discount_percent / 100)).toFixed(2)} per year
                         </p>
                       )}
                     </div>

@@ -130,6 +130,10 @@ export interface SubscriptionPlan {
   is_visible: boolean;
   trial_days: number;
   grace_days: number;
+  /** Text shown on the CTA button on the public pricing page (e.g. "Start Free Trial", "Get Basic") */
+  cta_button_text: string;
+  /** Discount percentage shown when billing cycle toggled to Yearly (0–100) */
+  yearly_discount_percent: number;
   created_at: Timestamp;
 }
 

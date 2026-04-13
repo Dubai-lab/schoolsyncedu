@@ -27,12 +27,15 @@ interface PlanForm {
   is_visible: boolean;
   trial_days: number;
   grace_days: number;
+  cta_button_text: string;
+  yearly_discount_percent: number;
 }
 
 const emptyForm: PlanForm = {
   name: '', slug: '', description: '', price_usd: 0, billing_cycle: 'monthly',
   student_limit: 100, features: Object.fromEntries(DEFAULT_FEATURES.map((f) => [f, false])),
   is_active: true, is_visible: true, trial_days: 14, grace_days: 7,
+  cta_button_text: 'Start Free Trial', yearly_discount_percent: 20,
 };
 
 export default function PricingPlans() {
@@ -83,6 +86,8 @@ export default function PricingPlans() {
       student_limit: p.student_limit, features: { ...Object.fromEntries(DEFAULT_FEATURES.map((f) => [f, false])), ...p.features },
       is_active: p.is_active, is_visible: p.is_visible,
       trial_days: p.trial_days, grace_days: p.grace_days,
+      cta_button_text: p.cta_button_text ?? 'Start Free Trial',
+      yearly_discount_percent: p.yearly_discount_percent ?? 20,
     });
   };
   const closeForm = () => { setCreating(false); setEditing(null); setForm(emptyForm); };
@@ -304,6 +309,32 @@ export default function PricingPlans() {
               <label className="block text-xs font-medium text-gray-600">Grace Days</label>
               <input type="number" min={0} value={form.grace_days} onChange={(e) => setForm({ ...form, grace_days: Number(e.target.value) })}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600">CTA Button Text</label>
+              <input
+                type="text"
+                value={form.cta_button_text}
+                onChange={(e) => setForm({ ...form, cta_button_text: e.target.value })}
+                placeholder="e.g. Start Free Trial, Get Basic, Choose Plan"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+              <p className="text-xs text-slate-400">This is the button label shown on the public pricing page for this plan.</p>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-gray-600">Yearly Discount %</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.yearly_discount_percent}
+                  onChange={(e) => setForm({ ...form, yearly_discount_percent: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                />
+                <span className="text-sm text-slate-500 shrink-0">%</span>
+              </div>
+              <p className="text-xs text-slate-400">Shown as "Save X%" badge next to the Yearly billing toggle. Set 0 to hide it.</p>
             </div>
             <div className="flex items-center gap-6 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm">
