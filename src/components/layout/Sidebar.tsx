@@ -230,12 +230,27 @@ export default function Sidebar() {
   const role = (user?.role ?? '') as UserRole;
 
   // Filter nav items by current user's role
-  const filteredGroups = navGroups
+  // For specialized roles (Dean, Registrar, Bursar, IT Admin, Proprietor), show only their section
+  let filteredGroups = navGroups
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => item.roles.includes(role)),
     }))
     .filter((group) => group.items.length > 0);
+
+  // For specialized roles, show only their dedicated section
+  const roleToSectionMap: { [key in UserRole]?: string } = {
+    [USER_ROLES.DEAN]: 'Dean of Students',
+    [USER_ROLES.REGISTRAR]: 'Registrar',
+    [USER_ROLES.BURSAR]: 'Bursar',
+    [USER_ROLES.IT_ADMIN]: 'IT Management',
+    [USER_ROLES.PROPRIETOR]: 'Proprietor',
+  };
+
+  const sectionTitle = roleToSectionMap[role];
+  if (sectionTitle) {
+    filteredGroups = filteredGroups.filter((group) => group.title === sectionTitle);
+  }
 
   const navContent = (
     <nav className="flex flex-col h-full">

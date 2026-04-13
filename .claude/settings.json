@@ -19,7 +19,14 @@
       "Bash(xargs grep:*)",
       "Bash(grep -n \"recordPayment\\\\|record_payment\\\\|webhook\\\\|callback\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
       "Bash(find /c/Users/eg821/desktop/schoolsync/src/pages/proprietor -name \"*.tsx\" -exec basename {} \\\\;)",
-      "Bash(grep -n \"record_subscription_payment\\\\|upgrade_subscription\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)"
+      "Bash(grep -n \"record_subscription_payment\\\\|upgrade_subscription\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npm uninstall:*)",
+      "Bash(grep -n \"CREATE OR REPLACE FUNCTION accept_student_application\\\\|CREATE OR REPLACE FUNCTION provision_student_account\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
+      "Bash(npm run:*)",
+      "Bash(grep -r \"academic_years\\\\|terms\\\\|CREATE TABLE.*term\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
+      "Bash(grep -n \"term\\\\|Term\\\\|TERM\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
+      "Bash(xargs ls:*)"
     ]
   }
 }
