@@ -158,45 +158,62 @@ function buildCardHtml(
   schoolName: string,
   schoolLogo: string | null | undefined,
   schoolMotto: string | null | undefined,
+  schoolAddress?: string | null,
+  schoolPhone?: string | null,
+  emergencyContacts?: Record<string, { name: string; phone: string }>,
 ): string {
   const dj = design?.design_json;
-  const bg = dj?.background_color || '#1e3a5f';
-  const text = dj?.text_color || '#ffffff';
-  const accent = dj?.accent_color || '#f59e0b';
-  const header = dj?.header_color || '#0f2744';
-  const font = dj?.font_family || 'Arial, sans-serif';
-  const radius = dj?.border_style === 'rounded' ? '8px' : dj?.border_style === 'none' ? '0' : '4px';
-  const bgImage = dj?.card_bg_image;
+  const bg       = dj?.background_color || '#1e3a5f';
+  const text     = dj?.text_color       || '#ffffff';
+  const accent   = dj?.accent_color     || '#f59e0b';
+  const header   = dj?.header_color     || '#0f2744';
+  // back falls back to front colors if not separately configured
+  const backBg   = dj?.back_bg_color   && dj.back_bg_color !== '' ? dj.back_bg_color : (dj?.background_color || '#1e3a5f');
+  const backText = dj?.back_text_color && dj.back_text_color !== '' ? dj.back_text_color : (dj?.text_color || '#ffffff');
+  const font     = dj?.font_family      || 'Arial, sans-serif';
+  const radius   = dj?.border_style === 'rounded' ? '8px' : dj?.border_style === 'none' ? '0' : '4px';
+  const bgImage  = dj?.card_bg_image;
   const showLogo = dj?.show_school_logo !== false;
   const showName = dj?.show_school_name !== false;
   const showMotto = dj?.show_school_motto !== false;
   const showBarcode = dj?.show_barcode !== false;
-  const fields = dj?.fields ?? ['photo', 'student_name', 'student_id', 'grade_level'];
+  const showBackBarcode = dj?.show_back_barcode !== false;
+  const showEmergency = dj?.show_back_emergency_info !== false;
+  const showAddress = dj?.show_back_school_address !== false;
+  const backContent = dj?.back_content || '';
+  const cardTitle = dj?.card_title || 'Student Identification Card';
+  const fields   = dj?.fields ?? ['photo', 'student_name', 'student_id', 'grade_level'];
 
-  const barcodeHtml = showBarcode
-    ? `<div style="display:flex;gap:0.5px;">${Array.from({ length: 20 }, (_, i) => `<div style="width:${i % 3 === 0 ? 2 : 1}px;height:5mm;background:${text}${i % 2 === 0 ? 'cc' : '66'};"></div>`).join('')}</div>`
-    : '';
+  const CARD_W = '85.6mm';
+  const CARD_H = '53.98mm';
 
-  const cardHtmls = cards.map((card) => {
+  const barcodeHtml = (color: string) =>
+    `<div style="display:flex;gap:0.5px;">${Array.from({ length: 24 }, (_, i) =>
+      `<div style="width:${i % 3 === 0 ? 2 : 1}px;height:5mm;background:${color}${i % 2 === 0 ? 'cc' : '55'};"></div>`
+    ).join('')}</div>`;
+
+  const cardPairs = cards.map((card) => {
     const s = card.students;
 
-    // Background: solid color or bg image with color overlay
+    // ── FRONT ─────────────────────────────────────────────────
     const backgroundHtml = bgImage
       ? `<div style="position:absolute;inset:0;background-image:url('${bgImage}');background-size:cover;background-position:center;">
            <div style="position:absolute;inset:0;background:${bg};opacity:0.85;"></div>
          </div>`
       : `<div style="position:absolute;inset:0;background:${bg};"></div>`;
 
-    // Header: logo + school name + motto
     const logoHtml = showLogo && schoolLogo
       ? `<img src="${schoolLogo}" style="width:8mm;height:8mm;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
       : showLogo
         ? `<div style="width:8mm;height:8mm;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:6pt;">&#x1F3EB;</div>`
         : '';
-    const nameHtml = showName ? `<div style="font-weight:bold;font-size:7pt;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${text};">${schoolName}</div>` : '';
-    const mottoHtml = showMotto && schoolMotto ? `<div style="font-size:5pt;opacity:0.8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${text};">${schoolMotto}</div>` : '';
+    const nameHtml = showName
+      ? `<div style="font-weight:bold;font-size:7pt;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${text};">${schoolName}</div>`
+      : '';
+    const mottoHtml = showMotto && schoolMotto
+      ? `<div style="font-size:5pt;opacity:0.8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${text};">${schoolMotto}</div>`
+      : '';
 
-    // Photo
     const photoHtml = fields.includes('photo')
       ? `<div style="width:18mm;height:22mm;background:rgba(255,255,255,0.15);border-radius:2px;border:1px solid ${accent}40;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
           ${s?.photo_url
@@ -205,18 +222,13 @@ function buildCardHtml(
          </div>`
       : '';
 
-    // Info fields
     const nameFieldHtml = fields.includes('student_name')
       ? `<div style="font-size:4.5pt;color:${text}99;">Name</div>
-         <div style="font-weight:bold;font-size:9pt;color:${text};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-bottom:1.5mm;">
-           ${s?.first_name || ''} ${s?.last_name || ''}
-         </div>`
+         <div style="font-weight:bold;font-size:9pt;color:${text};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-bottom:1.5mm;">${s?.first_name || ''} ${s?.last_name || ''}</div>`
       : '';
     const idFieldHtml = fields.includes('student_id')
       ? `<div style="font-size:4.5pt;color:${text}99;">Student ID</div>
-         <div style="font-size:7pt;font-weight:bold;font-family:monospace;color:${accent};margin-bottom:1mm;">
-           ${s?.registration_number || card.card_number}
-         </div>`
+         <div style="font-size:7pt;font-weight:bold;font-family:monospace;color:${accent};margin-bottom:1mm;">${s?.registration_number || card.card_number}</div>`
       : '';
     const gradeFieldHtml = fields.includes('grade_level')
       ? `<div style="font-size:7pt;color:${text};">${s?.current_grade_level || ''}</div>`
@@ -225,60 +237,131 @@ function buildCardHtml(
       ? `<div style="font-size:5pt;color:${text}88;margin-top:1mm;">Valid: ${new Date(card.valid_until).toLocaleDateString()}</div>`
       : '';
 
-    return `
-      <div style="position:relative;width:85.6mm;height:53.98mm;border-radius:${radius};
-        overflow:hidden;break-inside:avoid;display:inline-block;margin:4mm;
-        font-family:${font};box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+    const frontHtml = `
+      <div style="position:relative;width:${CARD_W};height:${CARD_H};border-radius:${radius};
+        overflow:hidden;display:inline-block;font-family:${font};
+        box-shadow:0 2px 8px rgba(0,0,0,0.3);vertical-align:top;">
         ${backgroundHtml}
-        <!-- Header -->
         <div style="position:relative;background:${header};padding:2.5mm 3mm;display:flex;align-items:center;gap:2mm;">
           ${logoHtml}
-          <div style="flex:1;min-width:0;">
-            ${nameHtml}
-            ${mottoHtml}
-          </div>
+          <div style="flex:1;min-width:0;">${nameHtml}${mottoHtml}</div>
         </div>
-        <!-- Label strip -->
         <div style="position:relative;background:${accent};text-align:center;font-size:5pt;font-weight:bold;
           text-transform:uppercase;letter-spacing:1.5px;color:${header};padding:1mm 0;">
-          Student Identification Card
+          ${cardTitle}
         </div>
-        <!-- Body -->
         <div style="position:relative;display:flex;gap:3mm;padding:2.5mm 3mm;">
           ${photoHtml}
-          <div style="flex:1;min-width:0;">
-            ${nameFieldHtml}
-            ${idFieldHtml}
-            ${gradeFieldHtml}
-            ${validHtml}
-          </div>
+          <div style="flex:1;min-width:0;">${nameFieldHtml}${idFieldHtml}${gradeFieldHtml}${validHtml}</div>
         </div>
-        <!-- Footer bar -->
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.25);padding:1mm 3mm;display:flex;justify-content:space-between;align-items:center;">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.25);padding:1mm 3mm;
+          display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:5.5pt;font-family:monospace;color:${text}88;">${card.card_number}</span>
-          ${barcodeHtml}
+          ${showBarcode ? barcodeHtml(text) : ''}
         </div>
       </div>`;
-  }).join('');
+
+    // ── BACK ──────────────────────────────────────────────────
+    const ec = emergencyContacts?.[card.id];
+    const ecName  = ec?.name  || '';
+    const ecPhone = ec?.phone || '';
+
+    const emergencyHtml = showEmergency
+      ? `<div style="margin-bottom:2.5mm;">
+           <div style="font-weight:bold;font-size:5.5pt;color:${accent};margin-bottom:1.5mm;">Emergency Contact</div>
+           <div style="display:flex;align-items:baseline;gap:1mm;border-bottom:0.3mm solid ${backText}30;padding-bottom:1mm;margin-bottom:1mm;">
+             <span style="font-size:4.5pt;color:${backText}99;white-space:nowrap;">Name:</span>
+             <span style="font-size:5.5pt;font-weight:${ecName ? '600' : '400'};color:${ecName ? backText : backText + '55'};flex:1;">
+               ${ecName || '________________________'}
+             </span>
+           </div>
+           <div style="display:flex;align-items:baseline;gap:1mm;border-bottom:0.3mm solid ${backText}30;padding-bottom:1mm;">
+             <span style="font-size:4.5pt;color:${backText}99;white-space:nowrap;">Phone:</span>
+             <span style="font-size:5.5pt;font-weight:${ecPhone ? '600' : '400'};color:${ecPhone ? backText : backText + '55'};flex:1;">
+               ${ecPhone || '_______________________'}
+             </span>
+           </div>
+         </div>`
+      : '';
+    const addressHtml = showAddress
+      ? `<div style="margin-bottom:2mm;">
+           <div style="font-weight:bold;font-size:5.5pt;color:${accent};">${schoolName}</div>
+           ${schoolAddress ? `<div style="font-size:4.5pt;color:${backText}bb;">${schoolAddress}</div>` : ''}
+           ${schoolPhone ? `<div style="font-size:4.5pt;color:${backText}bb;">Tel: ${schoolPhone}</div>` : ''}
+         </div>`
+      : '';
+    const backCustomHtml = backContent
+      ? `<div style="font-size:4.5pt;font-style:italic;color:${backText}99;text-align:center;">${backContent}</div>`
+      : '';
+
+    // Use an absolute background div (same as front) so print-color-adjust applies correctly
+    const backHtml = `
+      <div style="position:relative;width:${CARD_W};height:${CARD_H};border-radius:${radius};
+        overflow:hidden;display:inline-block;font-family:${font};
+        box-shadow:0 2px 8px rgba(0,0,0,0.3);vertical-align:top;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact;">
+        <!-- Background layer -->
+        <div style="position:absolute;inset:0;background-color:${backBg};
+          -webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
+        <!-- Back header strip -->
+        <div style="position:relative;background-color:${accent};text-align:center;font-size:5pt;font-weight:bold;
+          text-transform:uppercase;letter-spacing:1px;color:${backBg};padding:1.5mm 0;
+          -webkit-print-color-adjust:exact;print-color-adjust:exact;">
+          Important Information
+        </div>
+        <!-- Back body -->
+        <div style="position:relative;padding:2.5mm 3mm;display:flex;flex-direction:column;
+          height:calc(100% - 7mm - 7mm);box-sizing:border-box;">
+          ${emergencyHtml}
+          ${addressHtml}
+          ${backCustomHtml}
+          <div style="margin-top:auto;font-size:3.5pt;color:${backText}88;text-align:center;font-style:italic;">
+            If found, please call the school at ${schoolPhone || '000 000 0000'}
+          </div>
+          <div style="font-size:3pt;color:${backText}55;text-align:center;margin-top:1mm;">
+            This card is the property of the school. If found, please return.
+          </div>
+        </div>
+        <!-- Back barcode footer -->
+        ${showBackBarcode
+          ? `<div style="position:absolute;bottom:0;left:0;right:0;
+               background-color:${backText}15;padding:1mm 3mm;
+               display:flex;justify-content:center;align-items:center;gap:3mm;
+               -webkit-print-color-adjust:exact;print-color-adjust:exact;">
+               ${barcodeHtml(backText)}
+             </div>`
+          : ''}
+      </div>`;
+
+    // Front + Back side by side — break-inside:avoid keeps the pair on the same page
+    return `<div style="display:inline-flex;gap:4mm;margin:4mm;break-inside:avoid;">
+      ${frontHtml}
+      ${backHtml}
+    </div>`;
+  });
 
   return `<!DOCTYPE html><html><head><title>Print ID Cards</title>
     <style>
-      @page { size: A4; margin: 10mm; }
-      body { margin: 0; background: #f5f5f5; }
+      /* Force browsers to print background colors */
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      @page { size: A4 landscape; margin: 8mm; }
+      body { margin: 0; background: #f0f0f0; font-family: Arial, sans-serif; }
       @media print {
-        body { background: white; }
+        body { background: #f0f0f0; }
         .no-print { display: none !important; }
       }
     </style>
   </head><body>
-    <div class="no-print" style="padding:10px;background:#1e3a5f;color:white;font-family:Arial;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:9;">
+    <div class="no-print" style="padding:10px;background:#1e3a5f;color:white;font-family:Arial;
+      display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:9;">
       <span style="font-size:14px;font-weight:bold;">ID Cards — ${cards.length} card${cards.length !== 1 ? 's' : ''}</span>
-      <button onclick="window.print()" style="background:#f59e0b;color:#000;border:none;padding:6px 16px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:13px;">
+      <button onclick="window.print()" style="background:#f59e0b;color:#000;border:none;padding:6px 16px;
+        border-radius:4px;font-weight:bold;cursor:pointer;font-size:13px;">
         🖨️ Print Now
       </button>
-      <span style="font-size:12px;opacity:0.8;">Cards are credit-card sized (85.6mm × 54mm)</span>
+      <span style="font-size:12px;opacity:0.8;">Front + Back pairs · Credit card size (85.6mm × 54mm)</span>
     </div>
-    <div style="display:flex;flex-wrap:wrap;justify-content:flex-start;padding:6mm;">${cardHtmls}</div>
+    <div style="padding:6mm;">${cardPairs.join('')}</div>
   </body></html>`;
 }
 
@@ -331,15 +414,38 @@ export default function ITCardGenerator() {
   );
 
   // Print: open browser print window with card layouts
-  // designId: use a specific design (e.g. the one selected for this batch); falls back to active design
-  function openPrintWindow(cardsToPrint: CardRow[], designId?: string | null) {
+  // designId: use a specific design; falls back to active design, then first available
+  function openPrintWindow(
+    cardsToPrint: CardRow[],
+    designId?: string | null,
+    emergencyContacts?: Record<string, { name: string; phone: string }>,
+  ) {
     if (cardsToPrint.length === 0) return;
-    const allDesigns = designs as PrintDesign[];
+    const allDesigns = designs as (PrintDesign & { id: string; is_active: boolean })[];
+
     const design = designId
-      ? (allDesigns.find((d) => (d as PrintDesign & { id: string }).id === designId) ?? allDesigns.find((d) => d.is_active))
-      : allDesigns.find((d) => d.is_active);
-    const html = buildCardHtml(cardsToPrint, design, school?.name ?? 'School', school?.logo_url, school?.motto);
-    const w = window.open('', '_blank', 'width=960,height=720');
+      ? (allDesigns.find((d) => d.id === designId) ?? allDesigns.find((d) => d.is_active) ?? allDesigns[0])
+      : (allDesigns.find((d) => d.is_active) ?? allDesigns[0]);
+
+    // Inject locally-uploaded photos that may not yet be in the DB cache
+    const cardsWithPhotos = cardsToPrint.map((c) => ({
+      ...c,
+      students: c.students
+        ? { ...c.students, photo_url: uploadedPhotos[c.student_id] || c.students.photo_url }
+        : c.students,
+    }));
+
+    const html = buildCardHtml(
+      cardsWithPhotos,
+      design,
+      school?.name ?? 'School',
+      school?.logo_url,
+      school?.motto,
+      school?.address,
+      school?.phone,
+      emergencyContacts,
+    );
+    const w = window.open('', '_blank', 'width=1100,height=780');
     if (w) {
       w.document.write(html);
       w.document.close();
@@ -393,6 +499,39 @@ export default function ITCardGenerator() {
     const seq = String(Math.floor(Math.random() * 9000) + 1000); // 4-digit
     return `BATCH-${year}-${seq}`;
   }
+
+  // Edit photo & reprint dialog
+  const [editCard, setEditCard] = useState<CardRow | null>(null);
+  const [editPhotoUploading, setEditPhotoUploading] = useState(false);
+  const editPhotoRef = useRef<HTMLInputElement>(null);
+  const [editEmergency, setEditEmergency] = useState({ name: '', phone: '' });
+
+  const handleEditPhotoUpload = async (file: File) => {
+    if (!editCard) return;
+    setEditPhotoUploading(true);
+    const previewUrl = URL.createObjectURL(file);
+    // Optimistic update in both local stores
+    setUploadedPhotos((prev) => ({ ...prev, [editCard.student_id]: previewUrl }));
+    setEditCard((prev) => prev ? { ...prev, students: prev.students ? { ...prev.students, photo_url: previewUrl } : prev.students } : prev);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const path = `students/${schoolId}/${editCard.student_id}_photo.${ext}`;
+      const { error } = await supabase.storage.from('documents').upload(path, file, { contentType: file.type, upsert: true });
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        await supabase.from('students').update({ photo_url: urlData.publicUrl }).eq('id', editCard.student_id);
+        setUploadedPhotos((prev) => ({ ...prev, [editCard.student_id]: urlData.publicUrl }));
+        setEditCard((prev) => prev ? { ...prev, students: prev.students ? { ...prev.students, photo_url: urlData.publicUrl } : prev.students } : prev);
+        notify.success('Photo saved');
+      } else {
+        notify.error('Upload failed');
+      }
+    } catch {
+      notify.error('Failed to upload photo');
+    }
+    setEditPhotoUploading(false);
+  };
 
   // Generate dialog
   const [showGenerate, setShowGenerate] = useState(false);
@@ -556,9 +695,14 @@ export default function ITCardGenerator() {
     {
       key: 'print', header: '',
       render: (r) => (
-        <Button size="sm" variant="outline" onClick={() => openPrintWindow([r])}>
-          <Printer className="h-3.5 w-3.5 mr-1" /> Print
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="outline" onClick={() => { setEditCard(r); setEditEmergency({ name: '', phone: '' }); }}>
+            <Camera className="h-3.5 w-3.5 mr-1" /> Edit & Print
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => openPrintWindow([r])}>
+            <Printer className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -643,6 +787,34 @@ export default function ITCardGenerator() {
           </Button>
         )}
       </div>
+
+      {/* Active design indicator */}
+      {activeDesign ? (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
+          <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+          <p className="text-sm text-blue-800">
+            Active card design: <strong>{(activeDesign as unknown as { name: string }).name}</strong> — cards will be printed with this design.
+          </p>
+          <a href="/it-admin/cards" className="ml-auto text-xs font-medium text-blue-600 hover:underline shrink-0">
+            Change Design →
+          </a>
+        </div>
+      ) : designs.length > 0 ? (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5">
+          <Eye className="h-4 w-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            No active design set — printing will use <strong>{(designs as unknown as { name: string }[])[0]?.name}</strong> (first available).
+            <a href="/it-admin/cards" className="ml-2 font-semibold underline">Set an active design →</a>
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5">
+          <Eye className="h-4 w-4 text-red-600 shrink-0" />
+          <p className="text-sm text-red-800">
+            No card design found. <a href="/it-admin/cards" className="font-semibold underline">Create a design first →</a>
+          </p>
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -911,6 +1083,109 @@ export default function ITCardGenerator() {
           </Button>
         </DialogFooter>
       </Dialog>
+
+      {/* Edit Photo & Reprint Dialog */}
+      {editCard && (
+        <Dialog open onClose={() => setEditCard(null)} className="max-w-lg">
+          <DialogHeader onClose={() => setEditCard(null)}>
+            <DialogTitle>Edit & Reprint</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <div className="space-y-3">
+
+              {/* Top row: photo + student info + card preview side by side */}
+              <div className="flex gap-3">
+                {/* Photo upload */}
+                <div className="flex flex-col items-center gap-1.5 shrink-0">
+                  <div
+                    className="w-16 h-20 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-400 transition-colors"
+                    onClick={() => editPhotoRef.current?.click()}
+                    title="Click to upload photo"
+                  >
+                    {editCard.students?.photo_url ? (
+                      <img src={editCard.students.photo_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="h-5 w-5 text-slate-300" />
+                    )}
+                  </div>
+                  <Button size="sm" variant="outline" className="text-[11px] px-2 py-1 h-auto"
+                    onClick={() => editPhotoRef.current?.click()} loading={editPhotoUploading}>
+                    {editPhotoUploading ? '…' : editCard.students?.photo_url ? 'Replace' : 'Upload'}
+                  </Button>
+                  <input ref={editPhotoRef} type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEditPhotoUpload(f); }} />
+                </div>
+
+                {/* Student info */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-800 truncate">
+                    {editCard.students?.first_name} {editCard.students?.last_name}
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono">{editCard.students?.registration_number}</p>
+                  <p className="text-xs text-slate-400">{editCard.students?.current_grade_level}</p>
+                </div>
+
+                {/* Card preview */}
+                {activeDesign && (
+                  <div className="shrink-0">
+                    <MiniCardPreview
+                      student={{
+                        id: editCard.student_id,
+                        first_name: editCard.students?.first_name ?? '',
+                        last_name: editCard.students?.last_name ?? '',
+                        registration_number: editCard.students?.registration_number ?? editCard.card_number,
+                        current_grade_level: editCard.students?.current_grade_level ?? '',
+                        photo_url: editCard.students?.photo_url ?? null,
+                        status: 'active',
+                      }}
+                      design={(activeDesign as unknown as { design_json: IdCardDesignData }).design_json}
+                      school={school}
+                      overridePhotoUrl={uploadedPhotos[editCard.student_id] || editCard.students?.photo_url}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Emergency contact */}
+              <div className="rounded-lg border border-slate-200 px-3 py-2.5 space-y-2">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  Emergency Contact <span className="normal-case font-normal text-slate-400">· back of card</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 w-10 shrink-0">Name</span>
+                  <input type="text" placeholder="Parent / Guardian name"
+                    value={editEmergency.name}
+                    onChange={(e) => setEditEmergency((p) => ({ ...p, name: e.target.value }))}
+                    className="flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 w-10 shrink-0">Phone</span>
+                  <input type="tel" placeholder="+231 000 000 0000"
+                    value={editEmergency.phone}
+                    onChange={(e) => setEditEmergency((p) => ({ ...p, phone: e.target.value }))}
+                    className="flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30" />
+                </div>
+              </div>
+
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCard(null)}>Close</Button>
+            <Button
+              onClick={() => {
+                const ec = (editEmergency.name || editEmergency.phone)
+                  ? { [editCard.id]: editEmergency }
+                  : undefined;
+                openPrintWindow([editCard], undefined, ec);
+                setEditCard(null);
+              }}
+              disabled={editPhotoUploading}
+            >
+              <Printer className="h-4 w-4 mr-1.5" /> Print Card
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
 import { RequireAuth, RequireRole } from '@/middleware/requireAuth';
 import { USER_ROLES } from '@/utils/constants';
+import ScrollToTop from '@/components/shared/ScrollToTop';
 
 // Layouts
 import AuthLayout from '@/components/layout/AuthLayout';
@@ -13,6 +14,10 @@ import LandingPage from '@/pages/public/LandingPage';
 import PricingPage from '@/pages/public/PricingPage';
 import RegisterSchool from '@/pages/public/RegisterSchool';
 import SubscriptionPayment from '@/pages/public/SubscriptionPayment';
+import ContactUs from '@/pages/public/ContactUs';
+import PrivacyPolicy from '@/pages/public/PrivacyPolicy';
+import TermsOfService from '@/pages/public/TermsOfService';
+import Onboarding from '@/pages/public/Onboarding';
 
 // Auth pages
 import Login from '@/pages/auth/Login';
@@ -201,13 +206,20 @@ import StudentDashboard from '@/pages/student/StudentDashboard';
 export default function App() {
   return (
     <AuthProvider>
+      <ScrollToTop />
       <Routes>
         {/* Public — Marketing pages */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/register" element={<RegisterSchool />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
         </Route>
+
+        {/* Onboarding — standalone, no nav/footer */}
+        <Route path="/onboarding" element={<Onboarding />} />
 
         {/* Payment page — standalone (no PublicLayout nav) */}
         <Route path="/payment" element={<SubscriptionPayment />} />

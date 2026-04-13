@@ -10,6 +10,7 @@ import type {
   BillingInvoice,
   ActiveSubscription,
   PlatformPayment,
+  EnterpriseInquiry,
 } from '@/types/report.types';
 
 // ==================== PLATFORM DASHBOARD ====================
@@ -57,6 +58,50 @@ export const adminDashboardService = {
       .eq('is_active', true);
     if (error) throw error;
     return count ?? 0;
+  },
+
+  async getSubscriptionStatusCounts() {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('status');
+    if (error) throw error;
+    const counts = { trial: 0, active: 0, grace: 0, suspended: 0, expired: 0 };
+    for (const row of (data ?? [])) {
+      const s = row.status as keyof typeof counts;
+      if (s in counts) counts[s]++;
+    }
+    return counts;
+  },
+
+  async getEnterpriseInquiryCount() {
+    const { count, error } = await supabase
+      .from('enterprise_inquiries')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'new');
+    if (error) throw error;
+    return count ?? 0;
+  },
+
+  async getNotificationStats() {
+    // Emails sent in the last 30 days
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    const { count, error } = await supabase
+      .from('notification_logs')
+      .select('*', { count: 'exact', head: true })
+      .gte('sent_at', since.toISOString());
+    if (error) throw error;
+    return { sent_last_30_days: count ?? 0 };
+  },
+
+  async getRecentNotifications(limit = 8) {
+    const { data, error } = await supabase
+      .from('notification_logs')
+      .select('id, event_type, recipient_email, sent_at, metadata, schools(name)')
+      .order('sent_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data ?? [];
   },
 };
 
@@ -373,5 +418,44 @@ export const systemHealthService = {
       .order('name');
     if (error) throw error;
     return data as PlatformAdminUser[];
+  },
+};
+
+// ==================== ENTERPRISE INQUIRIES ====================
+
+export const enterpriseService = {
+  /** List all inquiries (super admin only) */
+  async list(): Promise<EnterpriseInquiry[]> {
+    const { data, error } = await supabase
+      .from('enterprise_inquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data as EnterpriseInquiry[];
+  },
+
+  /** Update status / notes on an inquiry */
+  async updateStatus(id: string, status: EnterpriseInquiry['status'], notes?: string): Promise<void> {
+    const payload: Partial<EnterpriseInquiry> = { status };
+    if (notes !== undefined) payload.notes = notes;
+    const { error } = await supabase.from('enterprise_inquiries').update(payload).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Submit a new inquiry (public, no auth required) */
+  async submitInquiry(payload: {
+    school_name: string;
+    contact_name: string;
+    email: string;
+    phone?: string;
+    student_count?: string;
+    modules_needed?: string;
+    message?: string;
+  }): Promise<void> {
+    const { data, error } = await supabase.functions.invoke('send-enterprise-inquiry', {
+      body: payload,
+    });
+    if (error) throw new Error((error as { message?: string }).message || 'Failed to submit inquiry');
+    if (data && (data as { error?: string }).error) throw new Error((data as { error: string }).error);
   },
 };

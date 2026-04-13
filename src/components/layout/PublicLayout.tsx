@@ -139,8 +139,8 @@ export default function PublicLayout() {
             <div>
               <h4 className="text-sm font-semibold text-slate-900">Support</h4>
               <ul className="mt-3 space-y-2">
-                <li><a href="mailto:support@eduliberia.com" className="text-sm text-slate-500 hover:text-primary-600">Contact Us</a></li>
-                <li><a href="mailto:onboarding@eduliberia.com" className="text-sm text-slate-500 hover:text-primary-600">Onboarding</a></li>
+                <li><Link to="/contact" className="text-sm text-slate-500 hover:text-primary-600">Contact Us</Link></li>
+                <li><Link to="/onboarding" className="text-sm text-slate-500 hover:text-primary-600">Onboarding</Link></li>
               </ul>
             </div>
 
@@ -148,8 +148,8 @@ export default function PublicLayout() {
             <div>
               <h4 className="text-sm font-semibold text-slate-900">Legal</h4>
               <ul className="mt-3 space-y-2">
-                <li><a href="#" className="text-sm text-slate-500 hover:text-primary-600">Privacy Policy</a></li>
-                <li><a href="#" className="text-sm text-slate-500 hover:text-primary-600">Terms of Service</a></li>
+                <li><Link to="/privacy" className="text-sm text-slate-500 hover:text-primary-600">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="text-sm text-slate-500 hover:text-primary-600">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

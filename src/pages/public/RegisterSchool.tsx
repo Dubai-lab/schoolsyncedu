@@ -159,9 +159,9 @@ export default function RegisterSchool() {
   };
 
   const handleRequestOTP = async () => {
-    const validationError = validateStep1();
-    if (validationError) {
-      setError(validationError);
+    if (!owner.full_name.trim()) { setError('Please enter your full name first'); return; }
+    if (!owner.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner.email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -242,12 +242,28 @@ export default function RegisterSchool() {
       });
       if (rpcError) throw rpcError;
 
+      // Fire welcome email (non-blocking — don't fail registration if email fails)
+      const result = rpcData as { school_id?: string } | null;
+      const newSchoolId = result?.school_id ?? '';
+      try {
+        await supabase.functions.invoke('send-welcome-email', {
+          body: {
+            owner_name: owner.full_name,
+            owner_email: owner.email,
+            school_name: school.name,
+            plan_name: selectedPlan?.name || 'Free Trial',
+            trial_days: selectedPlan?.trial_days ?? 14,
+            school_id: newSchoolId || undefined,
+          },
+        });
+      } catch (emailErr) {
+        console.warn('Welcome email failed (non-fatal):', emailErr);
+      }
+
       // Sign out so user doesn't stay logged in during payment
       await supabase.auth.signOut();
 
       // Redirect to payment page with school info
-      const result = rpcData as { school_id?: string } | null;
-      const newSchoolId = result?.school_id ?? '';
       if (newSchoolId && selectedPlanId) {
         navigate(`/payment?school=${newSchoolId}&email=${encodeURIComponent(owner.email)}`);
       } else {
@@ -360,120 +376,107 @@ export default function RegisterSchool() {
               <h2 className="text-lg font-semibold text-slate-900">Create your admin account</h2>
               <p className="text-sm text-slate-500">This will be the school owner / proprietor account.</p>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Full Name *</label>
-                  <input
-                    type="text"
-                    value={owner.full_name}
-                    onChange={(e) => updateOwner('full_name', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Email Address *</label>
-                  <input
-                    type="email"
-                    value={owner.email}
-                    onChange={(e) => updateOwner('email', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    placeholder="you@example.com"
-                  />
-                </div>
-              </div>
-
-              {/* Email verification section */}
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {emailVerified ? (
-                      <>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">Email Verified</p>
-                          <p className="text-xs text-slate-500">{owner.email}</p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200">
-                          <Shield className="h-5 w-5 text-slate-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">Verify Your Email</p>
-                          <p className="text-xs text-slate-500">Required to proceed with registration</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {!emailVerified && (
-                    <button
-                      type="button"
-                      onClick={handleRequestOTP}
-                      disabled={verifyingEmail || !owner.email}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {verifyingEmail ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="h-4 w-4" />
-                          Verify Email
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-
+              {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-slate-700">Phone Number *</label>
+                <label className="block text-sm font-medium text-slate-700">Full Name *</label>
                 <input
-                  type="tel"
-                  value={owner.phone}
-                  onChange={(e) => updateOwner('phone', e.target.value)}
+                  type="text"
+                  value={owner.full_name}
+                  onChange={(e) => updateOwner('full_name', e.target.value)}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  placeholder="+231 ..."
+                  placeholder="John Doe"
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Password *</label>
-                  <div className="relative mt-1">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={owner.password}
-                      onChange={(e) => updateOwner('password', e.target.value)}
-                      className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                      placeholder="Min. 8 characters"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+              {/* Email with inline verify button */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Email Address *</label>
+                <div className="relative mt-1 flex items-center">
+                  <input
+                    type="email"
+                    value={owner.email}
+                    onChange={(e) => { updateOwner('email', e.target.value); if (emailVerified) setEmailVerified(false); }}
+                    disabled={emailVerified}
+                    className={`block w-full rounded-lg border px-3 py-2.5 pr-32 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                      emailVerified
+                        ? 'border-green-400 bg-green-50 text-slate-700'
+                        : 'border-slate-300 bg-white'
+                    }`}
+                    placeholder="you@example.com"
+                  />
+                  <div className="absolute right-1.5 flex items-center">
+                    {emailVerified ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700">
+                        <CheckCircle className="h-3.5 w-3.5" /> Verified
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestOTP}
+                        disabled={verifyingEmail || !owner.email.trim()}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {verifyingEmail ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending…</>
+                        ) : (
+                          <><Shield className="h-3.5 w-3.5" /> Verify Email</>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Confirm Password *</label>
-                  <input
-                    type="password"
-                    value={owner.confirm_password}
-                    onChange={(e) => updateOwner('confirm_password', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    placeholder="Repeat password"
-                  />
-                </div>
+                {!emailVerified && (
+                  <p className="mt-1.5 text-xs text-slate-400">Enter your email and click Verify Email to receive a code</p>
+                )}
               </div>
+
+              {/* Rest of form — only shown after email verified */}
+              {emailVerified && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Phone Number *</label>
+                    <input
+                      type="tel"
+                      value={owner.phone}
+                      onChange={(e) => updateOwner('phone', e.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      placeholder="+231 ..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">Password *</label>
+                      <div className="relative mt-1">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={owner.password}
+                          onChange={(e) => updateOwner('password', e.target.value)}
+                          className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                          placeholder="Min. 8 characters"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">Confirm Password *</label>
+                      <input
+                        type="password"
+                        value={owner.confirm_password}
+                        onChange={(e) => updateOwner('confirm_password', e.target.value)}
+                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        placeholder="Repeat password"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

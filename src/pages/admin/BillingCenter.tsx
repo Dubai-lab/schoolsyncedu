@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useFetch, useMutate } from '@/hooks/useFetch';
-import { billingService, schoolManagementService } from '@/services/adminService';
-import type { BillingInvoice, SubscriptionWithSchool, PlatformPayment } from '@/types/report.types';
+import { billingService, schoolManagementService, enterpriseService } from '@/services/adminService';
+import type { BillingInvoice, SubscriptionWithSchool, PlatformPayment, EnterpriseInquiry } from '@/types/report.types';
 import Table from '@/components/ui/Table';
 import type { Column } from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
@@ -10,9 +10,9 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Card } from '@/components/ui/Card';
 import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { notify } from '@/components/shared/Toast';
-import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock } from 'lucide-react';
+import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock, Sparkles, Mail, Phone, Users, MessageSquare, Layers } from 'lucide-react';
 
-type Tab = 'invoices' | 'subscriptions' | 'payments';
+type Tab = 'invoices' | 'subscriptions' | 'payments' | 'enterprise';
 type StatusFilter = 'all' | BillingInvoice['status'];
 
 function fmt(amount: number) {
@@ -54,6 +54,19 @@ export default function BillingCenter() {
   const { data: platformPayments = [], isLoading: loadingPayments } = useFetch<(PlatformPayment & { schools?: { name: string } })[]>(
     ['admin-platform-payments'],
     () => billingService.listPlatformPayments()
+  );
+
+  const { data: enterpriseInquiries = [], isLoading: loadingEnterprise } = useFetch<EnterpriseInquiry[]>(
+    ['admin-enterprise-inquiries'],
+    () => enterpriseService.list()
+  );
+
+  const [viewInquiry, setViewInquiry] = useState<EnterpriseInquiry | null>(null);
+
+  const updateInquiryMutation = useMutate(
+    ({ id, status, notes }: { id: string; status: EnterpriseInquiry['status']; notes?: string }) =>
+      enterpriseService.updateStatus(id, status, notes),
+    [['admin-enterprise-inquiries']]
   );
 
   const markPaidMutation = useMutate(
@@ -347,7 +360,7 @@ export default function BillingCenter() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <button className={tabClass('invoices')} onClick={() => setTab('invoices')}>
           Invoices {invoices.length > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{invoices.length}</span>}
         </button>
@@ -356,6 +369,17 @@ export default function BillingCenter() {
         </button>
         <button className={tabClass('subscriptions')} onClick={() => setTab('subscriptions')}>
           Subscriptions {subscriptions.length > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{subscriptions.length}</span>}
+        </button>
+        <button className={tabClass('enterprise')} onClick={() => setTab('enterprise')}>
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            Enterprise Inquiries
+            {enterpriseInquiries.filter((i) => i.status === 'new').length > 0 && (
+              <span className="ml-1 rounded-full bg-violet-200 text-violet-800 px-1.5 py-0.5 text-xs font-bold">
+                {enterpriseInquiries.filter((i) => i.status === 'new').length}
+              </span>
+            )}
+          </span>
         </button>
       </div>
 
@@ -420,6 +444,152 @@ export default function BillingCenter() {
           />
         </>
       )}
+
+      {tab === 'enterprise' && (
+        <>
+          <div className="flex items-center gap-3 text-sm text-gray-500 mb-2">
+            <Sparkles className="w-4 h-4 text-violet-500" />
+            <span>
+              <span className="font-semibold text-violet-700">{enterpriseInquiries.filter((i) => i.status === 'new').length}</span> new,{' '}
+              <span className="font-semibold text-blue-600">{enterpriseInquiries.filter((i) => i.status === 'contacted').length}</span> contacted,{' '}
+              <span className="font-semibold text-gray-500">{enterpriseInquiries.filter((i) => i.status === 'closed').length}</span> closed.
+            </span>
+          </div>
+          <Table<EnterpriseInquiry>
+            columns={[
+              {
+                key: 'school_name',
+                header: 'School',
+                render: (row) => (
+                  <div>
+                    <p className="font-medium text-gray-900">{row.school_name}</p>
+                    <p className="text-xs text-gray-400">{new Date(row.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  </div>
+                ),
+              },
+              {
+                key: 'contact_name',
+                header: 'Contact',
+                render: (row) => (
+                  <div>
+                    <p className="text-sm font-medium">{row.contact_name}</p>
+                    <p className="text-xs text-gray-400 flex items-center gap-1"><Mail className="w-3 h-3" />{row.email}</p>
+                    {row.phone && <p className="text-xs text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{row.phone}</p>}
+                  </div>
+                ),
+              },
+              {
+                key: 'student_count',
+                header: 'Students',
+                render: (row) => (
+                  <span className="flex items-center gap-1 text-sm text-gray-600">
+                    <Users className="w-3.5 h-3.5 text-gray-400" />{row.student_count || '—'}
+                  </span>
+                ),
+              },
+              {
+                key: 'modules_needed',
+                header: 'Modules',
+                render: (row) => <span className="text-xs text-gray-500 line-clamp-2">{row.modules_needed || '—'}</span>,
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (row) => (
+                  <Badge variant={row.status === 'new' ? 'info' : row.status === 'contacted' ? 'success' : 'default'}>
+                    {row.status}
+                  </Badge>
+                ),
+              },
+              {
+                key: 'actions',
+                header: '',
+                render: (row) => (
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setViewInquiry(row)} title="View details">
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    {row.status !== 'contacted' && (
+                      <Button variant="ghost" size="sm" title="Mark as Contacted"
+                        onClick={() => updateInquiryMutation.mutate({ id: row.id, status: 'contacted' }, {
+                          onSuccess: () => notify.success('Marked as contacted'),
+                        })}>
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      </Button>
+                    )}
+                    {row.status !== 'closed' && (
+                      <Button variant="ghost" size="sm" title="Close inquiry"
+                        onClick={() => updateInquiryMutation.mutate({ id: row.id, status: 'closed' }, {
+                          onSuccess: () => notify.success('Inquiry closed'),
+                        })}>
+                        <Ban className="w-4 h-4 text-gray-400" />
+                      </Button>
+                    )}
+                  </div>
+                ),
+              },
+            ] as Column<EnterpriseInquiry>[]}
+            data={enterpriseInquiries}
+            keyExtractor={(r) => r.id}
+            loading={loadingEnterprise}
+            emptyMessage="No enterprise inquiries yet."
+          />
+        </>
+      )}
+
+      {/* ===== ENTERPRISE INQUIRY DETAIL ===== */}
+      <Dialog open={!!viewInquiry} onClose={() => setViewInquiry(null)} className="max-w-lg">
+        <DialogHeader onClose={() => setViewInquiry(null)}>
+          <DialogTitle>Enterprise Inquiry — {viewInquiry?.school_name}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          {viewInquiry && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-xs text-gray-400">School</p><p className="font-semibold">{viewInquiry.school_name}</p></div>
+                <div><p className="text-xs text-gray-400">Contact</p><p className="font-semibold">{viewInquiry.contact_name}</p></div>
+                <div><p className="text-xs text-gray-400 flex items-center gap-1"><Mail className="w-3 h-3" />Email</p>
+                  <a href={`mailto:${viewInquiry.email}`} className="text-primary-600 hover:underline">{viewInquiry.email}</a>
+                </div>
+                <div><p className="text-xs text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />Phone</p><p>{viewInquiry.phone || '—'}</p></div>
+                <div><p className="text-xs text-gray-400 flex items-center gap-1"><Users className="w-3 h-3" />Students</p><p>{viewInquiry.student_count || '—'}</p></div>
+                <div><p className="text-xs text-gray-400">Submitted</p><p>{new Date(viewInquiry.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p></div>
+              </div>
+              {viewInquiry.modules_needed && (
+                <div>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 mb-1"><Layers className="w-3 h-3" />Modules Needed</p>
+                  <p className="text-sm text-gray-700 bg-slate-50 rounded-lg p-3">{viewInquiry.modules_needed}</p>
+                </div>
+              )}
+              {viewInquiry.message && (
+                <div>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 mb-1"><MessageSquare className="w-3 h-3" />Message</p>
+                  <p className="text-sm text-gray-700 bg-slate-50 rounded-lg p-3 whitespace-pre-wrap">{viewInquiry.message}</p>
+                </div>
+              )}
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <span className="text-xs text-gray-400">Status:</span>
+                <Badge variant={viewInquiry.status === 'new' ? 'info' : viewInquiry.status === 'contacted' ? 'success' : 'default'}>
+                  {viewInquiry.status}
+                </Badge>
+              </div>
+            </div>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          {viewInquiry?.status !== 'contacted' && (
+            <Button size="sm" onClick={() => { updateInquiryMutation.mutate({ id: viewInquiry!.id, status: 'contacted' }, { onSuccess: () => { notify.success('Marked as contacted'); setViewInquiry(null); } }); }}>
+              Mark Contacted
+            </Button>
+          )}
+          {viewInquiry?.status !== 'closed' && (
+            <Button variant="outline" size="sm" onClick={() => { updateInquiryMutation.mutate({ id: viewInquiry!.id, status: 'closed' }, { onSuccess: () => { notify.success('Inquiry closed'); setViewInquiry(null); } }); }}>
+              Close Inquiry
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setViewInquiry(null)}>Done</Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* ===== VIEW INVOICE MODAL ===== */}
       <Dialog open={!!viewInvoice} onClose={() => setViewInvoice(null)} className="max-w-md">

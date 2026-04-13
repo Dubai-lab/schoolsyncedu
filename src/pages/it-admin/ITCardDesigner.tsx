@@ -932,7 +932,28 @@ export default function ITCardDesigner() {
 
   function handleSave() {
     if (!name.trim()) { notify.error('Please enter a design name'); return; }
-    if (editId) { updateDesign.mutate(undefined); } else { createDesign.mutate(undefined); }
+    if (editId) {
+      updateDesign.mutate(undefined, {
+        onSuccess: () => {
+          // If this is already the active design or the only design, keep/make it active
+          const currentDesigns = (designs ?? []) as DesignRow[];
+          const thisDesign = currentDesigns.find((d) => d.id === editId);
+          if (thisDesign?.is_active || currentDesigns.length === 1) {
+            setActive.mutate(editId!);
+          }
+        },
+      });
+    } else {
+      createDesign.mutate(undefined, {
+        onSuccess: () => {
+          // Auto-activate if this is the first and only design
+          const currentDesigns = (designs ?? []) as DesignRow[];
+          if (currentDesigns.length === 0) {
+            // Refetch will happen via cache invalidation; the new design is auto-active
+          }
+        },
+      });
+    }
   }
 
   // Full-page editor takes over
@@ -1009,10 +1030,19 @@ export default function ITCardDesigner() {
                 <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
                   <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                 </Button>
-                {!d.is_active && (
-                  <Button size="sm" variant="outline" onClick={() => setActive.mutate(d.id)}>
-                    <Star className="h-3.5 w-3.5 mr-1" /> Set Active
+                {!d.is_active ? (
+                  <Button
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-600 text-white border-0"
+                    onClick={() => setActive.mutate(d.id)}
+                    loading={setActive.isPending}
+                  >
+                    <Star className="h-3.5 w-3.5 mr-1" /> Use for Printing
                   </Button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                    <Star className="h-3 w-3" /> Used for Printing
+                  </span>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => { setPreviewDesign(d); setPreviewSide('front'); }}>
                   <Eye className="h-3.5 w-3.5" />

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
 import { pricingPlanService } from '@/services/adminService';
@@ -20,6 +21,7 @@ import {
   Star,
   Globe,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 
 const FEATURES = [
@@ -63,12 +65,14 @@ const TESTIMONIALS = [
 ];
 
 export default function LandingPage() {
+  const [pricingView, setPricingView] = useState<'standard' | 'enterprise'>('standard');
+
   // Fetch visible pricing plans for preview
   const { data: plans = [] } = useFetch<SubscriptionPlan[]>(
     ['public-plans'],
     () => pricingPlanService.list(),
   );
-  const visiblePlans = plans.filter((p) => p.is_visible && p.is_active).slice(0, 3);
+  const visiblePlans = plans.filter((p) => p.is_visible && p.is_active && !p.is_enterprise).slice(0, 3);
 
   return (
     <div>
@@ -204,84 +208,174 @@ export default function LandingPage() {
       </section>
 
       {/* ========== PRICING PREVIEW ========== */}
-      {visiblePlans.length > 0 && (
-        <section id="pricing" className="py-20 sm:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Pricing</p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
-                Simple, transparent pricing
-              </h2>
-              <p className="mt-4 text-lg text-slate-500">
-                Start with a free trial. Upgrade when you're ready.
-              </p>
-            </div>
+      <section id="pricing" className="py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Pricing</p>
+            <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
+              Simple, transparent pricing
+            </h2>
+            <p className="mt-4 text-lg text-slate-500">
+              Start with a free trial. Upgrade when you're ready.
+            </p>
 
-            <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
-              {visiblePlans.map((plan, i) => {
-                const isPopular = i === 1;
-                return (
-                  <div
-                    key={plan.id}
-                    className={`relative rounded-2xl border p-8 ${
-                      isPopular
-                        ? 'border-primary-300 bg-primary-50/30 shadow-lg shadow-primary-100'
-                        : 'border-slate-200 bg-white'
-                    }`}
-                  >
-                    {isPopular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary-600 px-4 py-1 text-xs font-semibold text-white">
-                        Most Popular
+            {/* Standard / Enterprise toggle */}
+            <div className="mt-8 inline-flex items-center rounded-full border border-slate-200 bg-slate-100 p-1">
+              <button
+                onClick={() => setPricingView('standard')}
+                className={`rounded-full px-5 py-2 text-sm font-medium transition-all ${
+                  pricingView === 'standard'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Standard Plans
+              </button>
+              <button
+                onClick={() => setPricingView('enterprise')}
+                className={`flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-all ${
+                  pricingView === 'enterprise'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                Enterprise
+              </button>
+            </div>
+          </div>
+
+          {/* ── Standard plan cards ── */}
+          {pricingView === 'standard' && (
+            <>
+              <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+                {visiblePlans.map((plan, i) => {
+                  const isPopular = i === 1;
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative rounded-2xl border p-8 ${
+                        isPopular
+                          ? 'border-primary-300 bg-primary-50/30 shadow-lg shadow-primary-100'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      {isPopular && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary-600 px-4 py-1 text-xs font-semibold text-white">
+                          Most Popular
+                        </div>
+                      )}
+                      <h3 className="text-lg font-semibold text-slate-900">{plan.name}</h3>
+                      <p className="mt-1 text-sm text-slate-500">{plan.description}</p>
+                      <div className="mt-6">
+                        <span className="text-4xl font-extrabold text-slate-900">${plan.price_usd}</span>
+                        <span className="text-sm text-slate-500">/{plan.billing_cycle}</span>
                       </div>
-                    )}
-                    <h3 className="text-lg font-semibold text-slate-900">{plan.name}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{plan.description}</p>
-                    <div className="mt-6">
-                      <span className="text-4xl font-extrabold text-slate-900">${plan.price_usd}</span>
-                      <span className="text-sm text-slate-500">/{plan.billing_cycle}</span>
-                    </div>
-                    <ul className="mt-6 space-y-3">
-                      <li className="flex items-center gap-2 text-sm text-slate-600">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Up to {plan.student_limit.toLocaleString()} students
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-slate-600">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        {plan.trial_days} day free trial
-                      </li>
-                      {plan.features && Object.entries(plan.features).filter(([, v]) => v).slice(0, 4).map(([key]) => (
-                        <li key={key} className="flex items-center gap-2 text-sm text-slate-600">
+                      <ul className="mt-6 space-y-3">
+                        <li className="flex items-center gap-2 text-sm text-slate-600">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          Up to {plan.student_limit.toLocaleString()} students
+                        </li>
+                        <li className="flex items-center gap-2 text-sm text-slate-600">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          {plan.trial_days} day free trial
+                        </li>
+                        {plan.features && Object.entries(plan.features).filter(([, v]) => v).slice(0, 4).map(([key]) => (
+                          <li key={key} className="flex items-center gap-2 text-sm text-slate-600">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </li>
+                        ))}
+                      </ul>
+                      <Link
+                        to={`/register?plan=${plan.slug}`}
+                        className={`mt-8 block w-full rounded-lg py-2.5 text-center text-sm font-semibold transition-all ${
+                          isPopular
+                            ? 'bg-primary-600 text-white shadow-sm hover:bg-primary-700'
+                            : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {plan.cta_button_text?.trim() || 'Start Free Trial'}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 text-center">
+                <Link to="/pricing" className="text-sm font-medium text-primary-600 hover:text-primary-700">
+                  View all plans & compare features →
+                </Link>
+              </div>
+            </>
+          )}
+
+          {/* ── Enterprise view ── */}
+          {pricingView === 'enterprise' && (
+            <div className="mx-auto mt-12 max-w-4xl">
+              <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-10 shadow-sm">
+                <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center">
+
+                  {/* Left: highlights */}
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                      <Sparkles className="h-3.5 w-3.5" /> Enterprise
+                    </div>
+                    <h3 className="mt-4 text-2xl font-bold text-slate-900">
+                      A plan built around your school
+                    </h3>
+                    <p className="mt-3 text-sm text-slate-500 leading-relaxed">
+                      Large institutions have unique needs. Our Enterprise plan gives you a fully custom
+                      setup — talk to us about student numbers, specific modules, and pricing that works
+                      for your budget.
+                    </p>
+
+                    <ul className="mt-6 space-y-3">
+                      {[
+                        'Unlimited students — no enrollment cap',
+                        'Custom module selection',
+                        'Dedicated onboarding & staff training',
+                        'Priority email & phone support',
+                        'Flexible billing — annual or government invoicing',
+                        'Custom data retention & MOE compliance',
+                      ].map((item) => (
+                        <li key={item} className="flex items-center gap-2.5 text-sm text-slate-700">
+                          <CheckCircle className="h-4 w-4 shrink-0 text-violet-500" />
+                          {item}
                         </li>
                       ))}
                     </ul>
-                    <Link
-                      to={`/register?plan=${plan.slug}`}
-                      className={`mt-8 block w-full rounded-lg py-2.5 text-center text-sm font-semibold transition-all ${
-                        isPopular
-                          ? 'bg-primary-600 text-white shadow-sm hover:bg-primary-700'
-                          : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {plan.cta_button_text?.trim() || 'Start Free Trial'}
-                    </Link>
                   </div>
-                );
-              })}
-            </div>
 
-            <div className="mt-8 text-center">
-              <Link
-                to="/pricing"
-                className="text-sm font-medium text-primary-600 hover:text-primary-700"
-              >
-                View all plans & compare features →
-              </Link>
+                  {/* Right: CTA card */}
+                  <div className="rounded-xl border border-violet-100 bg-white p-8 text-center shadow-sm">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100">
+                      <Sparkles className="h-7 w-7 text-violet-600" />
+                    </div>
+                    <h4 className="mt-4 text-lg font-bold text-slate-900">Let's talk</h4>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Fill out a short form on our pricing page and our team will reach out within
+                      1–2 business days with a custom proposal.
+                    </p>
+                    <Link
+                      to="/pricing?view=enterprise"
+                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+                    >
+                      <Mail className="h-4 w-4" /> Contact Sales
+                    </Link>
+                    <p className="mt-3 text-xs text-slate-400">
+                      Or email us directly at{' '}
+                      <a href="mailto:support@schoolsyncedu.com" className="text-violet-600 hover:underline">
+                        support@schoolsyncedu.com
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          )}
+        </div>
+      </section>
 
       {/* ========== TESTIMONIALS ========== */}
       <section className="bg-slate-50 py-20 sm:py-28">

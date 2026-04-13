@@ -15,6 +15,28 @@ import { CreditCard, Eye, EyeOff, Check, X, Plus, Pencil, Trash2, Power } from '
 const BILLING_CYCLES: BillingCycle[] = ['monthly', 'yearly', 'custom', 'lifetime'];
 const DEFAULT_FEATURES = ['attendance', 'grades', 'fees', 'letters', 'library', 'nfc', 'communications', 'reports', 'waec', 'id_cards'];
 
+interface NotificationConfig {
+  notify_on_trial_start: boolean;
+  trial_reminder_days: number[];
+  notify_on_trial_expired: boolean;
+  expiry_reminder_days: number[];
+  notify_on_grace_start: boolean;
+  grace_reminder_days: number[];
+  notify_on_suspended: boolean;
+  notify_on_reactivated: boolean;
+}
+
+const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
+  notify_on_trial_start: true,
+  trial_reminder_days: [3, 1],
+  notify_on_trial_expired: true,
+  expiry_reminder_days: [7, 3, 1],
+  notify_on_grace_start: true,
+  grace_reminder_days: [2],
+  notify_on_suspended: true,
+  notify_on_reactivated: true,
+};
+
 interface PlanForm {
   name: string;
   slug: string;
@@ -25,17 +47,20 @@ interface PlanForm {
   features: Record<string, boolean>;
   is_active: boolean;
   is_visible: boolean;
+  is_enterprise: boolean;
   trial_days: number;
   grace_days: number;
   cta_button_text: string;
   yearly_discount_percent: number;
+  notification_config: NotificationConfig;
 }
 
 const emptyForm: PlanForm = {
   name: '', slug: '', description: '', price_usd: 0, billing_cycle: 'monthly',
   student_limit: 100, features: Object.fromEntries(DEFAULT_FEATURES.map((f) => [f, false])),
-  is_active: true, is_visible: true, trial_days: 14, grace_days: 7,
+  is_active: true, is_visible: true, is_enterprise: false, trial_days: 14, grace_days: 7,
   cta_button_text: 'Start Free Trial', yearly_discount_percent: 20,
+  notification_config: { ...DEFAULT_NOTIFICATION_CONFIG },
 };
 
 export default function PricingPlans() {
@@ -84,10 +109,11 @@ export default function PricingPlans() {
       name: p.name, slug: p.slug, description: p.description ?? '',
       price_usd: p.price_usd, billing_cycle: p.billing_cycle,
       student_limit: p.student_limit, features: { ...Object.fromEntries(DEFAULT_FEATURES.map((f) => [f, false])), ...p.features },
-      is_active: p.is_active, is_visible: p.is_visible,
+      is_active: p.is_active, is_visible: p.is_visible, is_enterprise: p.is_enterprise ?? false,
       trial_days: p.trial_days, grace_days: p.grace_days,
       cta_button_text: p.cta_button_text ?? 'Start Free Trial',
       yearly_discount_percent: p.yearly_discount_percent ?? 20,
+      notification_config: { ...DEFAULT_NOTIFICATION_CONFIG, ...(p.notification_config as NotificationConfig | undefined) },
     });
   };
   const closeForm = () => { setCreating(false); setEditing(null); setForm(emptyForm); };
@@ -135,11 +161,16 @@ export default function PricingPlans() {
     {
       key: 'price_usd',
       header: 'Price',
-      render: (row) => (
-        <span className="font-semibold">
-          ${row.price_usd.toLocaleString()}<span className="text-xs text-gray-500">/{row.billing_cycle}</span>
-        </span>
-      ),
+      render: (row) =>
+        row.is_enterprise ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+            Enterprise · Contact Sales
+          </span>
+        ) : (
+          <span className="font-semibold">
+            ${row.price_usd.toLocaleString()}<span className="text-xs text-gray-500">/{row.billing_cycle}</span>
+          </span>
+        ),
     },
     {
       key: 'student_limit',
@@ -283,18 +314,43 @@ export default function PricingPlans() {
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
             </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">Price (USD)</label>
-              <input type="number" min={0} step={0.01} value={form.price_usd} onChange={(e) => setForm({ ...form, price_usd: Number(e.target.value) })}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+
+            {/* Enterprise toggle */}
+            <div className="sm:col-span-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_enterprise}
+                  onChange={(e) => setForm({ ...form, is_enterprise: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-violet-800">Enterprise Plan</p>
+                  <p className="text-xs text-violet-600 mt-0.5">
+                    When enabled, this plan shows as "Contact Sales" on the public pricing page — no fixed price is displayed.
+                    Visitors fill in a contact form and you receive their inquiry at support@schoolsyncedu.com.
+                  </p>
+                </div>
+              </label>
             </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">Billing Cycle</label>
-              <select value={form.billing_cycle} onChange={(e) => setForm({ ...form, billing_cycle: e.target.value as BillingCycle })}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
-                {BILLING_CYCLES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+
+            {/* Price & billing — hidden for enterprise */}
+            {!form.is_enterprise && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-600">Price (USD)</label>
+                  <input type="number" min={0} step={0.01} value={form.price_usd} onChange={(e) => setForm({ ...form, price_usd: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-600">Billing Cycle</label>
+                  <select value={form.billing_cycle} onChange={(e) => setForm({ ...form, billing_cycle: e.target.value as BillingCycle })}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
+                    {BILLING_CYCLES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
             <div className="space-y-1">
               <label className="block text-xs font-medium text-gray-600">Student Limit</label>
               <input type="number" min={1} value={form.student_limit} onChange={(e) => setForm({ ...form, student_limit: Number(e.target.value) })}
@@ -321,21 +377,23 @@ export default function PricingPlans() {
               />
               <p className="text-xs text-slate-400">This is the button label shown on the public pricing page for this plan.</p>
             </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-600">Yearly Discount %</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={form.yearly_discount_percent}
-                  onChange={(e) => setForm({ ...form, yearly_discount_percent: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                />
-                <span className="text-sm text-slate-500 shrink-0">%</span>
+            {!form.is_enterprise && (
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">Yearly Discount %</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.yearly_discount_percent}
+                    onChange={(e) => setForm({ ...form, yearly_discount_percent: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  />
+                  <span className="text-sm text-slate-500 shrink-0">%</span>
+                </div>
+                <p className="text-xs text-slate-400">Shown as "Save X%" badge next to the Yearly billing toggle. Set 0 to hide it.</p>
               </div>
-              <p className="text-xs text-slate-400">Shown as "Save X%" badge next to the Yearly billing toggle. Set 0 to hide it.</p>
-            </div>
+            )}
             <div className="flex items-center gap-6 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
@@ -359,6 +417,105 @@ export default function PricingPlans() {
                     {feat.replace(/_/g, ' ')}
                   </label>
                 ))}
+              </div>
+            </div>
+
+            {/* ── Notification Config ── */}
+            <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Email Notification Schedule</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Trial reminders */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox"
+                      checked={form.notification_config.notify_on_trial_start}
+                      onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_trial_start: e.target.checked } })}
+                      className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+                    Trial reminder emails
+                  </label>
+                  <div className="pl-6 space-y-1">
+                    <p className="text-xs text-slate-500">Send on days before expiry (comma-separated)</p>
+                    <input
+                      type="text"
+                      value={form.notification_config.trial_reminder_days.join(', ')}
+                      onChange={(e) => {
+                        const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+                        setForm({ ...form, notification_config: { ...form.notification_config, trial_reminder_days: days } });
+                      }}
+                      placeholder="3, 1"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Expiry reminders */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox"
+                      checked={form.notification_config.notify_on_trial_expired}
+                      onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_trial_expired: e.target.checked } })}
+                      className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+                    Subscription expiry reminders
+                  </label>
+                  <div className="pl-6 space-y-1">
+                    <p className="text-xs text-slate-500">Send on days before expiry (comma-separated)</p>
+                    <input
+                      type="text"
+                      value={form.notification_config.expiry_reminder_days.join(', ')}
+                      onChange={(e) => {
+                        const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+                        setForm({ ...form, notification_config: { ...form.notification_config, expiry_reminder_days: days } });
+                      }}
+                      placeholder="7, 3, 1"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Grace period */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox"
+                      checked={form.notification_config.notify_on_grace_start}
+                      onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_grace_start: e.target.checked } })}
+                      className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+                    Grace period notifications
+                  </label>
+                  <div className="pl-6 space-y-1">
+                    <p className="text-xs text-slate-500">Reminder days during grace (comma-separated)</p>
+                    <input
+                      type="text"
+                      value={form.notification_config.grace_reminder_days.join(', ')}
+                      onChange={(e) => {
+                        const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+                        setForm({ ...form, notification_config: { ...form.notification_config, grace_reminder_days: days } });
+                      }}
+                      placeholder="2"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Suspension + Reactivation */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-700">Status change emails</p>
+                  <div className="pl-0 space-y-2">
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox"
+                        checked={form.notification_config.notify_on_suspended}
+                        onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_suspended: e.target.checked } })}
+                        className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+                      Notify when school is suspended
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox"
+                        checked={form.notification_config.notify_on_reactivated}
+                        onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_reactivated: e.target.checked } })}
+                        className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+                      Notify when school is reactivated
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

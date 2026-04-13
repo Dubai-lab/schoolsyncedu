@@ -113,29 +113,22 @@ export function hashOTP(otp: string): string {
  * Calls the send-otp-email Edge Function
  */
 export async function sendOTPEmail(email: string, otp: string, schoolName?: string): Promise<void> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL not configured');
-
-  const functionUrl = `${supabaseUrl}/functions/v1/send-otp-email`;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  const response = await fetch(functionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': anonKey,
-      'Authorization': `Bearer ${anonKey}`,
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke('send-otp-email', {
+    body: {
       to: email,
       otp_code: otp,
       school_name: schoolName || 'SchoolSync',
-    }),
+    },
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to send OTP email');
+  if (error) {
+    // error.message from invoke, or parse the context body if available
+    const msg = (error as { message?: string; context?: { json?: () => Promise<{ error?: string }> } }).message;
+    throw new Error(msg || 'Failed to send OTP email');
+  }
+
+  if (data && (data as { error?: string }).error) {
+    throw new Error((data as { error: string }).error);
   }
 }
 

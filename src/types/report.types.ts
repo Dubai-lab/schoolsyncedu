@@ -128,6 +128,8 @@ export interface SubscriptionPlan {
   features: Record<string, boolean>;
   is_active: boolean;
   is_visible: boolean;
+  /** When true: no fixed price — shown as a "Contact Sales" enterprise tier */
+  is_enterprise: boolean;
   trial_days: number;
   grace_days: number;
   /** Text shown on the CTA button on the public pricing page (e.g. "Start Free Trial", "Get Basic") */
@@ -135,6 +137,22 @@ export interface SubscriptionPlan {
   /** Discount percentage shown when billing cycle toggled to Yearly (0–100) */
   yearly_discount_percent: number;
   created_at: Timestamp;
+}
+
+/** enterprise_inquiries table */
+export interface EnterpriseInquiry {
+  id: UUID;
+  school_name: string;
+  contact_name: string;
+  email: string;
+  phone: string | null;
+  student_count: string | null;
+  modules_needed: string | null;
+  message: string | null;
+  status: 'new' | 'contacted' | 'closed';
+  notes: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 /** subscriptions table */

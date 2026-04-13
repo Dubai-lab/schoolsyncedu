@@ -9,6 +9,7 @@ import {
   type PaymentPageData,
 } from '@/services/flutterwaveService';
 import { discountService } from '@/services/adminService';
+import { supabase } from '@/lib/supabase';
 import type { Discount } from '@/types/report.types';
 import {
   CreditCard,
@@ -153,6 +154,22 @@ export default function SubscriptionPayment() {
             // Both fresh activation and already-active count as success
             setInvoiceNumber(result.invoiceNumber ?? '');
             setPaymentSuccess(true);
+
+            // Send payment confirmed email (non-blocking)
+            try {
+              await supabase.functions.invoke('process-subscription-notifications', {
+                body: {
+                  trigger: 'payment_confirmed',
+                  school_id: capturedData.school.id,
+                  school_name: capturedData.school.name,
+                  owner_email: email,
+                  plan_name: capturedData.plan.name,
+                  amount_usd: capturedAmount,
+                  invoice_number: result.invoiceNumber ?? '',
+                  expires_at: result.expiresAt ?? '',
+                },
+              });
+            } catch { /* non-critical */ }
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error('Activation RPC failed:', msg);
