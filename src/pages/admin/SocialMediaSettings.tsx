@@ -208,10 +208,10 @@ export default function SocialMediaSettings() {
                   <p className="mt-1 text-xs text-slate-400">{hint}</p>
                 </div>
 
-                {/* Live link preview */}
+                {/* Live link preview — ensure absolute URL so browser doesn't treat it as relative */}
                 {hasValue && (
                   <a
-                    href={value}
+                    href={/^https?:\/\//i.test(value) ? value : `https://${value}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="shrink-0 flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-500 hover:border-primary-300 hover:text-primary-600 transition-colors"

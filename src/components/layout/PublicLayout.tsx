@@ -221,7 +221,7 @@ export default function PublicLayout() {
                   {links.map(({ key, url }) => (
                     <a
                       key={key}
-                      href={url!}
+                      href={/^https?:\/\//i.test(url!) ? url! : `https://${url!}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={SOCIAL_LABELS[key]}
