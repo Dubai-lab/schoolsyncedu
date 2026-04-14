@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
-import { notificationService } from '@/services/notificationService';
+import { notificationService, type UserNotification } from '@/services/notificationService';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import Pagination from '@/components/ui/Pagination';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Card } from '@/components/ui/Card';
 import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
 function typeIcon(type: string) {
   if (type.includes('error') || type.includes('fail')) return <XCircle className="h-5 w-5 text-red-500" />;
-  if (type.includes('warn') || type.includes('alert')) return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+  if (type.includes('warn') || type.includes('alert') || type.includes('incident') || type.includes('overdue')) return <AlertTriangle className="h-5 w-5 text-amber-500" />;
   if (type.includes('success') || type.includes('approved')) return <CheckCircle className="h-5 w-5 text-emerald-500" />;
   return <Info className="h-5 w-5 text-blue-500" />;
 }
@@ -20,12 +19,11 @@ export default function Notifications() {
   const { user } = useAuth();
   const userId = user?.id ?? '';
 
-  const [page, setPage] = useState(1);
   const [unreadOnly, setUnreadOnly] = useState(false);
 
-  const { data: result, isLoading } = useFetch(
-    ['notifications', userId, String(page), String(unreadOnly)],
-    () => notificationService.list(userId, { page, pageSize: 25, unreadOnly: unreadOnly || undefined }),
+  const { data: allNotifications = [], isLoading } = useFetch<UserNotification[]>(
+    ['notifications', userId],
+    () => notificationService.list(userId),
     { enabled: !!userId },
   );
 
@@ -39,9 +37,11 @@ export default function Notifications() {
     [['notifications']],
   );
 
-  const notifications = result?.data ?? [];
-  const totalPages = Math.ceil((result?.count ?? 0) / 25);
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const notifications = unreadOnly
+    ? allNotifications.filter((n) => !n.is_read)
+    : allNotifications;
+
+  const unreadCount = allNotifications.filter((n) => !n.is_read).length;
 
   return (
     <div className="space-y-5">
@@ -62,12 +62,15 @@ export default function Notifications() {
 
       <div className="flex gap-3 items-center">
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" checked={unreadOnly}
-            onChange={(e) => { setUnreadOnly(e.target.checked); setPage(1); }}
-            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+          <input
+            type="checkbox"
+            checked={unreadOnly}
+            onChange={(e) => setUnreadOnly(e.target.checked)}
+            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+          />
           Unread only
         </label>
-        <Badge variant="info" size="sm">{result?.count ?? 0} total</Badge>
+        <Badge variant="info" size="sm">{notifications.length} total</Badge>
       </div>
 
       {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
@@ -80,7 +83,7 @@ export default function Notifications() {
         {notifications.map((n) => (
           <Card
             key={n.id}
-            className={`p-4 transition-colors ${!n.is_read ? 'border-l-4 border-l-primary-500 bg-primary-50/30 hover:bg-primary-50/50' : 'hover:bg-slate-50'}`}
+            className={`p-4 transition-colors cursor-pointer ${!n.is_read ? 'border-l-4 border-l-primary-500 bg-primary-50/30 hover:bg-primary-50/50' : 'hover:bg-slate-50'}`}
             onClick={() => { if (!n.is_read) markRead.mutate(n.id); }}
           >
             <div className="flex items-start gap-3">
@@ -90,17 +93,15 @@ export default function Notifications() {
                   <span className={`text-sm font-medium ${!n.is_read ? 'text-slate-900' : 'text-slate-700'}`}>{n.title}</span>
                   {!n.is_read && <Badge variant="info" size="sm">New</Badge>}
                 </div>
-                <p className="text-sm text-slate-600 mt-0.5">{n.message}</p>
+                {n.body && <p className="text-sm text-slate-600 mt-0.5">{n.body}</p>}
                 <p className="text-xs text-slate-400 mt-1">
-                  {new Date(n.created_at).toLocaleString()} • {n.type}
+                  {new Date(n.created_at).toLocaleString()} • {n.type.replace(/_/g, ' ')}
                 </p>
               </div>
             </div>
           </Card>
         ))}
       </div>
-
-      {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />}
     </div>
   );
 }

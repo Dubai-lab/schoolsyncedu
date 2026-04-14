@@ -3,7 +3,6 @@ import type { UUID } from '@/types/common.types';
 import type {
   Announcement,
   Message,
-  Notification,
   SmsLog,
 } from '@/types/report.types';
 
