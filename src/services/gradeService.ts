@@ -130,6 +130,46 @@ export const gradeService = {
     }));
   },
 
+  /** Search students for transcript lookup (all enrolled students) */
+  async searchStudents(schoolId: UUID, q: string) {
+    let query = supabase
+      .from('students')
+      .select('id, first_name, last_name, registration_number, date_of_birth, gender, enrollment_date, status')
+      .eq('school_id', schoolId)
+      .order('last_name');
+    if (q.trim()) {
+      query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,registration_number.ilike.%${q}%`);
+    }
+    const { data, error } = await query.limit(60);
+    if (error) throw error;
+    return (data ?? []) as {
+      id: string; first_name: string; last_name: string;
+      registration_number: string | null; date_of_birth: string | null;
+      gender: string | null; enrollment_date: string | null; status: string;
+    }[];
+  },
+
+  /** Get academic years + grade levels a student was enrolled in (via class_assignments) */
+  async getStudentAcademicYears(studentId: UUID) {
+    const { data, error } = await supabase
+      .from('class_assignments')
+      .select('academic_year, classes!inner(name, grade_level)')
+      .eq('student_id', studentId)
+      .is('removed_at', null)
+      .order('academic_year');
+    if (error) throw error;
+    return (data ?? []).map((item) => {
+      const cls = Array.isArray((item as Record<string, unknown>).classes)
+        ? ((item as Record<string, unknown>).classes as Record<string, string>[])[0]
+        : (item as Record<string, unknown>).classes as Record<string, string> | null;
+      return {
+        academic_year: item.academic_year as string,
+        grade_level: cls?.grade_level ?? cls?.name ?? null,
+        class_name: cls?.name ?? null,
+      };
+    });
+  },
+
   /** Enter / update a single grade */
   async upsertGrade(
     schoolId: UUID,
