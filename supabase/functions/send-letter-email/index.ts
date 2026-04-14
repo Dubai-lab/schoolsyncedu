@@ -1,6 +1,6 @@
 // Supabase Edge Function: send-letter-email
 //
-// Sends a transactional HTML email.
+// Sends a transactional HTML email, optionally with a file attachment.
 // Priority: per-school SMTP config (from school_email_configs table)
 //           → fall back to global SMTP env var secrets
 //
@@ -9,6 +9,10 @@
 //
 // Per-school SMTP is fetched via the get_school_smtp_config() RPC
 // using the service_role key so credentials are never exposed to clients.
+//
+// Optional attachment:
+//   attachment_path  — storage path inside the letter-documents bucket
+//   attachment_name  — filename shown to the email recipient
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -25,12 +29,22 @@ serve(async (req) => {
   }
 
   try {
-    const { school_id, to, subject, html, fromName } = await req.json() as {
+    const {
+      school_id,
+      to,
+      subject,
+      html,
+      fromName,
+      attachment_path,
+      attachment_name,
+    } = await req.json() as {
       school_id?: string;
       to: string;
       subject: string;
       html: string;
       fromName?: string;
+      attachment_path?: string;   // path inside letter-documents bucket
+      attachment_name?: string;   // filename shown to recipient
     };
 
     if (!to || !subject || !html) {
@@ -39,6 +53,10 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    const supabaseUrl  = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const adminClient  = createClient(supabaseUrl, serviceKey);
 
     // ── Resolve SMTP config ──────────────────────────────────
     let smtpHost: string | undefined;
@@ -52,10 +70,6 @@ serve(async (req) => {
 
     // Try per-school config first
     if (school_id) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const adminClient = createClient(supabaseUrl, serviceKey);
-
       const { data: cfg } = await adminClient.rpc('get_school_smtp_config', {
         p_school_id: school_id,
       });
@@ -95,6 +109,29 @@ serve(async (req) => {
       );
     }
 
+    // ── Resolve attachment (if any) ──────────────────────────
+    // deno-lint-ignore no-explicit-any
+    let attachments: any[] | undefined;
+
+    if (attachment_path) {
+      // Generate a short-lived signed URL from the service role client
+      const { data: signed, error: signErr } = await adminClient.storage
+        .from('letter-documents')
+        .createSignedUrl(attachment_path, 120); // 2-minute window — enough for nodemailer to fetch
+
+      if (signErr || !signed?.signedUrl) {
+        console.warn('Could not generate signed URL for attachment:', signErr?.message);
+        // Still send the email — just without the attachment rather than failing the whole send
+      } else {
+        attachments = [
+          {
+            filename: attachment_name || attachment_path.split('/').pop() || 'letter.pdf',
+            path: signed.signedUrl,
+          },
+        ];
+      }
+    }
+
     // ── Send ─────────────────────────────────────────────────
     const transporter = nodemailer.createTransport({
       host: smtpHost,
@@ -108,10 +145,14 @@ serve(async (req) => {
       : fromAddress;
 
     const mailOptions: Record<string, unknown> = { from, to, subject, html };
-    if (replyTo) mailOptions.replyTo = replyTo;
+    if (replyTo)     mailOptions.replyTo     = replyTo;
+    if (attachments) mailOptions.attachments = attachments;
 
     await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${to} via ${smtpHost} (school: ${school_id ?? 'global'})`);
+    console.log(
+      `Email sent to ${to} via ${smtpHost} (school: ${school_id ?? 'global'})`,
+      attachments ? `with attachment: ${attachments[0].filename}` : '',
+    );
 
     return new Response(
       JSON.stringify({ success: true }),

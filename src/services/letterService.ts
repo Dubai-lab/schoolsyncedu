@@ -462,4 +462,107 @@ export const letterSendService = {
 
     return { sent: true };
   },
+
+  /**
+   * Upload a custom letter (PDF/DOCX) and send it to a recipient via the school's SMTP.
+   * Creates a letter_instance record for the audit trail.
+   */
+  async sendCustomLetter(params: {
+    schoolId: UUID;
+    sentBy: UUID;
+    file: File;
+    recipientEmail: string;
+    recipientName?: string;
+    studentId?: string | null;
+    subject: string;
+    message?: string;
+  }): Promise<{ sent: boolean; reason?: string }> {
+    const { schoolId, sentBy, file, recipientEmail, recipientName, studentId, subject, message } = params;
+
+    // 1. Upload file to letter-documents bucket
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `${schoolId}/${timestamp}_${safeName}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('letter-documents')
+      .upload(storagePath, file, { cacheControl: '3600', upsert: false });
+
+    if (uploadErr) {
+      return { sent: false, reason: `File upload failed: ${uploadErr.message}` };
+    }
+
+    // 2. Get school name for email display name
+    const { data: school } = await supabase
+      .from('schools')
+      .select('name')
+      .eq('id', schoolId)
+      .single();
+
+    // 3. Build the email body (simple wrapper around the attachment)
+    const greeting = recipientName ? `Dear ${recipientName},` : 'Dear Guardian,';
+    const bodyText = message?.trim()
+      ? `<p>${message.trim().replace(/\n/g, '<br/>')}</p>`
+      : '';
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;color:#1e293b">
+        <p>${greeting}</p>
+        <p>Please find attached a letter from <strong>${school?.name ?? 'your school'}</strong>.</p>
+        ${bodyText}
+        <p>If you have any questions, please contact the school directly.</p>
+        <p>Regards,<br/><strong>${school?.name ?? 'School Administration'}</strong></p>
+      </div>`;
+
+    // 4. Create letter_instance for audit trail
+    const { data: instance, error: instErr } = await supabase
+      .from('letter_instances')
+      .insert({
+        school_id:       schoolId,
+        template_id:     null,
+        student_id:      studentId ?? null,
+        recipient_type:  'guardian',
+        recipient_data:  { email: recipientEmail, name: recipientName ?? '' },
+        delivery_channels: ['email'],
+        rendered_html:   html,
+        attachment_url:  storagePath,
+        attachment_name: file.name,
+        is_custom:       true,
+        status:          'sent',
+        sent_at:         new Date().toISOString(),
+        created_by:      sentBy,
+      })
+      .select('id')
+      .single();
+
+    if (instErr) {
+      console.warn('sendCustomLetter: could not create letter_instance', instErr.message);
+      // Don't abort — still try to send the email
+    }
+
+    // 5. Send via edge function with attachment
+    const { error: fnErr } = await supabase.functions.invoke('send-letter-email', {
+      body: {
+        school_id:       schoolId,
+        to:              recipientEmail,
+        subject,
+        html,
+        fromName:        school?.name ?? 'School',
+        attachment_path: storagePath,
+        attachment_name: file.name,
+      },
+    });
+
+    if (fnErr) {
+      // Mark instance as failed if we created one
+      if (instance?.id) {
+        await supabase
+          .from('letter_instances')
+          .update({ status: 'draft' })
+          .eq('id', instance.id);
+      }
+      return { sent: false, reason: fnErr.message ?? 'Email delivery failed' };
+    }
+
+    return { sent: true };
+  },
 };

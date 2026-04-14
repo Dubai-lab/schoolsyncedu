@@ -62,6 +62,7 @@ import LetterTemplates from '@/pages/letters/LetterTemplates';
 import LetterBuilder from '@/pages/letters/LetterBuilder';
 import LetterApproval from '@/pages/letters/LetterApproval';
 import PrintQueue from '@/pages/letters/PrintQueue';
+import CustomLetterUpload from '@/pages/letters/CustomLetterUpload';
 
 // Library pages
 import BookCatalog from '@/pages/library/BookCatalog';
@@ -304,6 +305,7 @@ export default function App() {
           <Route path="/letters/create" element={<LetterBuilder />} />
           <Route path="/letters/approvals" element={<LetterApproval />} />
           <Route path="/letters/print-queue" element={<PrintQueue />} />
+          <Route path="/letters/custom-upload" element={<CustomLetterUpload />} />
           {/* Communications module */}
           <Route path="/communications" element={<AnnouncementList />} />
           <Route path="/communications/announce" element={<SendAnnouncement />} />

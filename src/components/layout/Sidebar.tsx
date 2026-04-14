@@ -37,6 +37,7 @@ import {
   ShieldOff,
   HeartPulse,
   TrendingDown,
+  Upload,
 } from 'lucide-react';
 
 // ==================== NAV CONFIG ====================
@@ -127,6 +128,7 @@ const navGroups: NavGroup[] = [
     title: 'Communication',
     items: [
       { label: 'Letters', path: '/letters', icon: Mail, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.BURSAR, USER_ROLES.REGISTRAR] },
+      { label: 'Upload Letter', path: '/letters/custom-upload', icon: Upload, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.BURSAR, USER_ROLES.REGISTRAR] },
       { label: 'Messages', path: '/communications', icon: MessageSquare, roles: ALL_STAFF },
     ],
   },
@@ -164,6 +166,7 @@ const navGroups: NavGroup[] = [
       { label: 'Grades', path: '/grades', icon: FileText, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Grade Approval', path: '/grades/approval', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Letters', path: '/letters', icon: Mail, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Upload Letter', path: '/letters/custom-upload', icon: Upload, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Letter Approvals', path: '/letters/approvals', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Communications', path: '/communications', icon: MessageSquare, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Reports', path: '/reports', icon: BarChart3, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
