@@ -2,7 +2,7 @@
 -- Fixes:
 --   1. record_login()     — updates users.last_login for the current user (called by client on sign-in)
 --   2. log_system_event() — inserts into system_logs (called by client for key admin actions)
---   3. Trigger: auto-log school suspensions / reactivations to system_logs
+--   3. Triggers: auto-log school suspend/reactivate, school registration, subscription changes
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. record_login — SECURITY DEFINER so it always succeeds for any auth user
@@ -24,7 +24,6 @@ GRANT EXECUTE ON FUNCTION record_login() TO authenticated;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. log_system_event — insert a row into system_logs
---    Only callable by authenticated users (super_admin checked by caller)
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION log_system_event(
   p_level    TEXT,          -- 'info' | 'warn' | 'error' | 'debug'
@@ -47,7 +46,8 @@ GRANT EXECUTE ON FUNCTION log_system_event(TEXT, TEXT, TEXT, JSONB) TO authentic
 GRANT EXECUTE ON FUNCTION log_system_event(TEXT, TEXT, TEXT, JSONB) TO service_role;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 3. Auto-log school status changes (suspend / reactivate) to system_logs
+-- 3. Auto-log school online/offline changes (suspend / reactivate)
+--    NOTE: schools table uses is_online (added in migration 048), not is_active
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION trg_school_status_log()
 RETURNS TRIGGER
@@ -56,16 +56,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NEW.is_active IS DISTINCT FROM OLD.is_active THEN
+  IF NEW.is_online IS DISTINCT FROM OLD.is_online THEN
     INSERT INTO system_logs (log_level, module, message, metadata)
     VALUES (
-      CASE WHEN NEW.is_active THEN 'info'::log_level ELSE 'warn'::log_level END,
+      CASE WHEN NEW.is_online THEN 'info'::log_level ELSE 'warn'::log_level END,
       'schools',
-      CASE WHEN NEW.is_active
+      CASE WHEN NEW.is_online
         THEN 'School reactivated: ' || NEW.name
         ELSE 'School suspended: '   || NEW.name
       END,
-      jsonb_build_object('school_id', NEW.id, 'slug', NEW.slug, 'is_active', NEW.is_active)
+      jsonb_build_object('school_id', NEW.id, 'slug', NEW.slug, 'is_online', NEW.is_online)
     );
   END IF;
   RETURN NEW;
@@ -74,7 +74,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_school_status_log ON schools;
 CREATE TRIGGER trg_school_status_log
-  AFTER UPDATE OF is_active ON schools
+  AFTER UPDATE OF is_online ON schools
   FOR EACH ROW
   EXECUTE FUNCTION trg_school_status_log();
 
@@ -93,7 +93,7 @@ BEGIN
     'info'::log_level,
     'schools',
     'New school registered: ' || NEW.name,
-    jsonb_build_object('school_id', NEW.id, 'slug', NEW.slug, 'plan_id', NEW.plan_id)
+    jsonb_build_object('school_id', NEW.id, 'slug', NEW.slug)
   );
   RETURN NEW;
 END;
@@ -106,7 +106,8 @@ CREATE TRIGGER trg_school_created_log
   EXECUTE FUNCTION trg_school_created_log();
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 5. Auto-log subscription plan changes
+-- 5. Auto-log subscription status / plan changes
+--    NOTE: table is "subscriptions", not "school_subscriptions"
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION trg_subscription_log()
 RETURNS TRIGGER
@@ -122,9 +123,9 @@ BEGIN
       'subscriptions',
       'Subscription updated for school_id: ' || NEW.school_id::TEXT,
       jsonb_build_object(
-        'school_id', NEW.school_id,
-        'old_plan',  OLD.plan_id,
-        'new_plan',  NEW.plan_id,
+        'school_id',  NEW.school_id,
+        'old_plan',   OLD.plan_id,
+        'new_plan',   NEW.plan_id,
         'old_status', OLD.status,
         'new_status', NEW.status
       )
@@ -134,8 +135,8 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_subscription_log ON school_subscriptions;
+DROP TRIGGER IF EXISTS trg_subscription_log ON subscriptions;
 CREATE TRIGGER trg_subscription_log
-  AFTER UPDATE ON school_subscriptions
+  AFTER UPDATE ON subscriptions
   FOR EACH ROW
   EXECUTE FUNCTION trg_subscription_log();
