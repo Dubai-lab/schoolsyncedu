@@ -174,6 +174,13 @@ import ApplicationFeePayments from '@/pages/bursar/ApplicationFeePayments';
 // IT Admin school settings
 import SchoolSettingsITAdmin from '@/pages/it-admin/SchoolSettings';
 
+// Librarian pages
+import LibrarianDashboard from '@/pages/librarian/LibrarianDashboard';
+import NfcLibrary from '@/pages/librarian/NfcLibrary';
+
+// Principal / Vice Principal pages
+import PrincipalDashboard from '@/pages/principal/PrincipalDashboard';
+
 // Dean of Students pages
 import DeanDashboard from '@/pages/dean/DeanDashboard';
 import DeanIncidentLog from '@/pages/dean/IncidentLog';
@@ -375,6 +382,13 @@ export default function App() {
           <Route path="/waec/register" element={<CandidateRegistration />} />
           <Route path="/waec/candidates" element={<CandidateList />} />
           <Route path="/waec/results" element={<ExamResults />} />
+
+          {/* Librarian module */}
+          <Route path="/librarian" element={<RequireRole roles={[USER_ROLES.LIBRARIAN]}><LibrarianDashboard /></RequireRole>} />
+          <Route path="/librarian/nfc-checkout" element={<RequireRole roles={[USER_ROLES.LIBRARIAN]}><NfcLibrary /></RequireRole>} />
+
+          {/* Principal / Vice Principal module */}
+          <Route path="/principal" element={<RequireRole roles={[USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><PrincipalDashboard /></RequireRole>} />
 
           {/* Dean of Students module */}
           <Route path="/dean" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanDashboard /></RequireRole>} />

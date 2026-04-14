@@ -238,6 +238,24 @@ export const libraryReportService = {
     return data as { id: string; student_id: string; book_copy_id: string; due_date: string; days_overdue: number; fine_amount: number; status: string; checkout_id: string }[];
   },
 
+  async getTodayActivity(schoolId: UUID) {
+    const today = new Date().toISOString().split('T')[0];
+    const [checkoutsRes, returnsRes] = await Promise.all([
+      supabase
+        .from('book_checkouts')
+        .select('id', { count: 'exact', head: true })
+        .eq('checkout_date', today),
+      supabase
+        .from('book_returns')
+        .select('id', { count: 'exact', head: true })
+        .eq('return_date', today),
+    ]);
+    return {
+      checkoutsToday: checkoutsRes.count ?? 0,
+      returnsToday: returnsRes.count ?? 0,
+    };
+  },
+
   async getStats(schoolId: UUID) {
     const [booksResult, checkoutsResult] = await Promise.all([
       supabase.from('books').select('total_copies, available_copies').eq('school_id', schoolId),

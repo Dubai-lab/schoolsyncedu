@@ -5,7 +5,7 @@ import { getHomePath } from '@/middleware/requireAuth';
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 
 export default function Login() {
-  const { signIn, signOut, error, isAuthenticated, isLoading, user, schoolSlug } = useAuth();
+  const { signIn, signOut, error, isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const confirmed = searchParams.get('confirmed') === 'true';
@@ -32,11 +32,12 @@ export default function Login() {
   // But NOT if they're trying to switch accounts
   useEffect(() => {
     if (isAuthenticated && user && !switchAccount) {
-      // School-level users must use their school portal — sign them out and show error
-      if (schoolSlug && user.role !== 'super_admin' && user.role !== 'proprietor') {
+      // Only super_admin and proprietor may use the platform login page.
+      // All school staff and students must log in via their school portal.
+      if (user.role !== 'super_admin' && user.role !== 'proprietor') {
         signOut().then(() => {
           setLocalError(
-            `This login is for platform administrators only. Please use your school portal to sign in.`
+            'This login is for platform administrators only. School staff and students must sign in through their school portal.'
           );
           setSubmitting(false);
         });
@@ -44,7 +45,7 @@ export default function Login() {
       }
       navigate(getHomePath(user.role ?? ''), { replace: true });
     }
-  }, [isAuthenticated, user, navigate, switchAccount, schoolSlug, signOut]);
+  }, [isAuthenticated, user, navigate, switchAccount, signOut]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +74,7 @@ export default function Login() {
       <div className="text-center lg:text-left">
         <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
         <p className="mt-2 text-sm text-slate-500">
-          Sign in to access your school dashboard
+          Platform administrator access only. School staff and students sign in through their school portal.
         </p>
       </div>
 

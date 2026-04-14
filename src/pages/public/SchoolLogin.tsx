@@ -56,9 +56,20 @@ export default function SchoolLogin() {
   // Only navigate after a fresh sign-in (not on page load with stale session)
   useEffect(() => {
     if (isAuthenticated && user && justSignedIn) {
+      // Proprietors and super admins must use the platform login, not the school portal
+      if (user.role === 'super_admin' || user.role === 'proprietor') {
+        signOut().then(() => {
+          setLocalError(
+            'Platform administrators must sign in at the SchoolSync platform login page, not the school portal.'
+          );
+          setJustSignedIn(false);
+          setSubmitting(false);
+        });
+        return;
+      }
       navigate(getHomePath(user.role ?? ''), { replace: true });
     }
-  }, [isAuthenticated, user, navigate, justSignedIn]);
+  }, [isAuthenticated, user, navigate, justSignedIn, signOut]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

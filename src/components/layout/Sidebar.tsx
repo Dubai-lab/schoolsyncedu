@@ -139,6 +139,40 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: 'Librarian',
+    items: [
+      { label: 'Dashboard', path: '/librarian', icon: LayoutDashboard, roles: [USER_ROLES.LIBRARIAN] },
+      { label: 'NFC Checkout', path: '/librarian/nfc-checkout', icon: Nfc, roles: [USER_ROLES.LIBRARIAN] },
+      { label: 'Book Catalog', path: '/library', icon: BookOpen, roles: [USER_ROLES.LIBRARIAN] },
+      { label: 'Checkouts', path: '/library/checkout', icon: ClipboardList, roles: [USER_ROLES.LIBRARIAN] },
+      { label: 'Overdue Books', path: '/library/overdue', icon: AlertTriangle, roles: [USER_ROLES.LIBRARIAN] },
+      { label: 'Reports', path: '/library/reports', icon: BarChart3, roles: [USER_ROLES.LIBRARIAN] },
+    ],
+  },
+  {
+    title: 'Principal',
+    items: [
+      { label: 'Dashboard', path: '/principal', icon: LayoutDashboard, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Students', path: '/students', icon: GraduationCap, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Staff', path: '/staff', icon: UserCog, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Classes', path: '/classes', icon: Users, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Subjects', path: '/subjects', icon: BookOpen, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Terms', path: '/classes/terms', icon: Calendar, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Timetable', path: '/timetable', icon: Calendar, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'WAEC Exams', path: '/waec', icon: ClipboardList, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Grades', path: '/grades', icon: FileText, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Grade Approval', path: '/grades/approval', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Letters', path: '/letters', icon: Mail, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Letter Approvals', path: '/letters/approvals', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Communications', path: '/communications', icon: MessageSquare, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Reports', path: '/reports', icon: BarChart3, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Year-End Promotion', path: '/registrar/promotion', icon: GraduationCap, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Analytics', path: '/dashboard/analytics', icon: BarChart3, roles: [USER_ROLES.PRINCIPAL] },
+      { label: 'Settings', path: '/settings', icon: Settings, roles: [USER_ROLES.PRINCIPAL] },
+    ],
+  },
+  {
     title: 'Dean of Students',
     items: [
       { label: 'Dean Home', path: '/dean', icon: LayoutDashboard, roles: [USER_ROLES.DEAN] },
@@ -240,6 +274,9 @@ export default function Sidebar() {
 
   // For specialized roles, show only their dedicated section
   const roleToSectionMap: { [key in UserRole]?: string } = {
+    [USER_ROLES.LIBRARIAN]: 'Librarian',
+    [USER_ROLES.PRINCIPAL]: 'Principal',
+    [USER_ROLES.VICE_PRINCIPAL]: 'Principal',
     [USER_ROLES.DEAN]: 'Dean of Students',
     [USER_ROLES.REGISTRAR]: 'Registrar',
     [USER_ROLES.BURSAR]: 'Bursar',

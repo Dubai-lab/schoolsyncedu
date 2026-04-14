@@ -9,15 +9,18 @@ interface RequireAuthProps {
 
 export function getHomePath(role: string): string {
   switch (role) {
-    case USER_ROLES.TEACHER:     return '/teacher';
-    case USER_ROLES.REGISTRAR:   return '/registrar';
-    case USER_ROLES.BURSAR:      return '/bursar';
-    case USER_ROLES.IT_ADMIN:    return '/it-admin';
-    case USER_ROLES.STUDENT:     return '/student/dashboard';
-    case USER_ROLES.PROPRIETOR:  return '/proprietor';
-    case USER_ROLES.SUPER_ADMIN: return '/admin';
-    case USER_ROLES.DEAN:        return '/dean';
-    default:                     return '/dashboard';
+    case USER_ROLES.TEACHER:        return '/teacher';
+    case USER_ROLES.REGISTRAR:      return '/registrar';
+    case USER_ROLES.BURSAR:         return '/bursar';
+    case USER_ROLES.IT_ADMIN:       return '/it-admin';
+    case USER_ROLES.STUDENT:        return '/student/dashboard';
+    case USER_ROLES.PROPRIETOR:     return '/proprietor';
+    case USER_ROLES.SUPER_ADMIN:    return '/admin';
+    case USER_ROLES.DEAN:           return '/dean';
+    case USER_ROLES.PRINCIPAL:      return '/principal';
+    case USER_ROLES.VICE_PRINCIPAL: return '/principal';
+    case USER_ROLES.LIBRARIAN:      return '/librarian';
+    default:                        return '/dashboard';
   }
 }
 
