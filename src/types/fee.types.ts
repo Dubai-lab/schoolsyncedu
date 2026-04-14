@@ -21,6 +21,37 @@ export interface FeeStructure extends SchoolScopedEntity {
   amount_lrd: number;
   description: string | null;
   due_date: ISODate;
+  has_installments: boolean; // true when bursar has defined term splits
+}
+
+/** fee_structure_installments — term split defined by bursar for a fee structure */
+export interface FeeStructureInstallment {
+  id: UUID;
+  school_id: UUID;
+  fee_structure_id: UUID;
+  term_name: string;
+  term_order: number;
+  amount_usd: number;
+  due_date: ISODate;
+  created_at: Timestamp;
+}
+
+/** student_fee_installments — per-student term installment tracking */
+export interface StudentFeeInstallment {
+  id: UUID;
+  school_id: UUID;
+  student_id: UUID;
+  student_fee_id: UUID;
+  fee_structure_installment_id: UUID;
+  term_name: string;
+  term_order: number;
+  amount_due: number;
+  amount_paid: number;
+  balance: number;
+  status: StudentFeeStatus;
+  due_date: ISODate;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 /** student_fees table — balance auto-synced by trigger (migration 006) */

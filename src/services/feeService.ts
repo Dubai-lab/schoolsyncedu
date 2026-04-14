@@ -81,7 +81,7 @@ export const studentFeeService = {
     let query = supabase
       .from('student_fees')
       .select(
-        `*, students!inner(id, first_name, last_name, registration_number, school_id), fee_structures!inner(id, fee_type, grade_level, amount_usd, amount_lrd, description)`,
+        `*, students!inner(id, first_name, last_name, registration_number, school_id), fee_structures!inner(id, fee_type, grade_level, amount_usd, amount_lrd, description, has_installments)`,
         { count: 'exact' },
       )
       .eq('students.school_id', schoolId)
