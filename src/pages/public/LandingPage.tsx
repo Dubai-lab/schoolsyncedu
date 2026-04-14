@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
 import { pricingPlanService } from '@/services/adminService';
@@ -23,6 +23,63 @@ import {
   Zap,
   Sparkles,
 } from 'lucide-react';
+
+// ── Scroll-reveal hook ────────────────────────────────────────────────────────
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const observe = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('in-view');
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.12 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return observe();
+  }, [observe]);
+
+  return ref;
+}
+
+// For arrays of children — observe the container, add in-view to each child
+function useStaggerReveal(count: number) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const children = Array.from(container.querySelectorAll<HTMLElement>('.reveal'));
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          children.forEach((child, i) => {
+            setTimeout(() => child.classList.add('in-view'), i * 80);
+          });
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.08 },
+    );
+    obs.observe(container);
+    return () => obs.disconnect();
+  }, [count]);
+
+  return containerRef;
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
 
 const FEATURES = [
   { icon: GraduationCap, title: 'Student Management', desc: 'Enrollment, profiles, academic records, and class assignments in one place.' },
@@ -58,14 +115,56 @@ const TESTIMONIALS = [
     school: 'Liberia Christian Academy',
   },
   {
-    quote: 'As a parent, I can finally see my child\'s grades, attendance, and fee status in real-time. No more guessing.',
+    quote: "As a parent, I can finally see my child's grades, attendance, and fee status in real-time. No more guessing.",
     name: 'Parent Emmanuel Toe',
     school: 'Bright Future School',
   },
 ];
 
+const HOW_STEPS = [
+  {
+    step: '01',
+    title: 'Register Your School',
+    desc: 'Fill in your school details, choose a plan, and create your admin account. Setup takes under 5 minutes.',
+    reveal: 'reveal',
+  },
+  {
+    step: '02',
+    title: 'Set Up Your Team',
+    desc: 'Invite your registrar, bursar, teachers, and other staff. Assign roles and permissions to control access.',
+    reveal: 'reveal',
+  },
+  {
+    step: '03',
+    title: 'Go Live',
+    desc: 'Your school is live! Start enrolling students, managing fees, taking attendance, and entering grades.',
+    reveal: 'reveal',
+  },
+];
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function LandingPage() {
   const [pricingView, setPricingView] = useState<'standard' | 'enterprise'>('standard');
+  const [heroVisible, setHeroVisible] = useState(false);
+
+  // Hero animates immediately on mount
+  useEffect(() => {
+    const t = setTimeout(() => setHeroVisible(true), 80);
+    return () => clearTimeout(t);
+  }, []);
+
+  const featuresRef   = useStaggerReveal(FEATURES.length);
+  const howRef        = useStaggerReveal(HOW_STEPS.length);
+  const testimonialsRef = useStaggerReveal(TESTIMONIALS.length);
+  const pricingRef    = useScrollReveal();
+  const aboutLeftRef  = useScrollReveal();
+  const aboutRightRef = useScrollReveal();
+  const ctaRef        = useScrollReveal();
+  const featuresTitleRef = useScrollReveal();
+  const howTitleRef   = useScrollReveal();
+  const testimonialsTitleRef = useScrollReveal();
+  const pricingTitleRef = useScrollReveal();
 
   // Fetch visible pricing plans for preview
   const { data: plans = [] } = useFetch<SubscriptionPlan[]>(
@@ -74,14 +173,18 @@ export default function LandingPage() {
   );
   const visiblePlans = plans.filter((p) => p.is_visible && p.is_active && !p.is_enterprise).slice(0, 3);
 
+  const heroBase = 'transition-all duration-700 ease-out';
+  const heroShow = 'opacity-100 translate-y-0';
+  const heroHide = 'opacity-0 translate-y-8';
+
   return (
     <div>
       {/* ========== HERO ========== */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600">
-        {/* Background effects */}
+        {/* Animated background blobs */}
         <div className="absolute inset-0">
-          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-accent-500/10 blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-white/5 blur-3xl" />
+          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-accent-500/10 blur-3xl animate-blob-float" />
+          <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-white/5 blur-3xl animate-blob-float-alt" />
           <div
             className="absolute inset-0 opacity-[0.03]"
             style={{
@@ -94,30 +197,49 @@ export default function LandingPage() {
 
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
           <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white/80 backdrop-blur-sm">
+            {/* Badge */}
+            <div
+              className={`mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white/80 backdrop-blur-sm ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+              style={{ transitionDelay: '0ms' }}
+            >
               <BookOpen className="h-4 w-4" />
               Built for Liberian Schools
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+
+            {/* Heading */}
+            <h1
+              className={`text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+              style={{ transitionDelay: '120ms' }}
+            >
               Transform School
               <br />
               Management with{' '}
               <span className="text-accent-500">SchoolSync</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
+
+            {/* Subtitle */}
+            <p
+              className={`mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70 ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+              style={{ transitionDelay: '240ms' }}
+            >
               A unified SaaS platform for enrollment, grades, attendance, fees,
               communication, and more — designed specifically for schools in Liberia.
             </p>
-            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+
+            {/* CTAs */}
+            <div
+              className={`mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+              style={{ transitionDelay: '360ms' }}
+            >
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-accent-600 hover:shadow-xl"
+                className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-accent-600 hover:shadow-xl hover:-translate-y-0.5"
               >
                 Get Started Free <ArrowRight className="h-4 w-4" />
               </Link>
               <a
                 href="#features"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 hover:-translate-y-0.5"
               >
                 See Features
               </a>
@@ -125,7 +247,10 @@ export default function LandingPage() {
           </div>
 
           {/* Stats bar */}
-          <div className="mx-auto mt-16 flex max-w-2xl flex-wrap justify-center gap-8 sm:gap-14">
+          <div
+            className={`mx-auto mt-16 flex max-w-2xl flex-wrap justify-center gap-8 sm:gap-14 ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+            style={{ transitionDelay: '480ms' }}
+          >
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-3xl font-bold text-white">{s.value}</p>
@@ -142,7 +267,7 @@ export default function LandingPage() {
       {/* ========== FEATURES ========== */}
       <section id="features" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <div ref={featuresTitleRef} className="reveal mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Features</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Everything your school needs
@@ -152,11 +277,11 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div ref={featuresRef} className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="group rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:border-primary-200 hover:shadow-lg hover:shadow-primary-50"
+                className="reveal group rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:border-primary-200 hover:shadow-lg hover:shadow-primary-50 hover:-translate-y-1"
               >
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white">
                   <f.icon className="h-6 w-6" />
@@ -172,32 +297,16 @@ export default function LandingPage() {
       {/* ========== HOW IT WORKS ========== */}
       <section className="bg-slate-50 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <div ref={howTitleRef} className="reveal mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">How It Works</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Get your school online in minutes
             </h2>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
-            {[
-              {
-                step: '01',
-                title: 'Register Your School',
-                desc: 'Fill in your school details, choose a plan, and create your admin account. Setup takes under 5 minutes.',
-              },
-              {
-                step: '02',
-                title: 'Set Up Your Team',
-                desc: 'Invite your registrar, bursar, teachers, and other staff. Assign roles and permissions to control access.',
-              },
-              {
-                step: '03',
-                title: 'Go Live',
-                desc: 'Your school is live! Start enrolling students, managing fees, taking attendance, and entering grades.',
-              },
-            ].map((item) => (
-              <div key={item.step} className="relative rounded-2xl bg-white p-8 shadow-sm">
+          <div ref={howRef} className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+            {HOW_STEPS.map((item) => (
+              <div key={item.step} className={`reveal relative rounded-2xl bg-white p-8 shadow-sm hover:shadow-md transition-shadow`}>
                 <span className="text-5xl font-extrabold text-primary-100">{item.step}</span>
                 <h3 className="mt-4 text-lg font-semibold text-slate-900">{item.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{item.desc}</p>
@@ -210,7 +319,7 @@ export default function LandingPage() {
       {/* ========== PRICING PREVIEW ========== */}
       <section id="pricing" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <div ref={pricingTitleRef} className="reveal mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Pricing</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Simple, transparent pricing
@@ -248,16 +357,16 @@ export default function LandingPage() {
           {/* ── Standard plan cards ── */}
           {pricingView === 'standard' && (
             <>
-              <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+              <div ref={pricingRef as React.RefObject<HTMLDivElement>} className="reveal mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
                 {visiblePlans.map((plan, i) => {
                   const isPopular = i === 1;
                   return (
                     <div
                       key={plan.id}
-                      className={`relative rounded-2xl border p-8 ${
+                      className={`relative rounded-2xl border p-8 transition-transform hover:-translate-y-1 ${
                         isPopular
                           ? 'border-primary-300 bg-primary-50/30 shadow-lg shadow-primary-100'
-                          : 'border-slate-200 bg-white'
+                          : 'border-slate-200 bg-white hover:shadow-md'
                       }`}
                     >
                       {isPopular && (
@@ -380,16 +489,19 @@ export default function LandingPage() {
       {/* ========== TESTIMONIALS ========== */}
       <section className="bg-slate-50 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <div ref={testimonialsTitleRef} className="reveal mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Testimonials</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Trusted by schools across Liberia
             </h2>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div ref={testimonialsRef} className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
             {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="rounded-2xl bg-white p-8 shadow-sm">
+              <div
+                key={t.name}
+                className="reveal rounded-2xl bg-white p-8 shadow-sm hover:shadow-md transition-shadow"
+              >
                 <div className="flex gap-1 text-accent-500 mb-4">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} className="h-4 w-4 fill-current" />
@@ -410,14 +522,14 @@ export default function LandingPage() {
       <section id="about" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-            <div>
+            <div ref={aboutLeftRef} className="reveal reveal-left">
               <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">About EduLiberia</p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
                 Built for Liberia, by Liberians
               </h2>
               <p className="mt-4 text-base leading-relaxed text-slate-500">
                 SchoolSync is part of the EduLiberia initiative to digitize education management across Liberia.
-                Our platform is designed with the unique challenges and needs of Liberian schools in mind — 
+                Our platform is designed with the unique challenges and needs of Liberian schools in mind —
                 from WAEC exam registration to mobile money fee collection.
               </p>
               <p className="mt-4 text-base leading-relaxed text-slate-500">
@@ -427,13 +539,13 @@ export default function LandingPage() {
               <div className="mt-8 flex gap-4">
                 <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 hover:-translate-y-0.5 transition-all"
                 >
                   Register Your School <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
                   href="mailto:info@eduliberia.com"
-                  className="inline-flex items-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Contact Us
                 </a>
@@ -441,7 +553,7 @@ export default function LandingPage() {
             </div>
 
             {/* Visual element */}
-            <div className="relative">
+            <div ref={aboutRightRef} className="reveal reveal-right relative">
               <div className="rounded-2xl bg-gradient-to-br from-primary-100 to-primary-50 p-8">
                 <div className="grid grid-cols-2 gap-4">
                   {[
@@ -450,7 +562,7 @@ export default function LandingPage() {
                     { label: 'Counties Covered', value: '8', color: 'bg-purple-500' },
                     { label: 'Uptime', value: '99.9%', color: 'bg-amber-500' },
                   ].map((s) => (
-                    <div key={s.label} className="rounded-xl bg-white p-5 shadow-sm">
+                    <div key={s.label} className="rounded-xl bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                       <div className={`mb-2 h-2 w-8 rounded-full ${s.color}`} />
                       <p className="text-2xl font-bold text-slate-900">{s.value}</p>
                       <p className="text-xs text-slate-500">{s.label}</p>
@@ -465,7 +577,7 @@ export default function LandingPage() {
 
       {/* ========== FINAL CTA ========== */}
       <section className="bg-primary-900 py-20">
-        <div className="mx-auto max-w-3xl text-center px-4">
+        <div ref={ctaRef} className="reveal mx-auto max-w-3xl text-center px-4">
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
             Ready to modernize your school?
           </h2>
@@ -475,13 +587,13 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-accent-600"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-accent-600 hover:-translate-y-0.5"
             >
               Get Started Free <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/pricing"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-all hover:-translate-y-0.5"
             >
               View Pricing
             </Link>
