@@ -165,56 +165,81 @@ export const messageService = {
   },
 };
 
-// ==================== NOTIFICATIONS ====================
+// ==================== IN-APP NOTIFICATIONS (bell) ====================
+
+export type NotificationType =
+  | 'grade_approval'
+  | 'letter_approval'
+  | 'new_application'
+  | 'new_incident'
+  | 'new_referral'
+  | 'fee_overdue'
+  | 'overdue_books'
+  | 'subscription'
+  | 'general';
+
+export interface UserNotification {
+  id: string;
+  user_id: string;
+  school_id: string | null;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  action_url: string | null;
+  is_read: boolean;
+  created_at: string;
+}
 
 export const notificationService = {
-  async list(
-    userId: UUID,
-    params: { page?: number; pageSize?: number; unreadOnly?: boolean } = {},
-  ) {
-    const { page = 1, pageSize = 25, unreadOnly } = params;
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    let query = supabase
-      .from('notifications')
-      .select('*', { count: 'exact' })
+  /** Fetch recent notifications for a user (latest 30) */
+  async list(userId: UUID): Promise<UserNotification[]> {
+    const { data, error } = await supabase
+      .from('user_notifications')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (unreadOnly) query = query.eq('is_read', false);
-
-    const { data, count, error } = await query;
+      .limit(30);
     if (error) throw error;
-    return { data: data as Notification[], count: count ?? 0 };
+    return (data ?? []) as UserNotification[];
   },
 
-  async markRead(id: UUID) {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) throw error;
-  },
-
-  async markAllRead(userId: UUID) {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('is_read', false);
-    if (error) throw error;
-  },
-
-  async getUnreadCount(userId: UUID) {
+  /** Count unread notifications */
+  async unreadCount(userId: UUID): Promise<number> {
     const { count, error } = await supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
+      .from('user_notifications')
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('is_read', false);
     if (error) throw error;
     return count ?? 0;
+  },
+
+  /** Mark a single notification as read */
+  async markRead(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_notifications')
+      .update({ is_read: true })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Mark all notifications as read for a user */
+  async markAllRead(userId: UUID): Promise<void> {
+    const { error } = await supabase
+      .from('user_notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+    if (error) throw error;
+  },
+
+  /** Delete a notification */
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_notifications')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
   },
 };
 

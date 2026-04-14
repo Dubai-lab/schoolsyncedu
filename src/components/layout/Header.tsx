@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   Menu,
-  Bell,
   Search,
   LogOut,
   User,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import GlobalSearch, { ROLES_WITH_SEARCH } from '@/components/shared/GlobalSearch';
+import NotificationBell from '@/components/shared/NotificationBell';
 
 export default function Header() {
   const { user, schoolSlug, signOut } = useAuth();
@@ -89,10 +89,7 @@ export default function Header() {
         )}
 
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-        </button>
+        <NotificationBell />
 
         {/* Profile dropdown */}
         <div ref={profileRef} className="relative">
