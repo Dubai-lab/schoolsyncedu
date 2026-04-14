@@ -318,6 +318,139 @@ export const registrarService = {
   },
 };
 
+// ============================================================
+// STUDENT IMPORT SERVICE
+// ============================================================
+
+export interface ImportStudentRow {
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;   // YYYY-MM-DD or blank
+  gender: string;          // Male / Female / Other or blank
+  class_name: string;
+  guardian_name: string;
+  guardian_phone: string;
+  guardian_email: string;  // optional
+}
+
+export interface ImportRowResult {
+  row_number: number;
+  success: boolean;
+  first_name: string;
+  last_name: string;
+  class_name: string;
+  registration_number?: string;
+  login_email?: string;
+  default_password?: string;
+  error?: string;
+}
+
+export const studentImportService = {
+  /** CSV template content — download this, fill in, then upload */
+  getTemplateCsv(): string {
+    const header = 'first_name,last_name,date_of_birth,gender,class_name,guardian_name,guardian_phone,guardian_email';
+    const example = 'John,Doe,2007-01-15,Male,12A,James Doe,0770123456,james.doe@email.com';
+    const example2 = 'Mary,Johnson,2008-03-20,Female,10B,Sarah Johnson,0880234567,';
+    return [header, example, example2].join('\n');
+  },
+
+  /** Parse a CSV file into ImportStudentRow objects (client-side, no library needed) */
+  parseCsv(text: string): { rows: ImportStudentRow[]; errors: string[] } {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return { rows: [], errors: ['File appears empty or has no data rows.'] };
+
+    const header = lines[0].toLowerCase().split(',').map((h) => h.trim().replace(/[^a-z_]/g, ''));
+    const required = ['first_name', 'last_name', 'class_name', 'guardian_name', 'guardian_phone'];
+    const missing = required.filter((r) => !header.includes(r));
+    if (missing.length > 0) {
+      return { rows: [], errors: [`Missing required columns: ${missing.join(', ')}. Download the template and use it.`] };
+    }
+
+    const col = (row: string[], name: string) => {
+      const i = header.indexOf(name);
+      return i >= 0 ? (row[i] ?? '').trim() : '';
+    };
+
+    const rows: ImportStudentRow[] = [];
+    const errors: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      // Handle quoted fields (simple implementation)
+      const parts = lines[i].split(',').map((p) => p.trim().replace(/^"|"$/g, ''));
+      if (parts.every((p) => !p)) continue; // skip blank rows
+      rows.push({
+        first_name:    col(parts, 'first_name'),
+        last_name:     col(parts, 'last_name'),
+        date_of_birth: col(parts, 'date_of_birth'),
+        gender:        col(parts, 'gender'),
+        class_name:    col(parts, 'class_name'),
+        guardian_name: col(parts, 'guardian_name'),
+        guardian_phone:col(parts, 'guardian_phone'),
+        guardian_email:col(parts, 'guardian_email'),
+      });
+    }
+
+    return { rows, errors };
+  },
+
+  /** Client-side validation of parsed rows against available class names */
+  validateRows(
+    rows: ImportStudentRow[],
+    availableClasses: string[],
+  ): Array<ImportStudentRow & { _valid: boolean; _errors: string[] }> {
+    const classSet = new Set(availableClasses.map((c) => c.toLowerCase()));
+    return rows.map((row) => {
+      const errs: string[] = [];
+      if (!row.first_name.trim()) errs.push('First name required');
+      if (!row.last_name.trim())  errs.push('Last name required');
+      if (!row.class_name.trim()) errs.push('Class name required');
+      else if (!classSet.has(row.class_name.toLowerCase())) errs.push(`Class "${row.class_name}" not found`);
+      if (!row.guardian_name.trim())  errs.push('Guardian name required');
+      if (!row.guardian_phone.trim()) errs.push('Guardian phone required');
+      if (row.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(row.date_of_birth)) {
+        errs.push('Date of birth must be YYYY-MM-DD format');
+      }
+      return { ...row, _valid: errs.length === 0, _errors: errs };
+    });
+  },
+
+  /**
+   * Send validated rows to the DB for processing.
+   * Batches in groups of 50 to avoid timeouts.
+   * Returns combined results from all batches.
+   */
+  async importStudents(
+    schoolId: string,
+    academicYear: string,
+    rows: ImportStudentRow[],
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<ImportRowResult[]> {
+    const BATCH_SIZE = 50;
+    const results: ImportRowResult[] = [];
+    let processed = 0;
+
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE);
+      const { data, error } = await supabase.rpc('bulk_import_students', {
+        p_school_id:     schoolId,
+        p_academic_year: academicYear,
+        p_students:      batch as unknown,
+      });
+      if (error) throw error;
+      const batchResults = (data as ImportRowResult[]) ?? [];
+      // Re-number rows relative to the full dataset
+      batchResults.forEach((r, idx) => {
+        r.row_number = i + idx + 1;
+      });
+      results.push(...batchResults);
+      processed += batch.length;
+      onProgress?.(processed, rows.length);
+    }
+
+    return results;
+  },
+};
+
 /**
  * Public Application Service — for anonymous users on school site.
  * Uses the public client (no auth session).
