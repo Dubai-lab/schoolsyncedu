@@ -34,7 +34,7 @@ const TEMPLATE_MANAGERS: UserRole[] = [
   USER_ROLES.ADMIN_STAFF, USER_ROLES.IT_ADMIN,
 ];
 
-// Roles that can approve letters — they skip the approval queue and send directly
+// Roles that always bypass the approval queue regardless of template flag
 const CAN_APPROVE: UserRole[] = [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL];
 
 export default function LetterBuilder() {
@@ -44,7 +44,7 @@ export default function LetterBuilder() {
   const userId = user?.id ?? '';
   const userRole = (user?.role ?? '') as UserRole;
   const isManager = TEMPLATE_MANAGERS.includes(userRole);
-  const canSendDirectly = CAN_APPROVE.includes(userRole);
+  const isPrincipal = CAN_APPROVE.includes(userRole);
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -200,6 +200,12 @@ export default function LetterBuilder() {
 
   const canCreate = selectedTemplate && studentData && channels.length > 0;
 
+  // Approval routing — driven by the template flag, not just the user's role.
+  // requires_approval = false  → ANY authorized staff sends directly ("Send to Parents")
+  // requires_approval = true   → principal/VP send directly; others go to approval queue
+  const templateRequiresApproval = currentTemplate?.requires_approval ?? true;
+  const canSendDirectly = !templateRequiresApproval || isPrincipal;
+
   // ── Placeholders the template uses that aren't auto-filled by school/student data ──
   // These are the fields the user must fill in manually (fee_amount, due_date, etc.)
   const schoolKeys = ['school_name', 'school_logo_url', 'school_address', 'school_phone',
@@ -342,9 +348,14 @@ export default function LetterBuilder() {
                 onClick={() => sendDirectlyMutation.mutate(undefined)}
                 loading={sendDirectlyMutation.isPending}
                 disabled={!canCreate}
-                title="Create and immediately email the guardian — no approval needed"
+                title={
+                  !templateRequiresApproval
+                    ? 'This letter type does not require principal approval — send directly to parents'
+                    : 'Send directly as principal — no approval queue needed'
+                }
               >
-                <Mail className="h-4 w-4 mr-1" /> Send to Guardian
+                <Mail className="h-4 w-4 mr-1" />
+                {!templateRequiresApproval ? 'Send to Parents' : 'Send to Guardian'}
               </Button>
             ) : (
               <Button

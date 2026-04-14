@@ -78,6 +78,7 @@ export const letterTemplateService = {
       subject: string;
       body_html: string;
       placeholders_used: string[];
+      requires_approval: boolean;
     }>,
   ) {
     const { data, error } = await supabase

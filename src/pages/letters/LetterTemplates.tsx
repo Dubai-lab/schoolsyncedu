@@ -13,7 +13,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import Breadcrumb from '@/components/shared/Breadcrumb';
-import { Plus, Trash2, ShieldCheck, Info } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Info, SendHorizonal, ClipboardCheck } from 'lucide-react';
 import type { LetterCategory, LetterSeverity, LetterTemplateAccess } from '@/types/letter.types';
 
 // ---- Role constants ----
@@ -46,6 +46,7 @@ type TemplateRow = {
   severity: string;
   subject: string;
   is_starter: boolean;
+  requires_approval: boolean;
 };
 
 const categoryOptions = Object.entries(LETTER_CATEGORIES).map(([, v]) => ({
@@ -123,6 +124,21 @@ export default function LetterTemplates() {
     { onSuccess: () => notify.success('Template deleted') },
   );
 
+  const toggleApprovalMutation = useMutate(
+    ({ id, requires_approval }: { id: string; requires_approval: boolean }) =>
+      letterTemplateService.update(id, { requires_approval }),
+    [['letter-templates']],
+    {
+      onSuccess: (_data, vars) =>
+        notify.success(
+          vars.requires_approval
+            ? 'Template now requires principal approval before sending'
+            : 'Template now sends directly to parents — no approval needed',
+        ),
+      onError: () => notify.error('Failed to update approval setting'),
+    },
+  );
+
   // Open access management dialog and load current grants
   const openAccessDialog = async (row: TemplateRow) => {
     setAccessTemplate(row);
@@ -170,6 +186,7 @@ export default function LetterTemplates() {
   const rows: TemplateRow[] = (result?.data ?? []).map((t) => ({
     id: t.id, name: t.name, category: t.category, letter_type: t.letter_type,
     severity: t.severity, subject: t.subject, is_starter: t.is_starter,
+    requires_approval: t.requires_approval,
   }));
 
   const setField = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
@@ -191,9 +208,36 @@ export default function LetterTemplates() {
     { key: 'severity', header: 'Severity', render: (r) => <Badge variant={severityVariant(r.severity)} size="sm">{r.severity}</Badge> },
     { key: 'subject', header: 'Subject', render: (r) => <span className="text-sm text-slate-500 truncate max-w-[200px] block">{r.subject}</span> },
     {
+      key: 'requires_approval', header: 'Send Flow',
+      render: (r) =>
+        r.requires_approval ? (
+          <Badge variant="warning" size="sm" className="flex items-center gap-1 w-fit">
+            <ClipboardCheck className="h-3 w-3" /> Needs Approval
+          </Badge>
+        ) : (
+          <Badge variant="success" size="sm" className="flex items-center gap-1 w-fit">
+            <SendHorizonal className="h-3 w-3" /> Direct Send
+          </Badge>
+        ),
+    },
+    {
       key: 'actions', header: '',
       render: (r) => (
         <div className="flex items-center gap-1 justify-end">
+          {canManageAccess && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleApprovalMutation.mutate({ id: r.id, requires_approval: !r.requires_approval });
+              }}
+              title={r.requires_approval ? 'Click to allow direct send (no approval)' : 'Click to require principal approval'}
+              className="text-slate-400 hover:text-amber-600 p-1 rounded transition-colors"
+            >
+              {r.requires_approval
+                ? <SendHorizonal className="h-4 w-4" />
+                : <ClipboardCheck className="h-4 w-4" />}
+            </button>
+          )}
           {canManageAccess && (
             <button
               onClick={(e) => { e.stopPropagation(); void openAccessDialog(r); }}
@@ -237,15 +281,20 @@ export default function LetterTemplates() {
         )}
       </div>
 
-      {/* Info banner for principal: explains the access system */}
+      {/* Info banner for principal: explains the access and approval system */}
       {canManageAccess && (
         <div className="flex items-start gap-3 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-800">
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
-          <p>
-            Click the <ShieldCheck className="inline h-3.5 w-3.5" /> icon on any template to control which staff roles
-            can see and use it. Staff will only see templates you assign to their role.
-            Default templates are pre-configured with appropriate role access.
-          </p>
+          <div className="space-y-1">
+            <p>
+              Click <ShieldCheck className="inline h-3.5 w-3.5" /> to control which staff roles can use a template.
+              Click <SendHorizonal className="inline h-3.5 w-3.5" /> / <ClipboardCheck className="inline h-3.5 w-3.5" /> to toggle whether it goes through your approval queue or sends directly to parents.
+            </p>
+            <p className="text-xs text-primary-700">
+              <strong>Direct Send</strong> — Finance, Registry, and informational letters: staff send immediately, no approval needed.{' '}
+              <strong>Needs Approval</strong> — Disciplinary, attendance, and school-wide letters: you review before it reaches parents.
+            </p>
+          </div>
         </div>
       )}
 

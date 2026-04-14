@@ -35,6 +35,7 @@ export interface LetterTemplate extends SchoolScopedEntity {
   body_html: string;
   placeholders_used: string[];
   is_starter: boolean;
+  requires_approval: boolean;
   active_version_id: UUID | null;
   created_by: UUID;
   updated_at?: Timestamp;
