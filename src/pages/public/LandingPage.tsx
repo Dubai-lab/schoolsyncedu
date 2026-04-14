@@ -544,7 +544,7 @@ export default function LandingPage() {
                   Register Your School <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
-                  href="mailto:info@eduliberia.com"
+                  href="mailto:support@schoolsyncedu.com"
                   className="inline-flex items-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Contact Us
