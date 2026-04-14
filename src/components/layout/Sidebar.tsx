@@ -251,6 +251,7 @@ const navGroups: NavGroup[] = [
       { label: 'Billing', path: '/admin/billing', icon: CreditCard, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'Discounts', path: '/admin/discounts', icon: DollarSign, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'System Health', path: '/admin/health', icon: Shield, roles: [USER_ROLES.SUPER_ADMIN] },
+      { label: 'Social Media', path: '/admin/social-media', icon: Globe, roles: [USER_ROLES.SUPER_ADMIN] },
     ],
   },
 ];

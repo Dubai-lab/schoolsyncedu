@@ -116,6 +116,7 @@ import PricingPlans from '@/pages/admin/PricingPlans';
 import BillingCenter from '@/pages/admin/BillingCenter';
 import AdminDiscounts from '@/pages/admin/Discounts';
 import SystemHealth from '@/pages/admin/SystemHealth';
+import SocialMediaSettings from '@/pages/admin/SocialMediaSettings';
 
 // Timetable pages
 import TimetableView from '@/pages/timetable/TimetableView';
@@ -377,6 +378,7 @@ export default function App() {
           <Route path="/admin/billing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><BillingCenter /></RequireRole>} />
           <Route path="/admin/discounts" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDiscounts /></RequireRole>} />
           <Route path="/admin/health" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SystemHealth /></RequireRole>} />
+          <Route path="/admin/social-media" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SocialMediaSettings /></RequireRole>} />
           {/* WAEC module */}
           <Route path="/waec" element={<WaecDashboard />} />
           <Route path="/waec/register" element={<CandidateRegistration />} />

@@ -482,3 +482,36 @@ export const enterpriseService = {
     if (data && (data as { error?: string }).error) throw new Error((data as { error: string }).error);
   },
 };
+
+// ==================== PLATFORM SOCIAL LINKS ====================
+
+export interface PlatformSocialLinks {
+  social_x:         string | null;
+  social_facebook:  string | null;
+  social_youtube:   string | null;
+  social_instagram: string | null;
+  social_tiktok:    string | null;
+}
+
+export const socialLinksService = {
+  async get(): Promise<PlatformSocialLinks> {
+    const { data, error } = await supabase
+      .from('platform_config')
+      .select('social_x, social_facebook, social_youtube, social_instagram, social_tiktok')
+      .eq('id', 'singleton')
+      .single();
+    if (error) throw error;
+    return (data ?? {
+      social_x: null, social_facebook: null, social_youtube: null,
+      social_instagram: null, social_tiktok: null,
+    }) as PlatformSocialLinks;
+  },
+
+  async update(links: Partial<PlatformSocialLinks>): Promise<void> {
+    const { error } = await supabase
+      .from('platform_config')
+      .update({ ...links, updated_at: new Date().toISOString() })
+      .eq('id', 'singleton');
+    if (error) throw error;
+  },
+};
