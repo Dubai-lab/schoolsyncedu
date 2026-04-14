@@ -23,9 +23,14 @@ export const bursarService = {
         .eq('students.school_id', schoolId),
       supabase
         .from('student_fees')
-        .select('balance')
+        .select('balance, students!inner(school_id)')
+        .eq('students.school_id', schoolId)
         .in('status', ['pending', 'partial', 'overdue']),
-      supabase.from('student_fees').select('amount_paid').eq('status', 'paid'),
+      supabase
+        .from('student_fees')
+        .select('amount_paid, students!inner(school_id)')
+        .eq('students.school_id', schoolId)
+        .eq('status', 'paid'),
       supabase
         .from('payments')
         .select('amount_usd')

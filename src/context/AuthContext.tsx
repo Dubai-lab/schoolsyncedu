@@ -84,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Load user profile DIRECTLY — don't rely on onAuthStateChange events
         if (result.user?.id) {
           await loadUserForAuthId(result.user.id);
+          // Update last_login timestamp — fire-and-forget, never block login
+          supabase.rpc('record_login').then(() => {}, () => {});
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Sign in failed';

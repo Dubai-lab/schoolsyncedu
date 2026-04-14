@@ -13,6 +13,27 @@ import type {
   EnterpriseInquiry,
 } from '@/types/report.types';
 
+// ==================== SYSTEM EVENT LOGGING ====================
+
+/** Log a platform-level event to system_logs via the log_system_event RPC. Fire-and-forget — never throws. */
+export async function logSystemEvent(
+  level: 'info' | 'warn' | 'error' | 'debug',
+  module: string,
+  message: string,
+  metadata?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await supabase.rpc('log_system_event', {
+      p_level: level,
+      p_module: module,
+      p_message: message,
+      p_metadata: metadata ?? null,
+    });
+  } catch {
+    // Logging must never break the calling action
+  }
+}
+
 // ==================== PLATFORM DASHBOARD ====================
 
 export const adminDashboardService = {
@@ -193,6 +214,7 @@ export const pricingPlanService = {
       .select()
       .single();
     if (error) throw error;
+    logSystemEvent('info', 'plans', `Pricing plan created: ${payload.name}`, { plan_id: (data as SubscriptionPlan).id });
     return data as SubscriptionPlan;
   },
 
@@ -204,6 +226,7 @@ export const pricingPlanService = {
       .select()
       .single();
     if (error) throw error;
+    logSystemEvent('info', 'plans', `Pricing plan updated: ${id}`, { plan_id: id, changes: Object.keys(payload) });
     return data as SubscriptionPlan;
   },
 
