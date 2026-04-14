@@ -238,7 +238,7 @@ export const libraryReportService = {
     return data as { id: string; student_id: string; book_copy_id: string; due_date: string; days_overdue: number; fine_amount: number; status: string; checkout_id: string }[];
   },
 
-  async getTodayActivity(schoolId: UUID) {
+  async getTodayActivity(_schoolId: UUID) {
     const today = new Date().toISOString().split('T')[0];
     const [checkoutsRes, returnsRes] = await Promise.all([
       supabase
