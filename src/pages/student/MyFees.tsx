@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { studentPortalService } from '@/services/studentPortalService';
-import { paymentService, invoiceService } from '@/services/feeService';
+import { invoiceService } from '@/services/feeService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
@@ -21,9 +20,6 @@ import {
   FileText,
   Smartphone,
   Wallet,
-  CheckCircle,
-  ArrowRight,
-  Info,
   Clock,
 } from 'lucide-react';
 
@@ -87,144 +83,22 @@ interface PaymentModalProps {
 }
 
 function PaymentModal({
-  fee, student, schoolId, userId, userEmail, paymentCfg, schoolName, onClose, onPaid,
+  fee, student, paymentCfg, schoolName, onClose,
 }: PaymentModalProps) {
-  const [amount, setAmount]           = useState(String(fee.balance));
-  const [flwProcessing, setFlw]       = useState(false);
-  const [step, setStep]               = useState<'invoice' | 'success' | 'error'>('invoice');
-  const [payRef, setPayRef]           = useState<string | null>(null);
-  const [invoiceNum, setInvoiceNum]   = useState<string | null>(null);
-  const [errorMsg, setErrorMsg]       = useState<string | null>(null);
+  const [amount, setAmount] = useState(String(fee.balance));
 
   const studentName = `${student.first_name as string} ${student.last_name as string}`;
   const feeType     = fee.fee_structures?.fee_type?.replace(/_/g, ' ') ?? 'School Fee';
 
-  // ── Derive best email for Flutterwave ─────────────────────────────────────
-  // Students log in with their registration number (no real email), so their
-  // auth email is an internal system address. We prefer the parent/guardian
-  // email so Flutterwave delivers the receipt to the parent. We fall back to
-  // userEmail (the auth email) which is always a valid, non-empty string.
-  const guardians    = (student.guardians as Array<{ email?: string | null; phone?: string | null }> | null) ?? [];
-  const guardianEmail = guardians.find((g) => g.email?.trim())?.email ?? '';
-  const customerEmail = guardianEmail || userEmail;
-  const customerPhone = (guardians[0]?.phone as string | undefined) ?? '';
-
-  // ── Flutterwave ──────────────────────────────────────────────────────────────
-  const flwKey    = paymentCfg?.flw_public_key ?? (import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY as string) ?? '';
   const amountNum = Number(amount);
   const canPay    = amountNum > 0 && amountNum <= fee.balance && !isNaN(amountNum);
 
-  const flutterwaveConfig = paymentCfg?.flw_enabled && canPay
-    ? {
-        public_key:      flwKey,
-        tx_ref:          `INV-${schoolId.slice(0, 5)}-${fee.id.slice(0, 6)}-${Date.now()}`,
-        amount:          amountNum,
-        currency:        'USD',
-        payment_options: (paymentCfg.flw_methods ?? ['card']).join(','),
-        customer: {
-          email:        customerEmail,
-          name:         studentName,
-          phone_number: customerPhone,
-        },
-        customizations: {
-          title:       `${schoolName} — ${feeType}`,
-          description: `Fee payment for ${studentName}`,
-          logo:        `${window.location.origin}/SchoolSync_logo.png`,
-        },
-        meta: {
-          school_id:      schoolId,
-          student_fee_id: fee.id,
-          student_id:     fee.student_id,
-        },
-      }
-    : null;
-
-  const handleFlutterPayment = useFlutterwave(flutterwaveConfig ?? {
-    public_key: flwKey || '',
-    tx_ref: 'placeholder',
-    amount: 0,
-    currency: 'USD',
-    payment_options: 'card',
-    customer: { email: customerEmail || 'noreply@schoolsync.app', name: studentName, phone_number: '' },
-    customizations: { title: '', description: '', logo: '' },
-  });
-
-  function handlePay() {
-    if (!flutterwaveConfig) return;
-    const snapAmt   = amountNum;
-    const snapFee   = fee;
-
-    setFlw(true);
-    setErrorMsg(null);
-
-    handleFlutterPayment({
-      callback: async (response) => {
-        closePaymentModal();
-
-        if (response.status !== 'successful' && response.status !== 'completed') {
-          setFlw(false);
-          setErrorMsg('Payment was cancelled or failed. Please try again.');
-          return;
-        }
-
-        const ref = String(response.transaction_id ?? response.flw_ref ?? '');
-
-        // Safety timeout — release button if DB call hangs
-        const safetyTimer = setTimeout(() => {
-          setFlw(false);
-          setStep('error');
-          setErrorMsg(
-            `Your payment was received (ref: ${ref}) but could not be recorded automatically. ` +
-            'Please contact the school finance office with this reference number.',
-          );
-        }, 25_000);
-
-        try {
-          // 1. Record the payment → updates student_fees balance via RPC
-          await paymentService.recordPayment(schoolId, {
-            student_id:       snapFee.student_id,
-            student_fee_id:   snapFee.id,
-            amount_usd:       snapAmt,
-            amount_lrd:       0,
-            currency_charged: 'USD',
-            payment_method:   'visa',
-            gateway_ref:      ref,
-            recorded_by:      userId,
-          });
-
-          // 2. Generate invoice → finance sees it in their dashboard
-          const dueDate = snapFee.due_date ?? new Date().toISOString().split('T')[0];
-          const inv = await invoiceService.generate(schoolId, {
-            student_id:   snapFee.student_id,
-            total_amount: snapAmt,
-            due_date:     dueDate,
-          });
-
-          clearTimeout(safetyTimer);
-          setPayRef(ref);
-          setInvoiceNum(inv.invoice_number);
-          setStep('success');
-          onPaid(); // triggers fee list refetch in parent
-        } catch (err) {
-          clearTimeout(safetyTimer);
-          const msg = err instanceof Error ? err.message : String(err);
-          setStep('error');
-          setErrorMsg(
-            `Payment received (ref: ${ref}) but an error occurred: ${msg}. ` +
-            'Please contact the finance office with your reference number.',
-          );
-        } finally {
-          setFlw(false);
-        }
-      },
-      onClose: () => setFlw(false),
-    });
-  }
+  // Online card payment removed. Students pay via Mobile Money or at the finance office.
 
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={step === 'invoice' ? onClose : undefined} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel — slides from right */}
       <div className="relative ml-auto flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden">
@@ -232,9 +106,7 @@ function PaymentModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              {step === 'success' ? 'Payment Complete!' : step === 'error' ? 'Payment Issue' : 'Pay Fee'}
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900">Pay Fee</h2>
             <p className="text-xs text-gray-400 capitalize">{feeType}</p>
           </div>
           <button
@@ -246,84 +118,7 @@ function PaymentModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-
-          {/* ── SUCCESS ── */}
-          {step === 'success' && (
-            <div className="flex flex-col items-center py-8 text-center">
-              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
-                <CheckCircle className="h-10 w-10 text-emerald-500" />
-              </div>
-              <h3 className="text-2xl font-extrabold text-gray-900">Payment Successful!</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Your payment has been recorded and your fee balance has been updated.
-              </p>
-
-              {/* Invoice number */}
-              {invoiceNum && (
-                <div className="mt-5 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Invoice Number</p>
-                  <p className="mt-1 font-mono text-xl font-bold text-emerald-800">{invoiceNum}</p>
-                  <p className="mt-1 text-xs text-emerald-600">
-                    Keep this for your records. The school finance office has received this invoice.
-                  </p>
-                </div>
-              )}
-
-              {/* Payment ref */}
-              {payRef && (
-                <div className="mt-3 w-full rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Flutterwave Reference</p>
-                  <p className="mt-1 font-mono text-sm font-bold text-gray-700 break-all">{payRef}</p>
-                </div>
-              )}
-
-              {/* Amount paid */}
-              <div className="mt-3 w-full rounded-xl border border-blue-100 bg-blue-50 px-5 py-3 text-left">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-blue-700">Amount Paid</p>
-                  <p className="text-lg font-extrabold text-blue-800">{fmtUSD(amountNum)}</p>
-                </div>
-              </div>
-
-              <button
-                onClick={onClose}
-                className="mt-6 w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow transition hover:bg-emerald-700"
-              >
-                Done — View Updated Fees
-              </button>
-            </div>
-          )}
-
-          {/* ── ERROR ── */}
-          {step === 'error' && (
-            <div className="flex flex-col items-center py-8 text-center">
-              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="h-10 w-10 text-red-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Payment Issue</h3>
-              <div className="mt-4 w-full rounded-xl border border-red-200 bg-red-50 p-4 text-left text-sm text-red-700">
-                {errorMsg}
-              </div>
-              <div className="mt-5 flex gap-3 w-full">
-                <button
-                  onClick={() => { setStep('invoice'); setErrorMsg(null); }}
-                  className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Try Again
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 rounded-xl bg-gray-800 py-3 text-sm font-bold text-white"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── INVOICE / PAYMENT FORM ── */}
-          {step === 'invoice' && (
-            <div className="space-y-5">
+          <div className="space-y-5">
 
               {/* Invoice preview */}
               <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5">
@@ -392,27 +187,6 @@ function PaymentModal({
                 </p>
               </div>
 
-              {/* ── FLUTTERWAVE ── */}
-              {paymentCfg?.flw_enabled && (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
-                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <p>Secure online payment. Pay now with your Visa, Mastercard, or bank transfer. You'll get an email receipt from Flutterwave, and an invoice will be sent to the school finance office.</p>
-                  </div>
-                  <button
-                    onClick={handlePay}
-                    disabled={!canPay || flwProcessing}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {flwProcessing ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
-                    ) : (
-                      <><CreditCard className="h-4 w-4" /> Pay {canPay ? fmtUSD(amountNum) : ''} Online &nbsp;<ArrowRight className="h-4 w-4" /></>
-                    )}
-                  </button>
-                </div>
-              )}
-
               {/* ── MTN MOBILE MONEY ── */}
               {paymentCfg?.mtn_enabled && paymentCfg.mtn_merchant_code && (
                 <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 space-y-2">
@@ -460,15 +234,14 @@ function PaymentModal({
                 </p>
               </div>
 
-              {/* No online methods at all */}
-              {!paymentCfg?.flw_enabled && !paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
+              {/* No mobile money configured */}
+              {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
                 <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Online payment is not enabled for your school yet. Please use the cash or bank option above.
+                  Mobile Money payment is not configured for your school. Please pay in person at the finance office.
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -601,14 +374,12 @@ export default function MyFees() {
               <p className="text-xs mt-0.5">Total balance due: <strong>{fmtUSD(balance)}</strong>. Click "Pay Now" on any fee below to pay online instantly.</p>
             </div>
           </div>
-          {paymentCfg?.flw_enabled && (
-            <button
-              onClick={() => { setActiveTab('fees'); if (unpaidFees[0]) setSelectedFee(unpaidFees[0]); }}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700"
-            >
-              <CreditCard className="h-3.5 w-3.5" /> Pay Now
-            </button>
-          )}
+          <button
+            onClick={() => { setActiveTab('fees'); if (unpaidFees[0]) setSelectedFee(unpaidFees[0]); }}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700"
+          >
+            <CreditCard className="h-3.5 w-3.5" /> View Fees
+          </button>
         </div>
       )}
 

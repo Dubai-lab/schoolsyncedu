@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { publicApplicationService } from '@/services/registrarService';
 import { supabase } from '@/lib/supabase';
@@ -24,7 +23,6 @@ import {
   Search,
   Upload,
   X,
-  CreditCard,
   Smartphone,
   Building2,
   CheckCircle2,
@@ -52,8 +50,7 @@ export default function SchoolApplicationForm() {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<{ application_number: string; application_fee: number } | null>(null);
   const [error, setError] = useState('');
-  const [paymentFeePaid, setPaymentFeePaid] = useState(false);
-  const [payingOnline, setPayingOnline] = useState(false);
+  const [paymentFeePaid] = useState(false);
 
   // School payment config (loaded after school is known)
   const [payConfig, setPayConfig] = useState<{
@@ -157,52 +154,6 @@ export default function SchoolApplicationForm() {
   const academicYear = settings.current_academic_year || `${currentYear}-${currentYear + 1}`;
   const applicationFee = Number(settings.application_fee_usd) || 0;
   const isAccepting = settings.accepting_applications !== 'false';
-
-  // ── Flutterwave inline payment config ────────────────────────────
-  // Hook must always be called — values are safe to be empty strings
-  const flwConfig = {
-    public_key: payConfig?.flw_public_key ?? '',
-    tx_ref: `APP-${result?.application_number ?? 'pending'}-${Date.now()}`,
-    amount: result?.application_fee ?? 0,
-    currency: payConfig?.flw_currency ?? 'USD',
-    payment_options: (payConfig?.flw_methods ?? ['card']).join(','),
-    customer: {
-      email: form.guardianEmail || 'parent@schoolsync.app',
-      name: form.guardianFullName || `${form.firstName} ${form.lastName}`,
-      phone_number: form.guardianPhone || '',
-    },
-    customizations: {
-      title: payConfig?.payment_title || (school?.name ?? 'Application Fee'),
-      description: `Application fee for ${form.firstName} ${form.lastName}`,
-      logo: payConfig?.payment_logo || school?.logo_url || '',
-    },
-    meta: {
-      application_number: result?.application_number ?? '',
-      school_id: school?.id ?? '',
-    },
-  };
-  const handleFlwPayment = useFlutterwave(flwConfig);
-
-  async function payOnlineWithCard() {
-    if (!result) return;
-    setPayingOnline(true);
-    handleFlwPayment({
-      callback: async (response) => {
-        closePaymentModal();
-        const ref = response.transaction_id?.toString() ?? response.flw_ref ?? '';
-        const method = (response as unknown as Record<string, string>).payment_type?.toLowerCase().includes('mobilemoney') ? 'mtn' : 'card';
-        try {
-          await publicApplicationService.recordOnlinePayment(result.application_number, ref, method);
-          setPaymentFeePaid(true);
-        } catch {
-          // Payment recorded in gateway but DB update failed — show manual note
-          setPaymentFeePaid(true);
-        }
-        setPayingOnline(false);
-      },
-      onClose: () => setPayingOnline(false),
-    });
-  }
 
   const validateStep = (s: Step): string | null => {
     if (s === 'student') {
@@ -390,34 +341,12 @@ export default function SchoolApplicationForm() {
                     </div>
 
                     {/* ── Online payment options ── */}
-                    {(payConfig?.flw_enabled || payConfig?.mtn_enabled || payConfig?.orange_enabled) && (
+                    {(payConfig?.mtn_enabled || payConfig?.orange_enabled) && (
                       <div className="rounded-xl border border-slate-200 overflow-hidden">
                         <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
-                          <p className="text-sm font-semibold text-slate-700">Pay Online Now</p>
+                          <p className="text-sm font-semibold text-slate-700">Pay via Mobile Money</p>
                         </div>
                         <div className="p-4 space-y-3">
-
-                          {/* Flutterwave card */}
-                          {payConfig?.flw_enabled && payConfig.flw_public_key && (
-                            <button
-                              onClick={payOnlineWithCard}
-                              disabled={payingOnline}
-                              className="w-full flex items-center gap-3 rounded-xl border-2 border-blue-200
-                                bg-blue-50 hover:bg-blue-100 active:bg-blue-200 px-4 py-3.5
-                                transition-colors disabled:opacity-60"
-                            >
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600">
-                                <CreditCard className="h-5 w-5 text-white" />
-                              </div>
-                              <div className="text-left flex-1">
-                                <p className="font-semibold text-blue-900 text-sm">Pay with Card</p>
-                                <p className="text-xs text-blue-600">Visa / MasterCard — secure online payment</p>
-                              </div>
-                              {payingOnline
-                                ? <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-                                : <span className="text-sm font-bold text-blue-700">${result.application_fee.toFixed(2)}</span>}
-                            </button>
-                          )}
 
                           {/* MTN MoMo */}
                           {payConfig?.mtn_enabled && (
@@ -479,7 +408,7 @@ export default function SchoolApplicationForm() {
                       <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                         <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
-                          {payConfig?.flw_enabled || payConfig?.mtn_enabled || payConfig?.orange_enabled
+                          {payConfig?.mtn_enabled || payConfig?.orange_enabled
                             ? 'Or Pay at Campus'
                             : 'Pay at Campus Finance Office'}
                         </p>

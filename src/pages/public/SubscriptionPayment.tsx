@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
   fetchPaymentInfo,
-  buildFlutterwaveConfig,
+  createPaymentIntent,
   recordSubscriptionPayment,
-  mapFlutterwaveMethod,
+  generateTxRef,
+  getStripe,
   type PaymentPageData,
-} from '@/services/flutterwaveService';
+} from '@/services/stripeService';
 import { discountService } from '@/services/adminService';
 import { supabase } from '@/lib/supabase';
 import type { Discount } from '@/types/report.types';
@@ -21,43 +22,190 @@ import {
   AlertTriangle,
   Tag,
   X,
+  Lock,
 } from 'lucide-react';
+
+// ── Stripe card form (must be inside <Elements>) ───────────────────────────────
+
+interface CardFormProps {
+  paymentData: PaymentPageData;
+  amount: number;
+  appliedDiscount: Discount | null;
+  email: string | null;
+  onSuccess: (invoiceNumber: string) => void;
+}
+
+function StripeCardForm({ paymentData, amount, appliedDiscount, email, onSuccess }: CardFormProps) {
+  const stripe   = useStripe();
+  const elements = useElements();
+
+  const [processing, setProcessing] = useState(false);
+  const [cardError,  setCardError]  = useState('');
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    setCardError('');
+
+    try {
+      const txRef = generateTxRef(paymentData.school.id);
+
+      // 1. Create PaymentIntent server-side (secret key stays in Edge Function)
+      const { clientSecret, paymentIntentId } = await createPaymentIntent({
+        amountUsd:      amount,
+        schoolId:       paymentData.school.id,
+        subscriptionId: paymentData.subscription.id,
+        planName:       paymentData.plan.name,
+        txRef,
+      });
+
+      // 2. Confirm card payment in the browser
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) throw new Error('Card element unavailable');
+
+      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardEl,
+            billing_details: {
+              name:  paymentData.owner.name,
+              email: paymentData.owner.email,
+            },
+          },
+        },
+      );
+
+      if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
+      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment incomplete');
+
+      // 3. Record payment in database
+      const result = await recordSubscriptionPayment({
+        schoolId:       paymentData.school.id,
+        subscriptionId: paymentData.subscription.id,
+        amountUsd:      amount,
+        gatewayRef:     paymentIntentId,
+        txRef,
+      });
+
+      // 4. Increment coupon uses if a discount was applied
+      if (appliedDiscount) {
+        discountService.incrementCouponUses(appliedDiscount.id).catch(() => {/* non-critical */});
+      }
+
+      // 5. Send payment confirmed email (non-blocking)
+      supabase.functions.invoke('process-subscription-notifications', {
+        body: {
+          trigger:        'payment_confirmed',
+          school_id:      paymentData.school.id,
+          school_name:    paymentData.school.name,
+          owner_email:    email,
+          plan_name:      paymentData.plan.name,
+          amount_usd:     amount,
+          invoice_number: result.invoiceNumber ?? '',
+        },
+      }).catch(() => {/* non-critical */});
+
+      onSuccess(result.invoiceNumber ?? '');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setCardError(msg);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Card input */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">
+          <CreditCard className="inline h-3.5 w-3.5 mr-1" />
+          Card Details
+        </label>
+        <div className="rounded-lg border border-slate-300 px-3 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-400/20 transition-all bg-white">
+          <CardElement
+            options={{
+              hidePostalCode: true,
+              style: {
+                base: {
+                  fontSize: '14px',
+                  color: '#1e293b',
+                  fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+                  '::placeholder': { color: '#94a3b8' },
+                },
+                invalid: { color: '#dc2626' },
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      {cardError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {cardError}
+        </div>
+      )}
+
+      <button
+        onClick={handlePay}
+        disabled={!stripe || processing}
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 shadow-lg shadow-primary-200/50 transition-all"
+      >
+        {processing ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+        ) : (
+          <><Lock className="h-4 w-4" /> Pay ${amount.toFixed(2)} USD</>
+        )}
+      </button>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <Shield className="h-3.5 w-3.5 shrink-0" />
+          256-bit SSL · Powered by Stripe
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <CreditCard className="h-3.5 w-3.5 shrink-0" />
+          Visa, Mastercard, American Express accepted
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page component ────────────────────────────────────────────────────────
 
 export default function SubscriptionPayment() {
   const [searchParams] = useSearchParams();
 
   const schoolId = searchParams.get('school');
-  const email = searchParams.get('email');
+  const email    = searchParams.get('email');
 
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState('');
-  const [paymentData, setPaymentData]       = useState<PaymentPageData | null>(null);
-  const [processing, setProcessing]         = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [invoiceNumber, setInvoiceNumber]   = useState('');
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState('');
+  const [paymentData,     setPaymentData]     = useState<PaymentPageData | null>(null);
+  const [paymentSuccess,  setPaymentSuccess]  = useState(false);
+  const [invoiceNumber,   setInvoiceNumber]   = useState('');
 
-  // Coupon / discount state
-  const [couponInput, setCouponInput]   = useState('');
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
-  const [couponError, setCouponError]   = useState('');
-  const [couponSuccess, setCouponSuccess] = useState('');
+  // Coupon / discount
+  const [couponInput,      setCouponInput]      = useState('');
+  const [couponLoading,    setCouponLoading]    = useState(false);
+  const [appliedDiscount,  setAppliedDiscount]  = useState<Discount | null>(null);
+  const [couponError,      setCouponError]      = useState('');
+  const [couponSuccess,    setCouponSuccess]    = useState('');
 
-  // Fetch the school, subscription, and plan info via RPC
   useEffect(() => {
     if (!schoolId || !email) {
       setError('Invalid payment link. Please register again.');
       setLoading(false);
       return;
     }
-
     fetchPaymentInfo(schoolId, email)
       .then((data) => setPaymentData(data))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load payment details'))
       .finally(() => setLoading(false));
   }, [schoolId, email]);
 
-  // Compute discounted price
   function discountedPrice(basePrice: number): number {
     if (!appliedDiscount) return basePrice;
     if (appliedDiscount.type === 'percentage') {
@@ -97,102 +245,9 @@ export default function SubscriptionPayment() {
     setCouponSuccess('');
   };
 
-  // Build Flutterwave config
   const finalAmount = paymentData ? discountedPrice(paymentData.plan.price_usd) : 0;
 
-  const flutterwaveConfig = paymentData
-    ? buildFlutterwaveConfig({
-        amount: finalAmount,
-        email: paymentData.owner.email,
-        name: paymentData.owner.name,
-        phone: paymentData.owner.phone,
-        planName: paymentData.plan.name,
-        schoolId: paymentData.school.id,
-        subscriptionId: paymentData.subscription.id,
-      })
-    : null;
-
-  const handleFlutterPayment = useFlutterwave(flutterwaveConfig ?? {
-    public_key: '',
-    tx_ref: '',
-    amount: 0,
-    currency: 'USD',
-    payment_options: '',
-    customer: { email: '', name: '', phone_number: '' },
-    customizations: { title: '', description: '', logo: '' },
-  });
-
-  const initiatePayment = () => {
-    if (!paymentData || !flutterwaveConfig) return;
-
-    // Capture config values at the time of click (avoids stale closure)
-    const capturedConfig   = flutterwaveConfig;
-    const capturedData     = paymentData;
-    const capturedDiscount = appliedDiscount;
-    const capturedAmount   = finalAmount;
-
-    handleFlutterPayment({
-      callback: async (response) => {
-        closePaymentModal();
-
-        if (response.status === 'successful' || response.status === 'completed') {
-          setProcessing(true);
-          setError('');
-          try {
-            const result = await recordSubscriptionPayment({
-              schoolId: capturedData.school.id,
-              subscriptionId: capturedData.subscription.id,
-              amountUsd: capturedAmount,
-              gatewayRef: String(response.transaction_id ?? response.flw_ref ?? ''),
-              txRef: capturedConfig.tx_ref,
-              paymentMethod: mapFlutterwaveMethod((response as unknown as Record<string, string>).payment_type),
-            });
-            // Increment coupon uses if a discount was applied
-            if (capturedDiscount) {
-              discountService.incrementCouponUses(capturedDiscount.id).catch(() => {/* non-critical */});
-            }
-            // Both fresh activation and already-active count as success
-            setInvoiceNumber(result.invoiceNumber ?? '');
-            setPaymentSuccess(true);
-
-            // Send payment confirmed email (non-blocking)
-            try {
-              await supabase.functions.invoke('process-subscription-notifications', {
-                body: {
-                  trigger: 'payment_confirmed',
-                  school_id: capturedData.school.id,
-                  school_name: capturedData.school.name,
-                  owner_email: email,
-                  plan_name: capturedData.plan.name,
-                  amount_usd: capturedAmount,
-                  invoice_number: result.invoiceNumber ?? '',
-                  expires_at: (result as Record<string, unknown>).expiresAt as string ?? '',
-                },
-              });
-            } catch { /* non-critical */ }
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error('Activation RPC failed:', msg);
-            // Show actual error + contact info instead of generic message
-            setError(
-              `Payment was received by Flutterwave but account activation failed: ${msg}. ` +
-              `Your payment reference is ${response.transaction_id ?? response.flw_ref}. ` +
-              `Please contact support with this reference.`
-            );
-          } finally {
-            setProcessing(false);
-          }
-        } else {
-          setError('Payment was not completed. Please try again.');
-        }
-      },
-      onClose: () => {
-        // User closed without completing — no action needed
-      },
-    });
-  };
-
-  // ── SUCCESS STATE ──
+  // ── SUCCESS ──
   if (paymentSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center px-4">
@@ -211,9 +266,7 @@ export default function SubscriptionPayment() {
             </p>
           )}
           <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4">
-            <p className="text-sm text-green-800 font-medium">
-              Your school portal is ready!
-            </p>
+            <p className="text-sm text-green-800 font-medium">Your school portal is ready!</p>
             <p className="mt-1 text-xs text-green-600">
               Log in to your proprietor dashboard to set up your school, invite staff, and enroll students.
             </p>
@@ -229,7 +282,7 @@ export default function SubscriptionPayment() {
     );
   }
 
-  // ── LOADING STATE ──
+  // ── LOADING ──
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -241,7 +294,7 @@ export default function SubscriptionPayment() {
     );
   }
 
-  // ── ERROR STATE ──
+  // ── ERROR (no data) ──
   if (error && !paymentData) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -318,7 +371,6 @@ export default function SubscriptionPayment() {
                     <p className="text-xs text-slate-500">/{paymentData.plan.billing_cycle}</p>
                   </div>
                 </div>
-
                 <div className="mt-4 pt-4 border-t border-primary-200 space-y-2">
                   <p className="text-sm text-slate-600">
                     <span className="text-green-600">✓</span> Up to {paymentData.plan.student_limit?.toLocaleString()} students
@@ -334,12 +386,11 @@ export default function SubscriptionPayment() {
                         <span className="text-green-600">✓</span>{' '}
                         {k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                       </p>
-                    ))
-                  }
+                    ))}
                 </div>
               </div>
 
-              {/* Coupon code input */}
+              {/* Coupon code */}
               <div className="mt-6">
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">
                   <Tag className="inline h-3.5 w-3.5 mr-1" />
@@ -374,6 +425,7 @@ export default function SubscriptionPayment() {
                 {couponError && <p className="mt-1.5 text-xs text-red-600">{couponError}</p>}
               </div>
 
+              {/* Totals */}
               <div className="mt-6 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">School</span>
@@ -411,46 +463,26 @@ export default function SubscriptionPayment() {
             </div>
           </div>
 
-          {/* Payment Action */}
+          {/* Payment Panel */}
           <div className="lg:col-span-2 space-y-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Payment</h2>
-              <p className="text-sm text-slate-500 mb-6">
-                Pay securely with card, bank transfer, or mobile money via Flutterwave.
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Pay with Card</h2>
+              <p className="text-sm text-slate-500 mb-5">
+                Enter your card details below. Your payment is encrypted and processed by Stripe.
               </p>
 
-              {error && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-
-              <button
-                onClick={initiatePayment}
-                disabled={processing}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 shadow-lg shadow-primary-200/50 transition-all"
-              >
-                {processing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="h-4 w-4" /> Pay ${finalAmount.toFixed(2)} USD
-                  </>
-                )}
-              </button>
-
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <Shield className="h-3.5 w-3.5 shrink-0" />
-                  256-bit SSL encrypted payment
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <CreditCard className="h-3.5 w-3.5 shrink-0" />
-                  Visa, Mastercard, MTN, Orange Money
-                </div>
-              </div>
+              <Elements stripe={getStripe()}>
+                <StripeCardForm
+                  paymentData={paymentData}
+                  amount={finalAmount}
+                  appliedDiscount={appliedDiscount}
+                  email={email}
+                  onSuccess={(invoice) => {
+                    setInvoiceNumber(invoice);
+                    setPaymentSuccess(true);
+                  }}
+                />
+              </Elements>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">

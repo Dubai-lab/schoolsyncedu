@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { studentPortalService } from '@/services/studentPortalService';
-import { paymentService } from '@/services/feeService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
 import type { School, SiteConfig, FeeScheduleConfig } from '@/types/school.types';
 import {
@@ -83,7 +81,6 @@ export default function SchoolFees() {
   // Payment flow
   const [selectedFee, setSelectedFee] = useState<StudentFeeRow | null>(null);
   const [amount, setAmount] = useState('');
-  const [flwProcessing, setFlwProcessing] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [lastRef, setLastRef] = useState<string | null>(null);
@@ -123,122 +120,12 @@ export default function SchoolFees() {
       .finally(() => setStudentLoading(false));
   }, [tab, isAuthenticated, user, school, studentData]);
 
-  // ── Flutterwave setup ────────────────────────────────────────────────────────
-  const flwPublicKey = paymentCfg?.flw_public_key ?? (import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY as string) ?? '';
+  // ── Student name ─────────────────────────────────────────────────────────────
   const studentName =
     studentData
       ? `${studentData.first_name as string} ${studentData.last_name as string}`
       : 'Student';
 
-  // Prefer guardian/parent email so Flutterwave sends receipt to the parent.
-  // Fall back to auth email (always valid for system-login students).
-  const guardians = (studentData?.guardians as Array<{ email?: string | null }> | null) ?? [];
-  const guardianEmail = guardians.find((g) => g.email?.trim())?.email ?? '';
-  const customerEmail = guardianEmail || user?.email || 'noreply@schoolsync.app';
-
-  const flutterwaveConfig =
-    paymentCfg?.flw_enabled && selectedFee && Number(amount) > 0
-      ? {
-          public_key: flwPublicKey,
-          tx_ref: `SFEE-${school?.id?.slice(0, 6) ?? ''}-${selectedFee.id.slice(0, 6)}-${Date.now()}`,
-          amount: Number(amount),
-          currency: 'USD',
-          payment_options: (paymentCfg?.flw_methods ?? ['card']).join(','),
-          customer: {
-            email: customerEmail,
-            name: studentName,
-            phone_number: '',
-          },
-          customizations: {
-            title: `Fee Payment — ${selectedFee.fee_structures?.fee_type ?? 'School Fee'}`,
-            description: `Payment for ${studentName}`,
-            logo: `${window.location.origin}/SchoolSync_logo.png`,
-          },
-          meta: {
-            school_id: school?.id ?? '',
-            student_fee_id: selectedFee.id,
-            student_id: selectedFee.student_id,
-          },
-        }
-      : null;
-
-  const handleFlutterPayment = useFlutterwave(flutterwaveConfig ?? {
-    public_key: flwPublicKey || '',
-    tx_ref: 'placeholder',
-    amount: 0,
-    currency: 'USD',
-    payment_options: 'card',
-    customer: { email: customerEmail || 'noreply@schoolsync.app', name: studentName, phone_number: '' },
-    customizations: { title: '', description: '', logo: '' },
-  });
-
-  function handleFlwPay() {
-    if (!flutterwaveConfig || !selectedFee || !user || !school) return;
-
-    // Snapshot at click time
-    const snapFee    = selectedFee;
-    const snapAmt    = Number(amount);
-    const snapSchool = school.id;
-    const snapUser   = user.id;
-
-    setFlwProcessing(true);
-    setPayError(null);
-
-    handleFlutterPayment({
-      callback: async (response) => {
-        closePaymentModal();
-
-        if (response.status !== 'successful' && response.status !== 'completed') {
-          setFlwProcessing(false);
-          setPayError('Payment was not completed. Please try again.');
-          return;
-        }
-
-        const safetyTimer = setTimeout(() => {
-          setFlwProcessing(false);
-          setPayError(
-            `Recording timed out. Your payment reference is ${response.transaction_id ?? response.flw_ref}. ` +
-            'Please save this reference and contact the school office to confirm.',
-          );
-        }, 25_000);
-
-        try {
-          await paymentService.recordPayment(snapSchool, {
-            student_id:       snapFee.student_id,
-            student_fee_id:   snapFee.id,
-            amount_usd:       snapAmt,
-            amount_lrd:       0,
-            currency_charged: 'USD',
-            payment_method:   'visa',
-            gateway_ref:      String(response.transaction_id ?? response.flw_ref ?? ''),
-            recorded_by:      snapUser,
-          });
-
-          clearTimeout(safetyTimer);
-          setPaySuccess(true);
-          setLastRef(String(response.transaction_id ?? response.flw_ref ?? ''));
-
-          // Refresh fees
-          studentPortalService
-            .getMyFees(user.school_id ?? '', snapFee.student_id)
-            .then((f) => setFees((f ?? []) as StudentFeeRow[]))
-            .catch(() => null);
-        } catch (err) {
-          clearTimeout(safetyTimer);
-          const ref = String(response.transaction_id ?? response.flw_ref ?? '');
-          setPayError(
-            `Payment received by Flutterwave (ref: ${ref}) but could not be recorded. ` +
-            'Please contact the school office with this reference number.',
-          );
-        } finally {
-          setFlwProcessing(false);
-        }
-      },
-      onClose: () => setFlwProcessing(false),
-    });
-  }
-
-  // ── guard states ─────────────────────────────────────────────────────────────
 
   if (pageLoading) {
     return (
@@ -690,28 +577,6 @@ export default function SchoolFees() {
                           </div>
                         )}
 
-                        {/* Flutterwave pay button */}
-                        {paymentCfg?.flw_enabled && (
-                          <div className="space-y-3">
-                            <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
-                              <p className="font-semibold">Secure Online Payment</p>
-                              <p className="mt-0.5">Pay with Visa, MasterCard, or bank transfer. Powered by Flutterwave.</p>
-                            </div>
-                            <button
-                              onClick={handleFlwPay}
-                              disabled={!amount || Number(amount) <= 0 || Number(amount) > selectedFee.balance || flwProcessing}
-                              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                              style={{ backgroundColor: primary }}
-                            >
-                              {flwProcessing ? (
-                                <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
-                              ) : (
-                                <><CreditCard className="h-4 w-4" /> Pay {amount ? fmt(Number(amount)) : ''} Online</>
-                              )}
-                            </button>
-                          </div>
-                        )}
-
                         {/* MTN / Orange info */}
                         {(paymentCfg?.mtn_enabled || paymentCfg?.orange_enabled) && (
                           <div className="space-y-2 text-sm text-gray-600">
@@ -734,7 +599,7 @@ export default function SchoolFees() {
                         )}
 
                         {/* No payment methods */}
-                        {!paymentCfg?.flw_enabled && !paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
+                        {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                             <p className="font-semibold">Online payment not available</p>
                             <p className="mt-1">Please visit the school finance office to pay your fees in person.</p>

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { studentFeeService, paymentService } from '@/services/feeService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
@@ -27,10 +26,7 @@ import {
   Smartphone,
   Building2,
   Wallet,
-  Loader2,
 } from 'lucide-react';
-
-const VITE_FLW_KEY = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY as string;
 
 const currencyOptions = Object.entries(CURRENCY).map(([, v]) => ({
   label: v,
@@ -82,18 +78,6 @@ function buildMethodOptions(cfg: PaymentConfigPublic | null): MethodOption[] {
   });
 
   if (!cfg) return options;
-
-  // Proprietor-configured Flutterwave (card / bank transfer online)
-  if (cfg.flw_enabled && cfg.flw_public_key) {
-    const flwMethods = cfg.flw_methods ?? ['card'];
-    options.push({
-      value: 'flutterwave',
-      label: flwMethods.includes('card') ? 'Debit / Credit Card' : 'Online Payment',
-      icon: CreditCard,
-      description: 'Pay online with a debit or credit card via Flutterwave.',
-      isOnline: true,
-    });
-  }
 
   // MTN Mobile Money
   if (cfg.mtn_enabled && cfg.mtn_merchant_code) {
@@ -158,7 +142,6 @@ export default function FeePayment() {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
-  const [flwProcessing, setFlwProcessing] = useState(false);
 
   // ── Fetch school payment config ─────────────────────────────
   const [paymentCfg, setPaymentCfg] = useState<PaymentConfigPublic | null>(null);
@@ -194,48 +177,6 @@ export default function FeePayment() {
   const selectedFee = allFees.find((f) => f.id === selectedFeeId);
   const selectedStudent = selectedFee?.students as Record<string, string> | undefined;
   const selectedStructure = selectedFee?.fee_structures as Record<string, string> | undefined;
-
-  // ── Flutterwave config (only built when Flutterwave is selected + amount set) ─
-  const flwPublicKey = paymentCfg?.flw_public_key || VITE_FLW_KEY;
-  const flwTxRef = `FEEPAY-${schoolId.slice(0, 6)}-${selectedFeeId.slice(0, 6)}-${Date.now()}`;
-
-  const flutterwaveConfig = (paymentMethod === 'flutterwave' && selectedFee && Number(amount) > 0)
-    ? {
-        public_key: flwPublicKey,
-        tx_ref: flwTxRef,
-        amount: Number(amount),
-        currency: currency === 'USD' ? 'USD' : 'USD', // Flutterwave charges in USD
-        payment_options: (paymentCfg?.flw_methods ?? ['card']).join(','),
-        customer: {
-          email: user?.email ?? '',
-          name: selectedStudent
-            ? `${selectedStudent.first_name} ${selectedStudent.last_name}`
-            : 'Student',
-          phone_number: '',
-        },
-        customizations: {
-          title: `Fee Payment — ${selectedStructure?.fee_type ?? 'School Fee'}`,
-          description: `Payment for ${selectedStudent?.first_name} ${selectedStudent?.last_name}`,
-          logo: `${window.location.origin}/SchoolSync_logo.png`,
-        },
-        meta: {
-          school_id: schoolId,
-          student_fee_id: selectedFeeId,
-          student_id: selectedFee.student_id,
-          recorded_by: userId,
-        },
-      }
-    : null;
-
-  const handleFlutterPayment = useFlutterwave(flutterwaveConfig ?? {
-    public_key: flwPublicKey || '',
-    tx_ref: 'placeholder',
-    amount: 0,
-    currency: 'USD',
-    payment_options: 'card',
-    customer: { email: user?.email || 'noreply@schoolsync.app', name: '', phone_number: '' },
-    customizations: { title: '', description: '', logo: '' },
-  });
 
   // ── Core record-payment helper (manual methods) ─────────────
   async function doRecord(opts: {
@@ -308,77 +249,6 @@ export default function FeePayment() {
     setPayerName('');
     setPayerNotes('');
     setReceiptFile(null);
-  }
-
-  // ── Flutterwave online payment ───────────────────────────────
-  function handleFlwPay() {
-    if (!flutterwaveConfig) return;
-
-    // Snapshot values at click time so the async callback uses them even
-    // if the component re-renders while the Flutterwave modal is open.
-    const snapFee      = selectedFee!;
-    const snapAmount   = amount;
-    const snapCurrency = currency;
-
-    handleFlutterPayment({
-      callback: async (response) => {
-        closePaymentModal();
-
-        if (response.status !== 'successful' && response.status !== 'completed') {
-          notify.error('Payment was not completed. Please try again.');
-          return;
-        }
-
-        setFlwProcessing(true);
-
-        // Safety timeout — if the DB call hangs for >25 s, release the button
-        const safetyTimer = setTimeout(() => {
-          setFlwProcessing(false);
-          notify.error(
-            `Recording timed out. Your payment ref is ${response.transaction_id ?? response.flw_ref}. ` +
-            'The balance will be updated once confirmed. Contact the finance office if it does not update.'
-          );
-        }, 25_000);
-
-        try {
-          const receiptUrl = await uploadReceipt();
-
-          const amountNum = Number(snapAmount);
-          const payment = await paymentService.recordPayment(schoolId, {
-            student_id:       snapFee.student_id,
-            student_fee_id:   snapFee.id,
-            amount_usd:       snapCurrency === 'USD' ? amountNum : 0,
-            amount_lrd:       snapCurrency === 'LRD' ? amountNum : 0,
-            currency_charged: snapCurrency,
-            payment_method:   'visa',
-            gateway_ref:      [
-              String(response.transaction_id ?? response.flw_ref ?? ''),
-              payerName ? `Payer: ${payerName}` : '',
-              payerNotes ? `Notes: ${payerNotes}` : '',
-              receiptUrl ? `Receipt: ${receiptUrl}` : '',
-            ].filter(Boolean).join(' | ') || undefined,
-            recorded_by: userId,
-          });
-
-          clearTimeout(safetyTimer);
-          setPaymentSuccess(true);
-          setLastPaymentId((payment as unknown as Record<string, string>)?.id ?? null);
-          resetForm();
-          notify.success('Payment recorded! Student balance has been updated.');
-        } catch (err) {
-          clearTimeout(safetyTimer);
-          const msg = err instanceof Error ? err.message : String(err);
-          const ref  = String(response.transaction_id ?? response.flw_ref ?? '');
-          notify.error(
-            `Payment received by Flutterwave but could not be saved: ${msg}. ` +
-            `Please give the finance office this reference: ${ref}`
-          );
-        } finally {
-          setFlwProcessing(false);
-        }
-      },
-      onClose: () => { setFlwProcessing(false); },
-    });
   }
 
   const canPay = selectedFeeId && amount && Number(amount) > 0 && paymentMethod;
@@ -571,50 +441,6 @@ export default function FeePayment() {
                     })}
                   </div>
                 </div>
-
-                {/* ── Flutterwave online payment ──────────── */}
-                {paymentMethod === 'flutterwave' && (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-blue-800">
-                      <CreditCard className="h-4 w-4" /> Online Card Payment
-                    </p>
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      The parent or student can pay securely with their debit/credit card.
-                      If they are at the office, they can hand their card to you to process on their behalf,
-                      or use their phone's browser to pay directly.
-                    </p>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <Input
-                        label="Payer Name (optional)"
-                        value={payerName}
-                        onChange={(e) => setPayerName(e.target.value)}
-                        placeholder="Name of person paying"
-                      />
-                      <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
-                        <textarea
-                          rows={2}
-                          value={payerNotes}
-                          onChange={(e) => setPayerNotes(e.target.value)}
-                          placeholder="e.g. paying on behalf of student"
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      className="w-full"
-                      onClick={handleFlwPay}
-                      disabled={!canPay || flwProcessing}
-                      loading={flwProcessing}
-                    >
-                      {flwProcessing ? (
-                        <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Processing...</>
-                      ) : (
-                        <><CreditCard className="mr-1.5 h-4 w-4" /> Pay {amount ? `$${amount}` : ''} via Flutterwave</>
-                      )}
-                    </Button>
-                  </div>
-                )}
 
                 {/* ── MTN / Orange: show merchant code + ref field ── */}
                 {(paymentMethod === 'mtn' || paymentMethod === 'orange') && (
