@@ -121,8 +121,63 @@ serve(async (req) => {
       );
     }
 
-    const invoice = (rpcResult as Record<string, unknown>)?.invoice_number;
+    const rpcData   = rpcResult as Record<string, unknown>;
+    const invoice   = rpcData?.invoice_number as string | undefined;
+    const expiresAt = rpcData?.expires_at     as string | undefined;
     console.log(`Subscription activated — school: ${school_id}, invoice: ${invoice}`);
+
+    // ── Send billing confirmation email ───────────────────────────────────────
+    try {
+      // Look up school name and owner details
+      const [{ data: schoolRow }, { data: ownerRow }] = await Promise.all([
+        adminClient.from('schools').select('name').eq('id', school_id).maybeSingle(),
+        adminClient.from('users').select('full_name, email').eq('school_id', school_id).eq('role', 'proprietor').maybeSingle(),
+      ]);
+
+      const schoolName = (schoolRow as { name: string } | null)?.name ?? 'Your School';
+      const ownerEmail = (ownerRow as { email: string; full_name: string } | null)?.email;
+
+      if (ownerEmail) {
+        // Fetch updated expires_at from subscription (RPC may not return it)
+        let newExpiresAt: string | null = expiresAt ?? null;
+        if (!newExpiresAt) {
+          const { data: subRow } = await adminClient
+            .from('subscriptions')
+            .select('expires_at')
+            .eq('id', subscription_id)
+            .maybeSingle();
+          newExpiresAt = (subRow as { expires_at: string } | null)?.expires_at ?? null;
+        }
+
+        const notifyUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/process-subscription-notifications`;
+        const notifyKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+        await fetch(notifyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${notifyKey}`,
+          },
+          body: JSON.stringify({
+            trigger:        'payment_confirmed',
+            school_id,
+            school_name:    schoolName,
+            owner_email:    ownerEmail,
+            plan_name:      paymentIntent.metadata.plan_name || 'Subscription',
+            amount_usd:     amountUsd,
+            invoice_number: invoice ?? 'N/A',
+            expires_at:     newExpiresAt,
+          }),
+        });
+
+        console.log(`Billing email dispatched to ${ownerEmail} for school ${school_id}`);
+      } else {
+        console.warn(`No proprietor email found for school ${school_id} — skipping billing email`);
+      }
+    } catch (emailErr) {
+      // Non-fatal — subscription is still activated
+      console.warn('Billing email dispatch failed:', emailErr instanceof Error ? emailErr.message : emailErr);
+    }
 
     // ── Save card details so the dashboard "no saved card" banner goes away ──
     try {

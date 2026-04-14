@@ -274,8 +274,9 @@ serve(async (req) => {
         ? new Date(expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'N/A';
 
+      const billingFrom = Deno.env.get('SMTP_BILLING_FROM') || 'billing@schoolsyncedu.com';
       await transporter.sendMail({
-        from: `"SchoolSync" <${fromAddress}>`,
+        from: `"SchoolSync Billing" <${billingFrom}>`,
         to: owner_email,
         subject: `Payment Confirmed — ${school_name} subscription is active`,
         html: buildPaymentConfirmedEmail(
