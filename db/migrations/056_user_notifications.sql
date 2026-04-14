@@ -164,9 +164,9 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_new_incident ON dean_incidents;
+DROP TRIGGER IF EXISTS trg_new_incident ON student_incidents;
 CREATE TRIGGER trg_new_incident
-  AFTER INSERT ON dean_incidents
+  AFTER INSERT ON student_incidents
   FOR EACH ROW EXECUTE FUNCTION trg_incident_notify();
 
 -- ─────────────────────────────────────────────────────────────────────────────
