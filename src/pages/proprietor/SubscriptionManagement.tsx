@@ -11,6 +11,7 @@ import {
 } from '@/services/proprietorService';
 import {
   createPaymentIntent,
+  recordSubscriptionPayment,
   upgradeSubscriptionPlan,
   generateTxRef,
   getStripe,
@@ -51,6 +52,7 @@ interface StripeUpgradeFormProps {
   schoolId: string;
   subscriptionId: string;
   plan: SubscriptionPlan;
+  currentPlanId: string;
   userEmail: string;
   userName: string;
   onSuccess: (invoiceNumber: string) => void;
@@ -58,7 +60,7 @@ interface StripeUpgradeFormProps {
 }
 
 function StripeUpgradeForm({
-  schoolId, subscriptionId, plan, userEmail, userName, onSuccess, onCancel,
+  schoolId, subscriptionId, plan, currentPlanId, userEmail, userName, onSuccess, onCancel,
 }: StripeUpgradeFormProps) {
   const stripe   = useStripe();
   const elements = useElements();
@@ -98,16 +100,28 @@ function StripeUpgradeForm({
       if (stripeError) throw new Error(stripeError.message ?? 'Card declined');
       if (paymentIntent?.status !== 'succeeded') throw new Error('Payment incomplete');
 
-      const result = await upgradeSubscriptionPlan({
-        schoolId,
-        subscriptionId,
-        newPlanId:   plan.id,
-        amountUsd:   plan.price_usd,
-        gatewayRef:  paymentIntentId,
-        txRef,
-      });
+      const isRenewal = plan.id === currentPlanId;
 
-      onSuccess(result.invoiceNumber);
+      if (isRenewal) {
+        const result = await recordSubscriptionPayment({
+          schoolId,
+          subscriptionId,
+          amountUsd:  plan.price_usd,
+          gatewayRef: paymentIntentId,
+          txRef,
+        });
+        onSuccess(result.invoiceNumber);
+      } else {
+        const result = await upgradeSubscriptionPlan({
+          schoolId,
+          subscriptionId,
+          newPlanId:  plan.id,
+          amountUsd:  plan.price_usd,
+          gatewayRef: paymentIntentId,
+          txRef,
+        });
+        onSuccess(result.invoiceNumber);
+      }
     } catch (err) {
       setCardError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -655,6 +669,7 @@ export default function SubscriptionManagement() {
                 schoolId={schoolId!}
                 subscriptionId={subscription!.id}
                 plan={selectedPlan}
+                currentPlanId={subscription?.plan_id ?? ''}
                 userEmail={user?.email ?? ''}
                 userName={user?.full_name || user?.email || ''}
                 onSuccess={handlePaymentSuccess}

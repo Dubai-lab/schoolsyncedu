@@ -102,7 +102,7 @@ export async function recordSubscriptionPayment(opts: {
     p_tx_ref:          opts.txRef,
     p_payment_method:  opts.paymentMethod ?? 'visa',
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const result = data as unknown as { success: boolean; invoice_number: string };
   return { success: result.success, invoiceNumber: result.invoice_number };
 }
@@ -126,7 +126,7 @@ export async function upgradeSubscriptionPlan(opts: {
     p_tx_ref:          opts.txRef,
     p_payment_method:  opts.paymentMethod ?? 'visa',
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const result = data as unknown as {
     success: boolean;
     invoice_number: string;
