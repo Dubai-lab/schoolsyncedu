@@ -124,6 +124,47 @@ serve(async (req) => {
     const invoice = (rpcResult as Record<string, unknown>)?.invoice_number;
     console.log(`Subscription activated — school: ${school_id}, invoice: ${invoice}`);
 
+    // ── Save card details so the dashboard "no saved card" banner goes away ──
+    try {
+      const pmId = typeof paymentIntent.payment_method === 'string'
+        ? paymentIntent.payment_method
+        : paymentIntent.payment_method?.id;
+
+      if (pmId) {
+        const pm = await stripe.paymentMethods.retrieve(pmId);
+        const card = pm.card;
+
+        if (card) {
+          const expiry = `${String(card.exp_month).padStart(2, '0')}/${String(card.exp_year).slice(-2)}`;
+          const holderName = pm.billing_details?.name ?? null;
+          const email      = pm.billing_details?.email ?? null;
+
+          // Clear existing defaults for this school, then insert new default
+          await adminClient
+            .from('saved_payment_tokens')
+            .update({ is_default: false })
+            .eq('school_id', school_id);
+
+          await adminClient
+            .from('saved_payment_tokens')
+            .insert({
+              school_id,
+              card_type:  card.brand,
+              card_last4: card.last4,
+              card_name:  holderName,
+              card_expiry: expiry,
+              email,
+              is_default: true,
+            });
+
+          console.log(`Saved card for school ${school_id}: ${card.brand} ****${card.last4}`);
+        }
+      }
+    } catch (cardErr) {
+      // Non-fatal — subscription is already activated, just log it
+      console.warn('Could not save card details:', cardErr instanceof Error ? cardErr.message : cardErr);
+    }
+
     return new Response(
       JSON.stringify({ received: true, action: 'activated', invoice }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
