@@ -24,15 +24,38 @@ const CATEGORY_ICON: Record<ResultItem['category'], React.ReactNode> = {
 const CATEGORY_ORDER: ResultItem['category'][] = ['Students', 'Classes', 'Staff', 'Schools'];
 
 // ── Role gates ─────────────────────────────────────────────────────────
+// Only school-level staff who manage students/classes may search them.
+// Proprietor & super_admin have no business navigating to individual student
+// pages — they are oversight/platform roles.
 
 const CAN_SEARCH_STUDENTS = new Set([
-  'registrar', 'teacher', 'bursar', 'it_admin', 'dean_of_students', 'proprietor', 'super_admin',
+  'registrar', 'teacher', 'bursar', 'it_admin', 'dean_of_students',
+  'principal', 'vice_principal', 'admin_staff',
 ]);
 const CAN_SEARCH_CLASSES = new Set([
-  'registrar', 'teacher', 'it_admin', 'dean_of_students', 'proprietor',
+  'registrar', 'teacher', 'it_admin', 'dean_of_students',
+  'principal', 'vice_principal', 'admin_staff',
 ]);
-const CAN_SEARCH_STAFF = new Set(['it_admin', 'proprietor', 'super_admin']);
+const CAN_SEARCH_STAFF = new Set([
+  'it_admin', 'principal', 'vice_principal', 'super_admin',
+]);
 const CAN_SEARCH_SCHOOLS = new Set(['super_admin']);
+
+// Roles that should see any search at all
+export const ROLES_WITH_SEARCH = new Set([
+  'registrar', 'teacher', 'bursar', 'it_admin', 'dean_of_students',
+  'principal', 'vice_principal', 'admin_staff', 'super_admin',
+]);
+
+// Navigate to the right page for a student result based on the viewer's role
+function studentHref(studentId: string, role: string): string {
+  switch (role) {
+    case 'it_admin':       return '/it-admin/students';
+    case 'bursar':         return `/students/${studentId}`;
+    case 'teacher':        return `/students/${studentId}`;
+    default:               return `/students/${studentId}`;
+  }
+}
 
 // ── Component ──────────────────────────────────────────────────────────
 
@@ -93,7 +116,7 @@ export default function GlobalSearch() {
             label:    `${s.first_name} ${s.last_name}`,
             sublabel: `${s.registration_number}${s.current_grade_level ? ` · ${s.current_grade_level}` : ''}`,
             category: 'Students',
-            href:     `/students/${s.id}`,
+            href:     studentHref(s.id, role),
           });
         }
       }

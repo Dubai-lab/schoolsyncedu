@@ -11,7 +11,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import GlobalSearch from '@/components/shared/GlobalSearch';
+import GlobalSearch, { ROLES_WITH_SEARCH } from '@/components/shared/GlobalSearch';
 
 export default function Header() {
   const { user, schoolSlug, signOut } = useAuth();
@@ -44,6 +44,8 @@ export default function Header() {
     }
   };
 
+  const showSearch = ROLES_WITH_SEARCH.has(user?.role ?? '');
+
   const displayName = user
     ? `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
     : 'User';
@@ -66,19 +68,25 @@ export default function Header() {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Search bar */}
-      <div className="hidden sm:flex flex-1 items-center max-w-md">
-        <GlobalSearch />
-      </div>
+      {/* Search bar — only for roles that have searchable content */}
+      {showSearch ? (
+        <div className="hidden sm:flex flex-1 items-center max-w-md">
+          <GlobalSearch />
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
       <div className="flex-1 sm:hidden" />
 
       {/* Right side actions */}
       <div className="flex items-center gap-2">
-        {/* Search (mobile) */}
-        <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 sm:hidden">
-          <Search className="h-5 w-5" />
-        </button>
+        {/* Search (mobile) — only for search-enabled roles */}
+        {showSearch && (
+          <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 sm:hidden">
+            <Search className="h-5 w-5" />
+          </button>
+        )}
 
         {/* Notifications */}
         <button className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
