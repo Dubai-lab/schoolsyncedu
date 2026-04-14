@@ -380,19 +380,26 @@ export const discountService = {
   /** Validate a coupon code for a given plan. Returns the discount if valid, null otherwise. */
   async validateCoupon(couponCode: string, planId: UUID): Promise<Discount | null> {
     const today = new Date().toISOString().split('T')[0];
+    // Note: applicable_plans is JSONB — PostgREST array operators are unreliable
+    // for JSONB. Fetch candidates by code + active + date, then filter in code.
     const { data, error } = await supabase
       .from('discounts')
       .select('*')
       .eq('coupon_code', couponCode.trim().toUpperCase())
       .eq('is_active', true)
-      .or(`applicable_plans.cs.{${planId}},applicable_plans.eq.{}`)
       .or(`start_date.is.null,start_date.lte.${today}`)
-      .or(`end_date.is.null,end_date.gte.${today}`)
-      .maybeSingle();
-    if (error) return null;
-    if (!data) return null;
-    // Check max uses
-    const d = data as Discount;
+      .or(`end_date.is.null,end_date.gte.${today}`);
+    if (error || !data || data.length === 0) return null;
+
+    // Check applicable_plans in code:
+    // empty array / null = applies to all plans; otherwise must include planId
+    const match = data.find((row) => {
+      const plans = row.applicable_plans as string[] | null;
+      return !plans || plans.length === 0 || plans.includes(planId);
+    });
+    if (!match) return null;
+
+    const d = match as Discount;
     if (d.max_uses !== null && d.current_uses >= d.max_uses) return null;
     return d;
   },
