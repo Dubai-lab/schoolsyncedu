@@ -83,7 +83,7 @@ CREATE POLICY "bursar_read_school_proofs" ON bank_transfer_proofs
     )
     AND (
       SELECT role FROM users WHERE auth_id = auth.uid()
-    ) IN ('bursar', 'admin', 'proprietor', 'it_admin')
+    ) IN ('bursar', 'admin_staff', 'proprietor', 'it_admin', 'principal', 'vice_principal')
   );
 
 -- Bursars can update (verify/reject) proofs for their school
@@ -91,7 +91,7 @@ CREATE POLICY "bursar_update_school_proofs" ON bank_transfer_proofs
   FOR UPDATE TO authenticated
   USING (
     school_id = (SELECT school_id FROM users WHERE auth_id = auth.uid())
-    AND (SELECT role FROM users WHERE auth_id = auth.uid()) IN ('bursar', 'admin', 'proprietor')
+    AND (SELECT role FROM users WHERE auth_id = auth.uid()) IN ('bursar', 'admin_staff', 'proprietor', 'principal')
   );
 
 -- ── 5. Storage bucket for proof uploads ───────────────────────────────────────
