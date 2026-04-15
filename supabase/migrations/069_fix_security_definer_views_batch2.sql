@@ -53,7 +53,7 @@ SELECT
   u.last_name,
   u.role,
   COUNT(li.id)                                                          AS letters_generated,
-  COUNT(CASE WHEN li.status = 'delivered'        THEN 1 END)           AS letters_delivered,
+  COUNT(CASE WHEN li.status = 'sent'             THEN 1 END)           AS letters_delivered,
   COUNT(CASE WHEN li.status = 'pending_approval' THEN 1 END)           AS pending_approval,
   MAX(li.created_at)                                                    AS last_letter_created
 FROM users u
