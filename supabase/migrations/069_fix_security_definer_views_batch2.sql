@@ -1,9 +1,8 @@
 -- Migration 069: Fix SECURITY DEFINER views — batch 2
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 --
--- Same issue as migration 068: views run as postgres (bypassing RLS),
--- so any authenticated user can read all schools' data through them.
--- Fix: recreate with WITH (security_invoker = true).
+-- Uses DROP + CREATE instead of CREATE OR REPLACE because PostgreSQL
+-- does not allow changing column lists via OR REPLACE.
 --
 -- Views fixed:
 --   1. vw_grade_report_summary    — all schools' student grades visible
@@ -13,7 +12,9 @@
 -- ─────────────────────────────────────────────────────────────
 -- 1. vw_grade_report_summary
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW vw_grade_report_summary
+DROP VIEW IF EXISTS vw_grade_report_summary CASCADE;
+
+CREATE VIEW vw_grade_report_summary
   WITH (security_invoker = true)
 AS
 SELECT
@@ -41,7 +42,9 @@ GRANT SELECT ON vw_grade_report_summary TO authenticated;
 -- ─────────────────────────────────────────────────────────────
 -- 2. vw_staff_letter_activity
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW vw_staff_letter_activity
+DROP VIEW IF EXISTS vw_staff_letter_activity CASCADE;
+
+CREATE VIEW vw_staff_letter_activity
   WITH (security_invoker = true)
 AS
 SELECT
@@ -64,7 +67,9 @@ GRANT SELECT ON vw_staff_letter_activity TO authenticated;
 -- ─────────────────────────────────────────────────────────────
 -- 3. vw_recent_audit_activity
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW vw_recent_audit_activity
+DROP VIEW IF EXISTS vw_recent_audit_activity CASCADE;
+
+CREATE VIEW vw_recent_audit_activity
   WITH (security_invoker = true)
 AS
 SELECT

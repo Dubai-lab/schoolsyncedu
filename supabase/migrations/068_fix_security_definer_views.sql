@@ -1,13 +1,8 @@
 -- Migration 068: Fix SECURITY DEFINER views flagged by Supabase Security Advisor
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 --
--- Problem: PostgreSQL views are implicitly SECURITY DEFINER — they run as the
--- view owner (postgres) and bypass RLS on the underlying tables.  In a
--- multi-school SaaS this means any authenticated user can see every school's
--- data when querying these views.
---
--- Fix: Recreate each view WITH (security_invoker = true) so the view runs as
--- the calling user and the underlying tables' RLS policies apply normally.
+-- Uses DROP + CREATE instead of CREATE OR REPLACE because PostgreSQL
+-- does not allow changing column lists via OR REPLACE.
 --
 -- Views fixed:
 --   1. attendance_summary            — no school filter; any user saw all schools
@@ -17,7 +12,9 @@
 -- ─────────────────────────────────────────────────────────────
 -- 1. attendance_summary
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW attendance_summary
+DROP VIEW IF EXISTS attendance_summary CASCADE;
+
+CREATE VIEW attendance_summary
   WITH (security_invoker = true)
 AS
 SELECT
@@ -53,7 +50,9 @@ GRANT SELECT ON attendance_summary TO authenticated;
 -- ─────────────────────────────────────────────────────────────
 -- 2. vw_attendance_summary_by_class
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW vw_attendance_summary_by_class
+DROP VIEW IF EXISTS vw_attendance_summary_by_class CASCADE;
+
+CREATE VIEW vw_attendance_summary_by_class
   WITH (security_invoker = true)
 AS
 SELECT
@@ -83,12 +82,10 @@ GRANT SELECT ON vw_attendance_summary_by_class TO authenticated;
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. platform_admin_users
---    Only super_admins query this.  With security_invoker the underlying
---    users RLS (which allows super_admin to see all users) ensures only
---    super_admins get results.  Also restrict the GRANT to service_role
---    + the app role so regular school users can't even call it.
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW platform_admin_users
+DROP VIEW IF EXISTS platform_admin_users CASCADE;
+
+CREATE VIEW platform_admin_users
   WITH (security_invoker = true)
 AS
 SELECT
@@ -102,8 +99,6 @@ SELECT
 FROM users u
 WHERE u.role = 'super_admin';
 
--- Only authenticated users can select; with security_invoker + users RLS,
--- non-super-admins will receive zero rows (their RLS hides super_admin records).
 GRANT SELECT ON platform_admin_users TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
