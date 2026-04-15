@@ -107,6 +107,21 @@ export async function recordSubscriptionPayment(opts: {
   return { success: result.success, invoiceNumber: result.invoice_number };
 }
 
+/** Save card details after payment (client-side complement to the webhook) */
+export async function savePaymentCard(opts: {
+  paymentIntentId: string;
+  schoolId: string;
+}): Promise<void> {
+  // Non-throwing — card saving is best-effort, never block the payment flow
+  try {
+    await supabase.functions.invoke('save-payment-card', {
+      body: { payment_intent_id: opts.paymentIntentId, school_id: opts.schoolId },
+    });
+  } catch {
+    // Silently ignore — webhook will handle it as a fallback
+  }
+}
+
 /** Upgrade / change plan with payment via SECURITY DEFINER RPC */
 export async function upgradeSubscriptionPlan(opts: {
   schoolId: string;

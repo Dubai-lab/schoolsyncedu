@@ -5,6 +5,7 @@ import {
   fetchPaymentInfo,
   createPaymentIntent,
   recordSubscriptionPayment,
+  savePaymentCard,
   generateTxRef,
   getStripe,
   type PaymentPageData,
@@ -87,6 +88,9 @@ function StripeCardForm({ paymentData, amount, appliedDiscount, email, onSuccess
         gatewayRef:     paymentIntentId,
         txRef,
       });
+
+      // 4a. Save card details immediately (non-blocking)
+      savePaymentCard({ paymentIntentId, schoolId: paymentData.school.id });
 
       // 4. Increment coupon uses if a discount was applied
       if (appliedDiscount) {

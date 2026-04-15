@@ -13,6 +13,7 @@ import {
   createPaymentIntent,
   recordSubscriptionPayment,
   upgradeSubscriptionPlan,
+  savePaymentCard,
   generateTxRef,
   getStripe,
 } from '@/services/stripeService';
@@ -110,6 +111,7 @@ function StripeUpgradeForm({
           gatewayRef: paymentIntentId,
           txRef,
         });
+        savePaymentCard({ paymentIntentId, schoolId });
         onSuccess(result.invoiceNumber);
       } else {
         const result = await upgradeSubscriptionPlan({
@@ -120,6 +122,7 @@ function StripeUpgradeForm({
           gatewayRef: paymentIntentId,
           txRef,
         });
+        savePaymentCard({ paymentIntentId, schoolId });
         onSuccess(result.invoiceNumber);
       }
     } catch (err) {
