@@ -481,12 +481,16 @@ export default function FeeStructures() {
                           {fee.due_date ? new Date(fee.due_date).toLocaleDateString() : '—'}
                         </td>
                         <td className="py-2.5">
-                          {fee.has_installments ? (
-                            <Badge variant="info" size="sm" className="flex items-center gap-1 w-fit">
-                              <CalendarDays className="h-3 w-3" /> Split
-                            </Badge>
+                          {fee.fee_type === 'tuition' ? (
+                            fee.has_installments ? (
+                              <Badge variant="info" size="sm" className="flex items-center gap-1 w-fit">
+                                <CalendarDays className="h-3 w-3" /> Split
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-slate-400">Full payment</span>
+                            )
                           ) : (
-                            <span className="text-xs text-slate-400">Full payment</span>
+                            <span className="text-xs text-slate-400">—</span>
                           )}
                         </td>
                         <td className="py-2.5 text-xs text-slate-500 max-w-[200px] truncate">
@@ -494,14 +498,16 @@ export default function FeeStructures() {
                         </td>
                         <td className="py-2.5">
                           <div className="flex items-center justify-end gap-1">
-                            {/* Split by term */}
-                            <button
-                              onClick={() => void openSplitDialog(fee)}
-                              className="rounded-md p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-600 transition-colors"
-                              title={fee.has_installments ? 'Edit term installments' : 'Split into term installments'}
-                            >
-                              <CalendarDays className="h-4 w-4" />
-                            </button>
+                            {/* Split by term — tuition only */}
+                            {fee.fee_type === 'tuition' && (
+                              <button
+                                onClick={() => void openSplitDialog(fee)}
+                                className="rounded-md p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-600 transition-colors"
+                                title={fee.has_installments ? 'Edit term installments' : 'Split into term installments'}
+                              >
+                                <CalendarDays className="h-4 w-4" />
+                              </button>
+                            )}
                             {/* Edit */}
                             <button
                               onClick={() => startEdit(fee)}
