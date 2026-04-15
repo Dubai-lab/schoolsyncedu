@@ -160,8 +160,13 @@ export const schoolManagementService = {
   },
 
   async delete(id: UUID) {
-    const { error } = await supabase.from('schools').delete().eq('id', id);
-    if (error) throw error;
+    // Use Edge Function so the delete runs with service role (bypasses RLS)
+    // and also removes Supabase Auth accounts for all school users.
+    const { data, error } = await supabase.functions.invoke('delete-school', {
+      body: { school_id: id },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
   },
 
   /** Toggle a school online or offline manually */
