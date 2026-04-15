@@ -122,6 +122,28 @@ export async function savePaymentCard(opts: {
   }
 }
 
+/** Create a SetupIntent to save a card without charging it */
+export async function createSetupIntent(schoolId: string): Promise<{ clientSecret: string; setupIntentId: string }> {
+  const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+    body: { school_id: schoolId },
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data as { clientSecret: string; setupIntentId: string };
+}
+
+/** Save card details from a SetupIntent after confirmation */
+export async function saveCardFromSetupIntent(opts: {
+  setupIntentId: string;
+  schoolId: string;
+}): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('save-payment-card', {
+    body: { setup_intent_id: opts.setupIntentId, school_id: opts.schoolId },
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+}
+
 /** Upgrade / change plan with payment via SECURITY DEFINER RPC */
 export async function upgradeSubscriptionPlan(opts: {
   schoolId: string;

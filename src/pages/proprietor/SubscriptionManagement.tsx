@@ -14,6 +14,8 @@ import {
   recordSubscriptionPayment,
   upgradeSubscriptionPlan,
   savePaymentCard,
+  createSetupIntent,
+  saveCardFromSetupIntent,
   generateTxRef,
   getStripe,
 } from '@/services/stripeService';
@@ -196,6 +198,105 @@ function StripeUpgradeForm({
   );
 }
 
+// ── Add Card form (inside <Elements>) ─────────────────────────────────────────
+
+interface AddCardFormProps {
+  schoolId: string;
+  userEmail: string;
+  userName: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+function AddCardForm({ schoolId, userEmail, userName, onSuccess, onCancel }: AddCardFormProps) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [cardError,  setCardError]  = useState('');
+
+  const handleSave = async () => {
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    setCardError('');
+    try {
+      const { clientSecret, setupIntentId } = await createSetupIntent(schoolId);
+
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) throw new Error('Card element unavailable');
+
+      const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: {
+          card: cardEl,
+          billing_details: { name: userName, email: userEmail },
+        },
+      });
+
+      if (stripeError) throw new Error(stripeError.message ?? 'Card could not be saved');
+
+      await saveCardFromSetupIntent({ setupIntentId, schoolId });
+      onSuccess();
+    } catch (err) {
+      setCardError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">
+          <CreditCard className="inline h-3.5 w-3.5 mr-1" />
+          Card Details
+        </label>
+        <div className="rounded-lg border border-slate-300 px-3 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-400/20 transition-all bg-white">
+          <CardElement
+            options={{
+              hidePostalCode: true,
+              style: {
+                base: {
+                  fontSize: '14px',
+                  color: '#1e293b',
+                  fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+                  '::placeholder': { color: '#94a3b8' },
+                },
+                invalid: { color: '#dc2626' },
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      {cardError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+          {cardError}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 text-xs text-slate-400">
+        <Shield className="h-3.5 w-3.5 shrink-0" />
+        Card is saved securely via Stripe — no charge will be made
+      </div>
+
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={onCancel} disabled={processing} className="flex-1">
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={!stripe || processing}
+          loading={processing}
+          icon={<CreditCard className="w-4 h-4" />}
+          className="flex-1"
+        >
+          {processing ? 'Saving...' : 'Save Card'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function SubscriptionManagement() {
@@ -206,6 +307,7 @@ export default function SubscriptionManagement() {
   const [changePlanOpen, setChangePlanOpen]     = useState(false);
   const [selectedPlanId, setSelectedPlanId]     = useState<string | null>(null);
   const [showCardForm,   setShowCardForm]        = useState(false);
+  const [addCardOpen,    setAddCardOpen]         = useState(false);
 
   const { data: subscription, isLoading: loadingSub } = useFetch<(Subscription & { plan: SubscriptionPlan }) | null>(
     ['prop-subscription', schoolId!],
@@ -511,11 +613,16 @@ export default function SubscriptionManagement() {
       {/* ===== SAVED CARDS ===== */}
       {tab === 'cards' && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Saved Payment Cards</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Cards previously used for payments are shown here. Manage or remove them as needed.
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">Saved Payment Cards</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Cards saved here will be used for subscription renewals.
+              </p>
+            </div>
+            <Button size="sm" icon={<CreditCard className="w-4 h-4" />} onClick={() => setAddCardOpen(true)}>
+              Add Card
+            </Button>
           </div>
 
           {savedCards.length === 0 ? (
@@ -523,8 +630,11 @@ export default function SubscriptionManagement() {
               <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 font-medium">No saved cards yet</p>
               <p className="text-sm text-gray-400 mt-1 max-w-sm mx-auto">
-                Cards used for subscription payments will appear here automatically.
+                Add a card now or it will be saved automatically after your first payment.
               </p>
+              <Button size="sm" className="mt-4" onClick={() => setAddCardOpen(true)} icon={<CreditCard className="w-4 h-4" />}>
+                Add Card
+              </Button>
             </Card>
           ) : (
             <div className="space-y-3">
@@ -701,6 +811,31 @@ export default function SubscriptionManagement() {
             </Button>
           </DialogFooter>
         )}
+      </Dialog>
+
+      {/* ===== ADD CARD DIALOG ===== */}
+      <Dialog open={addCardOpen} onClose={() => setAddCardOpen(false)} className="max-w-md">
+        <DialogHeader onClose={() => setAddCardOpen(false)}>
+          <DialogTitle>Add Payment Card</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <p className="text-sm text-gray-500 mb-4">
+            Save a card for future subscription renewals. No charge will be made now.
+          </p>
+          <Elements stripe={getStripe()}>
+            <AddCardForm
+              schoolId={schoolId!}
+              userEmail={user?.email ?? ''}
+              userName={user?.full_name || user?.email || ''}
+              onSuccess={() => {
+                setAddCardOpen(false);
+                refetchCards();
+                notify.success('Card saved successfully');
+              }}
+              onCancel={() => setAddCardOpen(false)}
+            />
+          </Elements>
+        </DialogBody>
       </Dialog>
     </div>
   );

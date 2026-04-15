@@ -26,13 +26,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const { payment_intent_id, school_id } = await req.json() as {
+    const { payment_intent_id, setup_intent_id, school_id } = await req.json() as {
       payment_intent_id?: string;
+      setup_intent_id?: string;
       school_id?: string;
     };
 
-    if (!payment_intent_id || !school_id) {
-      return new Response(JSON.stringify({ error: 'payment_intent_id and school_id required' }), {
+    if ((!payment_intent_id && !setup_intent_id) || !school_id) {
+      return new Response(JSON.stringify({ error: 'payment_intent_id or setup_intent_id, and school_id required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -40,12 +41,21 @@ serve(async (req) => {
     const stripe      = new Stripe(stripeKey, { apiVersion: '2024-06-20' });
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // Retrieve the PaymentIntent with payment_method expanded
-    const pi = await stripe.paymentIntents.retrieve(payment_intent_id, {
-      expand: ['payment_method'],
-    });
+    // Retrieve the PaymentMethod from either a PaymentIntent or SetupIntent
+    let pm: Stripe.PaymentMethod | null = null;
 
-    const pm   = pi.payment_method as Stripe.PaymentMethod | null;
+    if (payment_intent_id) {
+      const pi = await stripe.paymentIntents.retrieve(payment_intent_id, {
+        expand: ['payment_method'],
+      });
+      pm = pi.payment_method as Stripe.PaymentMethod | null;
+    } else if (setup_intent_id) {
+      const si = await stripe.setupIntents.retrieve(setup_intent_id, {
+        expand: ['payment_method'],
+      });
+      pm = si.payment_method as Stripe.PaymentMethod | null;
+    }
+
     const card = pm?.card;
 
     if (!card) {
