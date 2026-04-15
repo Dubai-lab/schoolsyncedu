@@ -348,10 +348,11 @@ export interface ImportRowResult {
 export const studentImportService = {
   /** CSV template content — download this, fill in, then upload */
   getTemplateCsv(): string {
-    const header = 'first_name,last_name,date_of_birth,gender,class_name,guardian_name,guardian_phone,guardian_email';
-    const example = 'John,Doe,2007-01-15,Male,12A,James Doe,0770123456,james.doe@email.com';
+    const header   = 'first_name,last_name,date_of_birth,gender,class_name,guardian_name,guardian_phone,guardian_email';
+    const example  = 'John,Doe,2007-01-15,Male,12A,James Doe,0770123456,james.doe@email.com';
     const example2 = 'Mary,Johnson,2008-03-20,Female,10B,Sarah Johnson,0880234567,';
-    return [header, example, example2].join('\n');
+    const example3 = 'James,Smith,2006-11-03,Male,11A,Robert Smith,0770987654,';
+    return [header, example, example2, example3].join('\n');
   },
 
   /** Parse a CSV file into ImportStudentRow objects (client-side, no library needed) */
@@ -393,6 +394,39 @@ export const studentImportService = {
     return { rows, errors };
   },
 
+  /** Normalize a date string to YYYY-MM-DD regardless of input format.
+   *  Handles: YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD, D/M/YYYY */
+  normalizeDate(raw: string): string | null {
+    if (!raw?.trim()) return null;
+    const s = raw.trim();
+
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+    // YYYY/MM/DD
+    const ymdSlash = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (ymdSlash) {
+      const [, y, m, d] = ymdSlash;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+
+    // DD/MM/YYYY — Excel default in most regions outside US
+    const dmySlash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmySlash) {
+      const [, d, m, y] = dmySlash;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+
+    // DD-MM-YYYY
+    const dmyDash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dmyDash) {
+      const [, d, m, y] = dmyDash;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+
+    return null; // unrecognized format
+  },
+
   /** Client-side validation of parsed rows against available class names */
   validateRows(
     rows: ImportStudentRow[],
@@ -407,10 +441,19 @@ export const studentImportService = {
       else if (!classSet.has(row.class_name.toLowerCase())) errs.push(`Class "${row.class_name}" not found`);
       if (!row.guardian_name.trim())  errs.push('Guardian name required');
       if (!row.guardian_phone.trim()) errs.push('Guardian phone required');
-      if (row.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(row.date_of_birth)) {
-        errs.push('Date of birth must be YYYY-MM-DD format');
+
+      // Normalize date to YYYY-MM-DD — accepts DD/MM/YYYY, YYYY/MM/DD, etc.
+      let normalizedDob = row.date_of_birth;
+      if (row.date_of_birth?.trim()) {
+        const normalized = studentImportService.normalizeDate(row.date_of_birth);
+        if (!normalized) {
+          errs.push('Date of birth format not recognized — use YYYY-MM-DD (e.g. 2007-01-15)');
+        } else {
+          normalizedDob = normalized;
+        }
       }
-      return { ...row, _valid: errs.length === 0, _errors: errs };
+
+      return { ...row, date_of_birth: normalizedDob, _valid: errs.length === 0, _errors: errs };
     });
   },
 
