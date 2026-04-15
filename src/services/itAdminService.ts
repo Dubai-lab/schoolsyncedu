@@ -243,13 +243,13 @@ export const itAdminStudentService = {
     return data as { success: boolean; student_id: string; user_id: string; registration_number: string; message: string };
   },
 
-  /** Reset a student's login password to the school default via Edge Function. */
+  /** Reset a student's login password to the school default via DB RPC. */
   async resetStudentLoginPassword(studentId: UUID, schoolId: UUID): Promise<void> {
-    const { data, error } = await supabase.functions.invoke('reset-student-password', {
-      body: { student_id: studentId, school_id: schoolId },
+    const { error } = await supabase.rpc('reset_student_password', {
+      p_student_id: studentId,
+      p_school_id:  schoolId,
     });
-    if (error) throw new Error(error.message);
-    if (data?.error) throw new Error(String(data.error));
+    if (error) throw error;
   },
 
   /** Flag a student's grade PIN for reset — cleared on next My Grades visit. */
