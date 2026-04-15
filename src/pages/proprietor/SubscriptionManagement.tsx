@@ -385,9 +385,10 @@ export default function SubscriptionManagement() {
     notify.success(`Subscription activated! Invoice: ${invoiceNumber}`);
 
     // Send billing confirmation email (non-blocking)
-    supabase.from('schools').select('name').eq('id', schoolId!).single()
-      .then(({ data: school }) => {
-        supabase.functions.invoke('process-subscription-notifications', {
+    void (async () => {
+      try {
+        const { data: school } = await supabase.from('schools').select('name').eq('id', schoolId!).single();
+        await supabase.functions.invoke('process-subscription-notifications', {
           body: {
             trigger:        'payment_confirmed',
             school_id:      schoolId,
@@ -398,9 +399,11 @@ export default function SubscriptionManagement() {
             invoice_number: invoiceNumber,
             expires_at:     expiresAt ?? undefined,
           },
-        }).catch(() => {/* non-critical */});
-      })
-      .catch(() => {/* non-critical */});
+        });
+      } catch {
+        // non-critical — never block navigation on email failure
+      }
+    })();
 
     navigate('/proprietor');
   };
