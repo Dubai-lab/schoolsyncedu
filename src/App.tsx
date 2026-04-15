@@ -173,6 +173,7 @@ import BulkStudentImport from '@/pages/registrar/BulkStudentImport';
 import BursarDashboard from '@/pages/bursar/BursarDashboard';
 import FeeStructures from '@/pages/bursar/FeeStructures';
 import ApplicationFeePayments from '@/pages/bursar/ApplicationFeePayments';
+import BankTransferVerification from '@/pages/bursar/BankTransferVerification';
 
 // IT Admin school settings
 import SchoolSettingsITAdmin from '@/pages/it-admin/SchoolSettings';
@@ -375,6 +376,7 @@ export default function App() {
           <Route path="/bursar" element={<BursarDashboard />} />
           <Route path="/bursar/fee-structures" element={<FeeStructures />} />
           <Route path="/bursar/application-fees" element={<ApplicationFeePayments />} />
+          <Route path="/bursar/bank-transfers" element={<BankTransferVerification />} />
           {/* Admin module — Super Admin only */}
           <Route path="/admin" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDashboard /></RequireRole>} />
           <Route path="/admin/schools" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SchoolManagement /></RequireRole>} />

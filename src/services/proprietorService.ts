@@ -329,13 +329,12 @@ export type SavedPaymentToken = {
 
 export const savedCardsService = {
   async list(schoolId: UUID): Promise<SavedPaymentToken[]> {
-    const { data, error } = await supabase
-      .from('saved_payment_tokens')
-      .select('*')
-      .eq('school_id', schoolId)
-      .order('is_default', { ascending: false })
-      .order('created_at', { ascending: false });
-    if (error) throw error;
+    // Use Edge Function (service role) to bypass RLS on saved_payment_tokens
+    const { data, error } = await supabase.functions.invoke('get-saved-cards', {
+      body: { school_id: schoolId },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(String(data.error));
     return (data ?? []) as SavedPaymentToken[];
   },
 

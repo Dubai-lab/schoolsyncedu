@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { studentPortalService } from '@/services/studentPortalService';
 import { invoiceService } from '@/services/feeService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
+import { bankTransferService, generateBankRef, type BankTransferProof } from '@/services/bankTransferService';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -21,6 +22,11 @@ import {
   Smartphone,
   Wallet,
   Clock,
+  Landmark,
+  Upload,
+  Copy,
+  CheckCheck,
+  Image,
 } from 'lucide-react';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -74,6 +80,7 @@ interface PaymentModalProps {
   student: Record<string, unknown>;
   schoolId: string;
   userId: string;
+  studentDbId: string;
   /** Auth email from useAuth() — the student's Supabase login email */
   userEmail: string;
   paymentCfg: PaymentConfigPublic | null;
@@ -83,15 +90,87 @@ interface PaymentModalProps {
 }
 
 function PaymentModal({
-  fee, student, paymentCfg, schoolName, onClose,
+  fee, student, schoolId, studentDbId, paymentCfg, schoolName, onClose, onPaid,
 }: PaymentModalProps) {
   const [amount, setAmount] = useState(String(fee.balance));
 
+  // Bank transfer state
+  const [existingProof,     setExistingProof]     = useState<BankTransferProof | null | undefined>(undefined);
+  const [bankRef,           setBankRef]           = useState('');
+  const [proofFile,         setProofFile]         = useState<File | null>(null);
+  const [proofPreview,      setProofPreview]       = useState<string | null>(null);
+  const [bankNotes,         setBankNotes]         = useState('');
+  const [submittingProof,   setSubmittingProof]   = useState(false);
+  const [proofSubmitted,    setProofSubmitted]    = useState(false);
+  const [proofError,        setProofError]        = useState('');
+  const [copied,            setCopied]            = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const studentName = `${student.first_name as string} ${student.last_name as string}`;
   const feeType     = fee.fee_structures?.fee_type?.replace(/_/g, ' ') ?? 'School Fee';
+  const regNumber   = student.registration_number as string;
 
   const amountNum = Number(amount);
   const canPay    = amountNum > 0 && amountNum <= fee.balance && !isNaN(amountNum);
+
+  // Check if student already submitted proof for this fee
+  useEffect(() => {
+    bankTransferService.getProofForFee(fee.id)
+      .then(setExistingProof)
+      .catch(() => setExistingProof(null));
+    setBankRef(generateBankRef(schoolId, regNumber));
+  }, [fee.id, schoolId, regNumber]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setProofFile(f);
+    if (f.type.startsWith('image/')) {
+      setProofPreview(URL.createObjectURL(f));
+    } else {
+      setProofPreview(null);
+    }
+  }
+
+  async function handleSubmitProof() {
+    if (!proofFile && !bankNotes) {
+      setProofError('Please upload your proof of payment or add a note about your transfer.');
+      return;
+    }
+    setSubmittingProof(true);
+    setProofError('');
+    try {
+      let proofUrl: string | null = null;
+      let proofFilename: string | null = null;
+
+      if (proofFile) {
+        proofUrl = await bankTransferService.uploadProof(proofFile, schoolId, bankRef);
+        proofFilename = proofFile.name;
+      }
+
+      await bankTransferService.submitProof({
+        schoolId,
+        studentId:       studentDbId,
+        studentFeeId:    fee.id,
+        amountUsd:       amountNum,
+        referenceNumber: bankRef,
+        proofUrl,
+        proofFilename,
+        studentNotes:    bankNotes,
+      });
+      setProofSubmitted(true);
+    } catch (err) {
+      setProofError(err instanceof Error ? err.message : 'Failed to submit proof');
+    } finally {
+      setSubmittingProof(false);
+    }
+  }
+
+  function copyRef() {
+    navigator.clipboard.writeText(bankRef).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   // Online card payment removed. Students pay via Mobile Money or at the finance office.
 
@@ -222,6 +301,154 @@ function PaymentModal({
                 </div>
               )}
 
+              {/* ── BANK TRANSFER ── */}
+              {paymentCfg?.bank_enabled && paymentCfg.bank_account_number && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Landmark className="h-4 w-4 text-blue-700" />
+                    <p className="text-sm font-bold text-blue-800">Bank Transfer</p>
+                  </div>
+
+                  {/* Bank details */}
+                  <div className="rounded-lg bg-white border border-blue-100 p-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-xs">Account Name</span>
+                      <span className="font-semibold text-gray-800 text-xs">{paymentCfg.bank_account_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-xs">Account Number</span>
+                      <span className="font-mono font-bold text-gray-900">{paymentCfg.bank_account_number}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-xs">Bank</span>
+                      <span className="font-medium text-gray-800 text-xs">{paymentCfg.bank_name}</span>
+                    </div>
+                    {paymentCfg.bank_routing_number && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 text-xs">Routing / Sort Code</span>
+                        <span className="font-mono text-gray-800 text-xs">{paymentCfg.bank_routing_number}</span>
+                      </div>
+                    )}
+                    {paymentCfg.bank_swift_code && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 text-xs">SWIFT / BIC</span>
+                        <span className="font-mono text-gray-800 text-xs">{paymentCfg.bank_swift_code}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Unique reference */}
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700 mb-1">Your Payment Reference</p>
+                    <div className="flex items-center gap-2 rounded-lg bg-white border border-blue-200 px-3 py-2">
+                      <span className="font-mono text-sm font-bold text-blue-900 flex-1 break-all">{bankRef}</span>
+                      <button
+                        type="button"
+                        onClick={copyRef}
+                        className="text-blue-500 hover:text-blue-700 shrink-0"
+                        title="Copy reference"
+                      >
+                        {copied ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Use this as the payment narration/reference when making your transfer.
+                    </p>
+                  </div>
+
+                  {paymentCfg.bank_instructions && (
+                    <p className="text-xs text-blue-700 leading-relaxed border-t border-blue-100 pt-2">
+                      {paymentCfg.bank_instructions}
+                    </p>
+                  )}
+
+                  {/* Proof upload */}
+                  {existingProof === undefined ? (
+                    <div className="text-xs text-blue-500 animate-pulse">Checking submission status…</div>
+                  ) : existingProof?.status === 'verified' ? (
+                    <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-2 text-xs text-green-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Payment verified — your fee has been updated.
+                    </div>
+                  ) : existingProof?.status === 'pending' ? (
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-700">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      Proof submitted — awaiting bursar verification.
+                    </div>
+                  ) : existingProof?.status === 'rejected' ? (
+                    <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-xs text-red-700 space-y-1">
+                      <p className="font-semibold">Proof rejected by bursar.</p>
+                      {existingProof.bursar_notes && <p>{existingProof.bursar_notes}</p>}
+                      <p>Please re-transfer and upload a new proof below.</p>
+                    </div>
+                  ) : null}
+
+                  {/* Upload form — show if no pending/verified proof */}
+                  {(existingProof === null || existingProof?.status === 'rejected') && !proofSubmitted && canPay && (
+                    <div className="space-y-2 border-t border-blue-100 pt-3">
+                      <p className="text-xs font-semibold text-blue-700">Upload Proof of Payment</p>
+
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-blue-300 bg-white p-4 cursor-pointer hover:border-blue-400 transition-colors"
+                      >
+                        {proofPreview ? (
+                          <img src={proofPreview} alt="proof" className="max-h-28 rounded object-contain" />
+                        ) : proofFile ? (
+                          <div className="flex items-center gap-2 text-xs text-blue-700">
+                            <FileText className="h-5 w-5" />
+                            {proofFile.name}
+                          </div>
+                        ) : (
+                          <>
+                            <Image className="h-8 w-8 text-blue-300 mb-1" />
+                            <p className="text-xs text-blue-500">Tap to upload receipt / screenshot</p>
+                            <p className="text-xs text-blue-400">JPG, PNG, PDF — max 5 MB</p>
+                          </>
+                        )}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                      </div>
+
+                      <textarea
+                        rows={2}
+                        placeholder="Optional note (e.g. transfer date, sender name)"
+                        value={bankNotes}
+                        onChange={(e) => setBankNotes(e.target.value)}
+                        className="w-full rounded-lg border border-blue-200 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                      />
+
+                      {proofError && (
+                        <p className="text-xs text-red-600">{proofError}</p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleSubmitProof}
+                        disabled={submittingProof}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                      >
+                        {submittingProof
+                          ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</>
+                          : <><Upload className="h-4 w-4" /> Submit Proof</>}
+                      </button>
+                    </div>
+                  )}
+
+                  {proofSubmitted && (
+                    <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-2 text-xs text-green-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Proof submitted! The bursar will verify your payment shortly.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── CASH / BANK (always show as fallback) ── */}
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-1.5">
                 <div className="flex items-center gap-2 text-gray-700">
@@ -234,11 +461,11 @@ function PaymentModal({
                 </p>
               </div>
 
-              {/* No mobile money configured */}
-              {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
+              {/* No payment method configured */}
+              {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.bank_enabled && (
                 <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Mobile Money payment is not configured for your school. Please pay in person at the finance office.
+                  No online payment method is configured for your school. Please pay in person at the finance office.
                 </div>
               )}
           </div>
@@ -617,6 +844,7 @@ export default function MyFees() {
           student={student as Record<string, unknown>}
           schoolId={schoolId}
           userId={userId}
+          studentDbId={studentId}
           userEmail={user?.email ?? ''}
           paymentCfg={paymentCfg}
           schoolName={schoolName}

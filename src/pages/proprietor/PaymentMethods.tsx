@@ -25,6 +25,7 @@ import {
   Smartphone,
   Building2,
   Globe,
+  Landmark,
 } from 'lucide-react';
 
 function KeyInput({
@@ -120,6 +121,15 @@ export default function PaymentMethods() {
   const [orangeKey, setOrangeKey] = useState('');
   const [orangeEnabled, setOrangeEnabled] = useState(false);
 
+  // Bank Transfer
+  const [bankEnabled,        setBankEnabled]        = useState(false);
+  const [bankAccountName,    setBankAccountName]    = useState('');
+  const [bankAccountNumber,  setBankAccountNumber]  = useState('');
+  const [bankName,           setBankName]           = useState('');
+  const [bankRoutingNumber,  setBankRoutingNumber]  = useState('');
+  const [bankSwiftCode,      setBankSwiftCode]      = useState('');
+  const [bankInstructions,   setBankInstructions]   = useState('');
+
   // Branding
   const [paymentTitle, setPaymentTitle] = useState('');
   const [paymentLogo, setPaymentLogo] = useState('');
@@ -141,6 +151,13 @@ export default function PaymentMethods() {
       setOrangeCode(savedConfig.orange_merchant_code ?? '');
       setOrangeKey(savedConfig.orange_api_key ?? '');
       setOrangeEnabled(savedConfig.orange_enabled ?? false);
+      setBankEnabled(savedConfig.bank_enabled ?? false);
+      setBankAccountName(savedConfig.bank_account_name ?? '');
+      setBankAccountNumber(savedConfig.bank_account_number ?? '');
+      setBankName(savedConfig.bank_name ?? '');
+      setBankRoutingNumber(savedConfig.bank_routing_number ?? '');
+      setBankSwiftCode(savedConfig.bank_swift_code ?? '');
+      setBankInstructions(savedConfig.bank_instructions ?? '');
       setPaymentTitle(savedConfig.payment_title ?? '');
       setPaymentLogo(savedConfig.payment_logo ?? '');
     }
@@ -169,6 +186,13 @@ export default function PaymentMethods() {
         orange_merchant_code: orangeCode.trim(),
         orange_api_key: orangeKey.trim(),
         orange_enabled: orangeEnabled,
+        bank_enabled: bankEnabled,
+        bank_account_name: bankAccountName.trim(),
+        bank_account_number: bankAccountNumber.trim(),
+        bank_name: bankName.trim(),
+        bank_routing_number: bankRoutingNumber.trim(),
+        bank_swift_code: bankSwiftCode.trim(),
+        bank_instructions: bankInstructions.trim(),
         payment_title: paymentTitle.trim(),
         payment_logo: paymentLogo.trim(),
       });
@@ -182,7 +206,7 @@ export default function PaymentMethods() {
     }
   }
 
-  const anyEnabled = flwEnabled || mtnEnabled || orangeEnabled;
+  const anyEnabled = flwEnabled || mtnEnabled || orangeEnabled || bankEnabled;
 
   return (
     <div className="space-y-6">
@@ -213,6 +237,7 @@ export default function PaymentMethods() {
             <li><strong>Flutterwave</strong> — for international Visa/MasterCard payments charged in USD.</li>
             <li><strong>MTN MoMo</strong> — Lonestar Cell MTN "MoMo", Liberia's most-used mobile money. Dial <strong>*156#</strong>.</li>
             <li><strong>Orange Money</strong> — Orange Liberia mobile money, second major provider.</li>
+            <li><strong>Bank Transfer</strong> — students transfer directly to your school bank account and upload proof; bursar verifies.</li>
           </ul>
           <p className="text-xs mt-1 text-blue-600">
             Note: Flutterwave does not support LRD or Liberia mobile money directly.
@@ -437,6 +462,90 @@ export default function PaymentMethods() {
             </div>
           </Card>
 
+          {/* ── 4. Bank Transfer ── */}
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 bg-slate-50 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+                  <Landmark className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">Bank Transfer</p>
+                  <p className="text-xs text-slate-500">
+                    Students upload proof of payment — your bursar verifies and marks fees paid
+                  </p>
+                </div>
+              </div>
+              <GatewayToggle enabled={bankEnabled} onToggle={() => setBankEnabled((v) => !v)} />
+            </div>
+
+            <div className={`p-5 space-y-4 ${!bankEnabled && 'opacity-60 pointer-events-none'}`}>
+              <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  When enabled, students will see your bank account details and can upload a proof of
+                  payment (receipt / screenshot). Your bursar then reviews each submission and
+                  marks the fee as paid with one click.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <KeyInput
+                  label="Account Holder Name"
+                  value={bankAccountName}
+                  onChange={setBankAccountName}
+                  placeholder="e.g. Springfield Academy Inc."
+                  note="Name on the bank account — exactly as shown on your bank statement."
+                />
+                <KeyInput
+                  label="Account Number"
+                  value={bankAccountNumber}
+                  onChange={setBankAccountNumber}
+                  placeholder="e.g. 0012345678"
+                  note="Your school's bank account number."
+                />
+                <KeyInput
+                  label="Bank Name"
+                  value={bankName}
+                  onChange={setBankName}
+                  placeholder="e.g. Liberia Bank for Development"
+                  note="Full name of the bank."
+                />
+                <KeyInput
+                  label="Routing / Sort Code (optional)"
+                  value={bankRoutingNumber}
+                  onChange={setBankRoutingNumber}
+                  placeholder="e.g. 012-345"
+                  note="Bank routing or sort code, if applicable."
+                />
+                <KeyInput
+                  label="SWIFT / BIC Code (optional)"
+                  value={bankSwiftCode}
+                  onChange={setBankSwiftCode}
+                  placeholder="e.g. LBDCLRLM"
+                  note="Required for international transfers."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Additional Instructions (optional)
+                </label>
+                <textarea
+                  value={bankInstructions}
+                  onChange={(e) => setBankInstructions(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Use student registration number as payment reference. Send proof to finance@school.com after transferring."
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  These instructions appear on the student fee payment page.
+                </p>
+              </div>
+            </div>
+          </Card>
+
           {/* ── Branding ── */}
           <Card className="p-5 space-y-4">
             <div className="flex items-center gap-2">
@@ -491,6 +600,7 @@ export default function PaymentMethods() {
                   { label: 'Flutterwave (Cards)', active: savedConfig.flw_enabled, color: 'orange' },
                   { label: 'MTN MoMo', active: savedConfig.mtn_enabled, color: 'yellow' },
                   { label: 'Orange Money', active: savedConfig.orange_enabled, color: 'orange' },
+                  { label: 'Bank Transfer', active: savedConfig.bank_enabled, color: 'blue' },
                 ].map((g) => (
                   <span
                     key={g.label}
@@ -505,7 +615,7 @@ export default function PaymentMethods() {
                     {g.label}
                   </span>
                 ))}
-                {!savedConfig.flw_enabled && !savedConfig.mtn_enabled && !savedConfig.orange_enabled && (
+                {!savedConfig.flw_enabled && !savedConfig.mtn_enabled && !savedConfig.orange_enabled && !savedConfig.bank_enabled && (
                   <span className="text-xs text-slate-400">No payment gateways are active yet.</span>
                 )}
               </div>

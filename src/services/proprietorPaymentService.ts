@@ -25,6 +25,14 @@ export interface PaymentConfig {
   orange_merchant_code: string;
   orange_api_key: string;
   orange_enabled: boolean;
+  // Bank Transfer
+  bank_enabled: boolean;
+  bank_account_name: string;
+  bank_account_number: string;
+  bank_name: string;
+  bank_routing_number: string;
+  bank_swift_code: string;
+  bank_instructions: string;
   // Branding
   payment_title: string;
   payment_logo: string;
@@ -41,6 +49,13 @@ export interface PaymentConfigPublic {
   mtn_merchant_code: string;
   orange_enabled: boolean;
   orange_merchant_code: string;
+  bank_enabled: boolean;
+  bank_account_name: string;
+  bank_account_number: string;
+  bank_name: string;
+  bank_routing_number: string;
+  bank_swift_code: string;
+  bank_instructions: string;
   payment_title: string;
   payment_logo: string;
 }

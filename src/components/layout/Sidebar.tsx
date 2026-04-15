@@ -38,6 +38,7 @@ import {
   HeartPulse,
   TrendingDown,
   Upload,
+  Landmark,
 } from 'lucide-react';
 
 // ==================== NAV CONFIG ====================
@@ -210,6 +211,7 @@ const navGroups: NavGroup[] = [
       { label: 'Record Payment', path: '/fees/payment', icon: CreditCard, roles: [USER_ROLES.BURSAR] },
       { label: 'Fee Structures', path: '/bursar/fee-structures', icon: Layers, roles: [USER_ROLES.BURSAR] },
       { label: 'Student Fees', path: '/fees', icon: DollarSign, roles: [USER_ROLES.BURSAR] },
+      { label: 'Bank Transfer Proofs', path: '/bursar/bank-transfers', icon: Landmark, roles: [USER_ROLES.BURSAR] },
       { label: 'Payment History', path: '/fees/history', icon: FileText, roles: [USER_ROLES.BURSAR] },
     ],
   },
