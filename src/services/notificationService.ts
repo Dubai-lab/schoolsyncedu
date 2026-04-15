@@ -240,6 +240,48 @@ export const notificationService = {
       .eq('id', id);
     if (error) throw error;
   },
+
+  /** Super admin bell: reads notification_logs (platform-wide email events) */
+  async listForSuperAdmin(limit = 30): Promise<UserNotification[]> {
+    const { data, error } = await supabase
+      .from('notification_logs')
+      .select('id, event_type, recipient_email, sent_at, metadata, school_id, schools(name)')
+      .order('sent_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+
+    const eventTypeMap: Record<string, NotificationType> = {
+      payment_confirmed:   'subscription',
+      trial_ending:        'subscription',
+      trial_expired:       'subscription',
+      grace_period:        'subscription',
+      suspended:           'subscription',
+      reactivated:         'subscription',
+      welcome:             'general',
+    };
+
+    const titleMap: Record<string, string> = {
+      payment_confirmed:  'Payment Confirmed',
+      trial_ending:       'Trial Ending Soon',
+      trial_expired:      'Trial Expired',
+      grace_period:       'Grace Period Started',
+      suspended:          'School Suspended',
+      reactivated:        'School Reactivated',
+      welcome:            'New School Registered',
+    };
+
+    return (data ?? []).map((row: any) => ({
+      id:         row.id,
+      user_id:    '',
+      school_id:  row.school_id ?? null,
+      type:       eventTypeMap[row.event_type] ?? 'general',
+      title:      titleMap[row.event_type] ?? row.event_type?.replace(/_/g, ' ') ?? 'Notification',
+      body:       `${row.schools?.name ?? row.recipient_email} · ${row.recipient_email}`,
+      action_url: '/admin/schools',
+      is_read:    false,
+      created_at: row.sent_at,
+    })) as UserNotification[];
+  },
 };
 
 // ==================== SMS LOGS ====================

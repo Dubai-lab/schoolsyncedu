@@ -37,7 +37,7 @@ const CAN_SEARCH_CLASSES = new Set([
   'principal', 'vice_principal', 'admin_staff',
 ]);
 const CAN_SEARCH_STAFF = new Set([
-  'it_admin', 'principal', 'vice_principal', 'super_admin',
+  'it_admin', 'principal', 'vice_principal',
 ]);
 const CAN_SEARCH_SCHOOLS = new Set(['super_admin']);
 
@@ -168,19 +168,51 @@ export default function GlobalSearch() {
         }
       }
 
-      // Schools (super_admin only)
+      // Schools (super_admin only) — search by school name OR proprietor name
       if (CAN_SEARCH_SCHOOLS.has(role)) {
-        const { data } = await supabase
+        // Search by school name
+        const { data: byName } = await supabase
           .from('schools')
           .select('id, name, slug')
           .ilike('name', like)
-          .limit(4);
+          .limit(5);
 
-        for (const s of data ?? []) {
+        // Search by proprietor full_name
+        const { data: byOwner } = await supabase
+          .from('users')
+          .select('school_id, full_name, email')
+          .eq('role', 'proprietor')
+          .or(`full_name.ilike.${like},email.ilike.${like}`)
+          .limit(5);
+
+        // Merge, de-duplicate by school id
+        const schoolMap = new Map<string, { name: string; slug: string; ownerName?: string }>();
+        for (const s of byName ?? []) {
+          schoolMap.set(s.id, { name: s.name, slug: s.slug });
+        }
+        for (const u of byOwner ?? []) {
+          if (!u.school_id) continue;
+          if (!schoolMap.has(u.school_id)) {
+            // Fetch school name for this proprietor's school
+            const { data: schoolRow } = await supabase
+              .from('schools')
+              .select('id, name, slug')
+              .eq('id', u.school_id)
+              .maybeSingle();
+            if (schoolRow) {
+              schoolMap.set(schoolRow.id, { name: schoolRow.name, slug: schoolRow.slug, ownerName: u.full_name || u.email });
+            }
+          } else {
+            const existing = schoolMap.get(u.school_id)!;
+            schoolMap.set(u.school_id, { ...existing, ownerName: u.full_name || u.email });
+          }
+        }
+
+        for (const [id, s] of schoolMap) {
           collected.push({
-            id:       s.id,
+            id,
             label:    s.name,
-            sublabel: s.slug,
+            sublabel: s.ownerName ? `Owner: ${s.ownerName}` : s.slug,
             category: 'Schools',
             href:     '/admin/schools',
           });
@@ -259,7 +291,7 @@ export default function GlobalSearch() {
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (results.length > 0) setIsOpen(true); }}
-          placeholder="Search students, classes, staff..."
+          placeholder={role === 'super_admin' ? 'Search schools, proprietors...' : 'Search students, classes, staff...'}
           autoComplete="off"
           className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-8 text-sm text-slate-700 placeholder:text-slate-400 transition-colors focus:border-primary-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-100"
         />

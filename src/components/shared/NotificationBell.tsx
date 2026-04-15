@@ -71,23 +71,32 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
+  const isSuperAdmin = user?.role === 'super_admin';
+
   // Load notifications
   const load = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const [list, count] = await Promise.all([
-        notificationService.list(userId),
-        notificationService.unreadCount(userId),
-      ]);
-      setNotifications(list);
-      setUnreadCount(count);
+      if (isSuperAdmin) {
+        // Super admin reads platform-wide notification_logs
+        const list = await notificationService.listForSuperAdmin();
+        setNotifications(list);
+        setUnreadCount(list.length); // all treated as unread (no per-user tracking)
+      } else {
+        const [list, count] = await Promise.all([
+          notificationService.list(userId),
+          notificationService.unreadCount(userId),
+        ]);
+        setNotifications(list);
+        setUnreadCount(count);
+      }
     } catch {
       // silent — bell should never crash the app
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, isSuperAdmin]);
 
   useEffect(() => {
     load();
@@ -95,7 +104,7 @@ export default function NotificationBell() {
 
   // ── Real-time: subscribe to new rows for this user ────────────────────────
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || isSuperAdmin) return; // super_admin uses notification_logs, not user_notifications
 
     const channel = supabase
       .channel(`user-notifications-${userId}`)
@@ -134,14 +143,14 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    await notificationService.markAllRead(userId);
+    if (!isSuperAdmin) await notificationService.markAllRead(userId);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await notificationService.delete(id);
+    if (!isSuperAdmin) await notificationService.delete(id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     setUnreadCount((c) =>
       Math.max(0, c - (notifications.find((n) => n.id === id)?.is_read === false ? 1 : 0)),
