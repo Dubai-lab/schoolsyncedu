@@ -88,6 +88,8 @@ const navGroups: NavGroup[] = [
       { label: 'Terms', path: '/classes/terms', icon: Calendar, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL, USER_ROLES.IT_ADMIN] },
       { label: 'Grades', path: '/grades', icon: FileText, roles: [...ADMIN_ROLES, USER_ROLES.PARENT] },
       { label: 'Grade Approval', path: '/grades/approval', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Report Cards', path: '/grades/reports', icon: ClipboardList, roles: [...ADMIN_ROLES, USER_ROLES.REGISTRAR] },
+      { label: 'Transcripts', path: '/grades/transcript', icon: GraduationCap, roles: [...ADMIN_ROLES, USER_ROLES.REGISTRAR] },
       { label: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.PARENT] },
       { label: 'Timetable', path: '/timetable', icon: Calendar, roles: [...ALL_STAFF, USER_ROLES.PARENT] },
       { label: 'WAEC Exams', path: '/waec', icon: ClipboardList, roles: ADMIN_ROLES },
@@ -98,6 +100,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'My Dashboard', path: '/student/dashboard', icon: LayoutDashboard, roles: [USER_ROLES.STUDENT] },
       { label: 'My Grades', path: '/student/grades', icon: FileText, roles: [USER_ROLES.STUDENT] },
+      { label: 'My Transcript', path: '/grades/transcript', icon: GraduationCap, roles: [USER_ROLES.STUDENT] },
       { label: 'My Attendance', path: '/student/attendance', icon: CalendarCheck, roles: [USER_ROLES.STUDENT] },
       { label: 'My Timetable', path: '/student/timetable', icon: Calendar, roles: [USER_ROLES.STUDENT] },
       { label: 'My Fees', path: '/student/fees', icon: DollarSign, roles: [USER_ROLES.STUDENT] },
@@ -193,6 +196,8 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Registrar Home', path: '/registrar', icon: ClipboardCheck, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Applications', path: '/registrar/applications', icon: ClipboardList, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Report Cards', path: '/grades/reports', icon: FileText, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Transcripts', path: '/grades/transcript', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Year-End Promotion', path: '/registrar/promotion', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL] },
       { label: 'Import Students', path: '/registrar/import', icon: Upload, roles: [USER_ROLES.REGISTRAR, USER_ROLES.IT_ADMIN, USER_ROLES.ADMIN_STAFF] },
     ],
