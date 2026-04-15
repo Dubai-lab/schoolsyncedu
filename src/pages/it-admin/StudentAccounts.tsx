@@ -94,7 +94,7 @@ function ProvisionTab({
       ]);
       queryClient.invalidateQueries({ queryKey: ['students-without-accounts', schoolId] });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create account';
+      const msg = (err as { message?: string })?.message || String(err) || 'Failed to create account';
       setResults((prev) => [
         { registration_number: student.registration_number, success: false, message: msg },
         ...prev,
@@ -405,7 +405,7 @@ function SecurityTab({
         name: `${student.first_name} ${student.last_name}`,
         type: 'Login password',
         success: false,
-        message: err instanceof Error ? err.message : 'Reset failed',
+        message: (err as { message?: string })?.message || String(err) || 'Reset failed',
       }, ...prev]);
     } finally {
       setProcessing(null);
@@ -428,7 +428,7 @@ function SecurityTab({
         name: `${student.first_name} ${student.last_name}`,
         type: 'Grade page PIN',
         success: false,
-        message: err instanceof Error ? err.message : 'Reset failed',
+        message: (err as { message?: string })?.message || String(err) || 'Reset failed',
       }, ...prev]);
     } finally {
       setProcessing(null);
