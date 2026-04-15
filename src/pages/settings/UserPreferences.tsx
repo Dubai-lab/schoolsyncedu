@@ -24,7 +24,6 @@ export default function UserPreferences() {
   const [form, setForm] = useState<Record<string, string>>({});
 
   // Change password state
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
@@ -54,7 +53,6 @@ export default function UserPreferences() {
     try {
       await authService.updatePassword(newPassword);
       notify.success('Password changed successfully');
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
