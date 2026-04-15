@@ -188,8 +188,14 @@ export interface EnrolledStudent {
 
 export const itAdminStudentService = {
   async listStudentsWithoutAccounts(schoolId: UUID): Promise<StudentWithoutAccount[]> {
+    // Direct table query — no RPC needed since migration 063 fixed students RLS
     const { data, error } = await supabase
-      .rpc('list_students_without_accounts', { p_school_id: schoolId });
+      .from('students')
+      .select('id, registration_number, first_name, last_name, current_grade_level, status, enrollment_date')
+      .eq('school_id', schoolId)
+      .is('user_id', null)
+      .eq('status', 'enrolled')
+      .order('last_name');
     if (error) throw error;
     return (data ?? []) as StudentWithoutAccount[];
   },
