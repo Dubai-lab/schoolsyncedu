@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { userPreferencesService } from '@/services/settingsService';
+import { authService } from '@/services/authService';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
-import { Save, User, Shield } from 'lucide-react';
+import { Save, User, Shield, Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function UserPreferences() {
   const { user } = useAuth();
@@ -21,6 +22,14 @@ export default function UserPreferences() {
   );
 
   const [form, setForm] = useState<Record<string, string>>({});
+
+  // Change password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const merged = { ...profile, ...form };
 
   const updateMutation = useMutate(
@@ -30,6 +39,30 @@ export default function UserPreferences() {
 
   const set = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match.');
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await authService.updatePassword(newPassword);
+      notify.success('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const handleSave = () => {
     if (!Object.keys(form).length) return;
@@ -129,6 +162,67 @@ export default function UserPreferences() {
             onChange={(e) => set('profile_photo_url', e.target.value)}
           />
         </div>
+      </Card>
+
+      {/* Change Password */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Lock className="w-5 h-5 text-primary-600" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPasswords((s) => !s)}
+            className="text-sm text-slate-400 hover:text-slate-600 flex items-center gap-1"
+          >
+            {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPasswords ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              New Password
+            </label>
+            <input
+              type={showPasswords ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Min. 6 characters"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Confirm New Password
+            </label>
+            <input
+              type={showPasswords ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repeat new password"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            />
+          </div>
+          <div className="flex items-end">
+            <Button
+              onClick={handlePasswordChange}
+              loading={passwordSaving}
+              disabled={!newPassword || !confirmPassword}
+              className="w-full"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Update Password
+            </Button>
+          </div>
+        </div>
+        {passwordError && (
+          <p className="mt-3 text-sm text-red-600">{passwordError}</p>
+        )}
+        <p className="mt-3 text-xs text-slate-400">
+          You will remain logged in after changing your password.
+        </p>
       </Card>
     </div>
   );

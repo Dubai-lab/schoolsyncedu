@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { studentPortalService } from '@/services/studentPortalService';
@@ -271,7 +272,23 @@ export default function MyGrades() {
     { enabled: !!schoolId && !!userId },
   );
 
+  const queryClient = useQueryClient();
   const studentId = (student as Record<string, unknown> | null)?.id as string ?? '';
+  const gradePinResetRequested = (student as Record<string, unknown> | null)?.grade_pin_reset_requested as boolean ?? false;
+
+  // If IT Admin flagged a PIN reset, clear localStorage and acknowledge it
+  useEffect(() => {
+    if (!studentId || !gradePinResetRequested) return;
+    // Clear the PIN from localStorage
+    localStorage.removeItem(getPinKey(userId));
+    localStorage.removeItem(getPinEnabledKey(userId));
+    // Clear the flag in the DB so this only fires once, then refresh profile
+    import('@/services/itAdminService').then(({ itAdminStudentService }) => {
+      itAdminStudentService.clearGradePinResetFlag(studentId)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['my-profile', schoolId, userId] }))
+        .catch(() => {/* best-effort */});
+    });
+  }, [studentId, gradePinResetRequested, userId, schoolId, queryClient]);
 
   const { data: grades = [], isLoading } = useFetch(
     ['my-grades', schoolId, studentId],

@@ -615,7 +615,7 @@ export default function TranscriptPage() {
                   ) : (
                     <div className="overflow-auto border border-slate-200 rounded-xl p-4 bg-slate-50">
                       <PrintDocument
-                        student={selectedStudent}
+                        student={selectedStudent as PrintDocProps['student']}
                         school={school}
                         columns={columns}
                         rows={rows}

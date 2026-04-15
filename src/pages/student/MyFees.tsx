@@ -159,6 +159,7 @@ function PaymentModal({
         studentNotes:    bankNotes,
       });
       setProofSubmitted(true);
+      onPaid();
     } catch (err) {
       setProofError(err instanceof Error ? err.message : 'Failed to submit proof');
     } finally {

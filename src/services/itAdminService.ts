@@ -175,12 +175,62 @@ export interface StudentWithoutAccount {
   enrollment_date: string | null;
 }
 
+export interface EnrolledStudent {
+  id: string;
+  registration_number: string;
+  first_name: string;
+  last_name: string;
+  current_grade_level: string;
+  status: string;
+  has_account: boolean;
+  grade_pin_reset_requested: boolean;
+}
+
 export const itAdminStudentService = {
   async listStudentsWithoutAccounts(schoolId: UUID): Promise<StudentWithoutAccount[]> {
     const { data, error } = await supabase
       .rpc('list_students_without_accounts', { p_school_id: schoolId });
     if (error) throw error;
     return (data ?? []) as StudentWithoutAccount[];
+  },
+
+  /** List ALL enrolled students — for the security management hub. */
+  async listAllStudents(schoolId: UUID, search?: string): Promise<EnrolledStudent[]> {
+    let query = supabase
+      .from('students')
+      .select(`
+        id,
+        registration_number,
+        first_name,
+        last_name,
+        current_grade_level,
+        status,
+        grade_pin_reset_requested,
+        user_id
+      `)
+      .eq('school_id', schoolId)
+      .eq('status', 'active')
+      .order('last_name');
+
+    if (search) {
+      query = query.or(
+        `first_name.ilike.%${search}%,last_name.ilike.%${search}%,registration_number.ilike.%${search}%`
+      );
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data ?? []).map((s) => ({
+      id: s.id,
+      registration_number: s.registration_number ?? '',
+      first_name: s.first_name ?? '',
+      last_name: s.last_name ?? '',
+      current_grade_level: s.current_grade_level ?? '',
+      status: s.status ?? '',
+      has_account: !!s.user_id,
+      grade_pin_reset_requested: s.grade_pin_reset_requested ?? false,
+    }));
   },
 
   async provisionStudentAccount(schoolId: UUID, registrationNumber: string, password: string) {
@@ -191,6 +241,33 @@ export const itAdminStudentService = {
     });
     if (error) throw error;
     return data as { success: boolean; student_id: string; user_id: string; registration_number: string; message: string };
+  },
+
+  /** Reset a student's login password to the school default via Edge Function. */
+  async resetStudentLoginPassword(studentId: UUID, schoolId: UUID): Promise<void> {
+    const { data, error } = await supabase.functions.invoke('reset-student-password', {
+      body: { student_id: studentId, school_id: schoolId },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(String(data.error));
+  },
+
+  /** Flag a student's grade PIN for reset — cleared on next My Grades visit. */
+  async resetStudentGradePin(studentId: UUID): Promise<void> {
+    const { error } = await supabase
+      .from('students')
+      .update({ grade_pin_reset_requested: true })
+      .eq('id', studentId);
+    if (error) throw error;
+  },
+
+  /** Clear the grade_pin_reset_requested flag after the student's device clears localStorage. */
+  async clearGradePinResetFlag(studentId: UUID): Promise<void> {
+    const { error } = await supabase
+      .from('students')
+      .update({ grade_pin_reset_requested: false })
+      .eq('id', studentId);
+    if (error) throw error;
   },
 };
 

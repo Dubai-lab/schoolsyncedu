@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { studentPortalService } from '@/services/studentPortalService';
+import { authService } from '@/services/authService';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import Breadcrumb from '@/components/shared/Breadcrumb';
+import { notify } from '@/components/shared/Toast';
 import {
   User,
   Mail,
@@ -13,12 +17,45 @@ import {
   Hash,
   Shield,
   Users,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function StudentProfile() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
   const userId = user?.id ?? '';
+
+  // Change password state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match.');
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await authService.updatePassword(newPassword);
+      notify.success('Password changed successfully');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const { data: student, isLoading } = useFetch(
     ['my-profile', schoolId, userId],
@@ -179,6 +216,61 @@ export default function StudentProfile() {
                 </div>
               </Card>
             )}
+
+            {/* Change Password */}
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Lock className="h-4 w-4 text-slate-500" />
+                  Change Password
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords((s) => !s)}
+                  className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                >
+                  {showPasswords ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showPasswords ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">New Password</label>
+                  <input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Confirm Password</label>
+                  <input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat new password"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
+                  />
+                </div>
+              </div>
+              {passwordError && (
+                <p className="mt-2 text-xs text-red-600">{passwordError}</p>
+              )}
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-slate-400">You will remain logged in after changing your password.</p>
+                <Button
+                  size="sm"
+                  onClick={handlePasswordChange}
+                  loading={passwordSaving}
+                  disabled={!newPassword || !confirmPassword}
+                >
+                  <Lock className="h-3.5 w-3.5 mr-1.5" />
+                  Update Password
+                </Button>
+              </div>
+            </Card>
           </div>
         </div>
       )}
