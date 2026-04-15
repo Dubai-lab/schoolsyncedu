@@ -107,6 +107,7 @@ function StripeCardForm({ paymentData, amount, appliedDiscount, email, onSuccess
           plan_name:      paymentData.plan.name,
           amount_usd:     amount,
           invoice_number: result.invoiceNumber ?? '',
+          expires_at:     result.expiresAt ?? undefined,
         },
       }).catch(() => {/* non-critical */});
 

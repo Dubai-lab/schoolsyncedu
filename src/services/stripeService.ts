@@ -93,7 +93,7 @@ export async function recordSubscriptionPayment(opts: {
   gatewayRef: string;
   txRef: string;
   paymentMethod?: 'visa' | 'mtn' | 'orange' | 'bank' | 'manual';
-}): Promise<{ success: boolean; invoiceNumber: string }> {
+}): Promise<{ success: boolean; invoiceNumber: string; expiresAt: string | null }> {
   const { data, error } = await supabase.rpc('record_subscription_payment', {
     p_school_id:       opts.schoolId,
     p_subscription_id: opts.subscriptionId,
@@ -103,8 +103,13 @@ export async function recordSubscriptionPayment(opts: {
     p_payment_method:  opts.paymentMethod ?? 'visa',
   });
   if (error) throw new Error(error.message);
-  const result = data as unknown as { success: boolean; invoice_number: string };
-  return { success: result.success, invoiceNumber: result.invoice_number };
+  const result = data as unknown as { success: boolean; invoice_number: string; expires_at?: string };
+
+  return {
+    success:       result.success,
+    invoiceNumber: result.invoice_number,
+    expiresAt:     result.expires_at ?? null,
+  };
 }
 
 /** Save card details after payment (client-side complement to the webhook) */
@@ -153,7 +158,7 @@ export async function upgradeSubscriptionPlan(opts: {
   gatewayRef: string;
   txRef: string;
   paymentMethod?: 'visa' | 'mtn' | 'orange' | 'bank' | 'manual';
-}): Promise<{ success: boolean; invoiceNumber: string; newPlan: string }> {
+}): Promise<{ success: boolean; invoiceNumber: string; newPlan: string; expiresAt: string | null }> {
   const { data, error } = await supabase.rpc('upgrade_subscription', {
     p_school_id:       opts.schoolId,
     p_subscription_id: opts.subscriptionId,
@@ -168,10 +173,13 @@ export async function upgradeSubscriptionPlan(opts: {
     success: boolean;
     invoice_number: string;
     new_plan: string;
+    expires_at?: string;
   };
+
   return {
     success:       result.success,
     invoiceNumber: result.invoice_number,
     newPlan:       result.new_plan,
+    expiresAt:     result.expires_at ?? null,
   };
 }

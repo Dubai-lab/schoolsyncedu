@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
+import { supabase } from '@/lib/supabase';
 import {
   proprietorSubscriptionService,
   proprietorBillingService,
@@ -58,7 +59,7 @@ interface StripeUpgradeFormProps {
   currentPlanId: string;
   userEmail: string;
   userName: string;
-  onSuccess: (invoiceNumber: string) => void;
+  onSuccess: (invoiceNumber: string, expiresAt: string | null, amountUsd: number) => void;
   onCancel: () => void;
 }
 
@@ -114,7 +115,7 @@ function StripeUpgradeForm({
           txRef,
         });
         savePaymentCard({ paymentIntentId, schoolId });
-        onSuccess(result.invoiceNumber);
+        onSuccess(result.invoiceNumber, result.expiresAt, plan.price_usd);
       } else {
         const result = await upgradeSubscriptionPlan({
           schoolId,
@@ -125,7 +126,7 @@ function StripeUpgradeForm({
           txRef,
         });
         savePaymentCard({ paymentIntentId, schoolId });
-        onSuccess(result.invoiceNumber);
+        onSuccess(result.invoiceNumber, result.expiresAt, plan.price_usd);
       }
     } catch (err) {
       setCardError(err instanceof Error ? err.message : String(err));
@@ -377,9 +378,30 @@ export default function SubscriptionManagement() {
     setShowCardForm(false);
   };
 
-  const handlePaymentSuccess = (invoiceNumber: string) => {
+  const handlePaymentSuccess = (invoiceNumber: string, expiresAt: string | null, amountUsd: number) => {
+    // Capture plan name before closeDialog() clears selectedPlanId
+    const planName = selectedPlan?.name ?? subscription?.plan.name ?? '';
     closeDialog();
     notify.success(`Subscription activated! Invoice: ${invoiceNumber}`);
+
+    // Send billing confirmation email (non-blocking)
+    supabase.from('schools').select('name').eq('id', schoolId!).single()
+      .then(({ data: school }) => {
+        supabase.functions.invoke('process-subscription-notifications', {
+          body: {
+            trigger:        'payment_confirmed',
+            school_id:      schoolId,
+            school_name:    school?.name ?? '',
+            owner_email:    user?.email ?? '',
+            plan_name:      planName,
+            amount_usd:     amountUsd,
+            invoice_number: invoiceNumber,
+            expires_at:     expiresAt ?? undefined,
+          },
+        }).catch(() => {/* non-critical */});
+      })
+      .catch(() => {/* non-critical */});
+
     navigate('/proprietor');
   };
 
