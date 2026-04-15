@@ -42,11 +42,11 @@ serve(async (req) => {
       });
     }
 
-    // Fetch caller's role from users table
+    // Fetch caller's role from users table (auth_id = Supabase Auth UUID)
     const { data: callerProfile } = await adminClient
       .from('users')
       .select('role')
-      .eq('id', caller.id)
+      .eq('auth_id', caller.id)
       .maybeSingle();
 
     if (callerProfile?.role !== 'super_admin') {
