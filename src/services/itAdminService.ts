@@ -209,7 +209,7 @@ export const itAdminStudentService = {
         user_id
       `)
       .eq('school_id', schoolId)
-      .eq('status', 'active')
+      .in('status', ['enrolled', 'suspended', 'on_leave'])
       .order('last_name');
 
     if (search) {
@@ -263,10 +263,7 @@ export const itAdminStudentService = {
 
   /** Clear the grade_pin_reset_requested flag after the student's device clears localStorage. */
   async clearGradePinResetFlag(studentId: UUID): Promise<void> {
-    const { error } = await supabase
-      .from('students')
-      .update({ grade_pin_reset_requested: false })
-      .eq('id', studentId);
+    const { error } = await supabase.rpc('clear_grade_pin_reset', { p_student_id: studentId });
     if (error) throw error;
   },
 };

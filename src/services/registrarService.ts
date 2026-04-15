@@ -331,6 +331,7 @@ export interface ImportStudentRow {
   guardian_name: string;
   guardian_phone: string;
   guardian_email: string;  // optional
+  reg_fee_paid?: boolean;  // set in the UI review step; if true, registration fee is marked as pre-paid
 }
 
 export interface ImportRowResult {

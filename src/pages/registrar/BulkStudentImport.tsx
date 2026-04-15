@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import {
   Download, Upload, CheckCircle2, XCircle, AlertCircle,
   Users, FileSpreadsheet, Printer, ChevronRight, RefreshCw,
+  BadgeDollarSign,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -42,6 +43,9 @@ export default function BulkStudentImport() {
   const [progress, setProgress]         = useState({ done: 0, total: 0 });
   const [importing, setImporting]       = useState(false);
   const [importError, setImportError]   = useState('');
+
+  // Track which valid-row indices have reg fee marked as pre-paid (index into validRows)
+  const [regFeePaidSet, setRegFeePaidSet] = useState<Set<number>>(new Set());
 
   // Load academic year, default password, and classes for validation
   const { data: academicYear } = useFetch(
@@ -123,10 +127,14 @@ export default function BulkStudentImport() {
     setStep('importing');
 
     try {
+      const rowsWithFeeFlag = validRows.map((r, idx) => ({
+        ...r,
+        reg_fee_paid: regFeePaidSet.has(idx),
+      }));
       const results = await studentImportService.importStudents(
         schoolId,
         academicYear,
-        validRows,
+        rowsWithFeeFlag,
         (done, total) => setProgress({ done, total }),
         defaultPassword ?? undefined,
       );
@@ -154,6 +162,24 @@ export default function BulkStudentImport() {
     setParseError('');
     setImportError('');
     setProgress({ done: 0, total: 0 });
+    setRegFeePaidSet(new Set());
+  };
+
+  const toggleRegFeePaid = (idx: number) => {
+    setRegFeePaidSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleAllRegFeePaid = () => {
+    if (regFeePaidSet.size === validRows.length) {
+      setRegFeePaidSet(new Set());
+    } else {
+      setRegFeePaidSet(new Set(validRows.map((_, i) => i)));
+    }
   };
 
   return (
@@ -352,13 +378,34 @@ export default function BulkStudentImport() {
           {validRows.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>
-                  <CheckCircle2 className="inline h-4 w-4 mr-1.5 text-emerald-600" />
-                  {validRows.length} students ready to import
-                </CardTitle>
+                <div className="flex items-start justify-between gap-3">
+                  <CardTitle>
+                    <CheckCircle2 className="inline h-4 w-4 mr-1.5 text-emerald-600" />
+                    {validRows.length} students ready to import
+                  </CardTitle>
+                  <div className="text-right">
+                    <span className="text-xs text-slate-500">
+                      {regFeePaidSet.size} of {validRows.length} marked as fee paid
+                    </span>
+                  </div>
+                </div>
               </CardHeader>
+
+              {/* Registration fee info banner */}
+              <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                <BadgeDollarSign className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="font-semibold">Registration Fee Status</p>
+                  <p className="mt-0.5 text-amber-700">
+                    Check <strong>Reg Fee Paid</strong> for students who already paid the registration fee in the previous system.
+                    Their fee will be marked as paid automatically — they won't need to visit the finance office.
+                    Leave it unchecked for students who still need to pay — the fee will be assigned and they must pay before the term starts.
+                  </p>
+                </div>
+              </div>
+
               <CardContent className="p-0">
-                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white border-b border-slate-100 z-10">
                       <tr className="text-left text-slate-500 text-xs">
@@ -368,17 +415,37 @@ export default function BulkStudentImport() {
                         <th className="px-4 py-2 font-medium">Gender</th>
                         <th className="px-4 py-2 font-medium">Guardian</th>
                         <th className="px-4 py-2 font-medium">Phone</th>
+                        <th className="px-4 py-2 font-medium text-amber-700">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={regFeePaidSet.size === validRows.length && validRows.length > 0}
+                              onChange={toggleAllRegFeePaid}
+                              className="rounded border-amber-300 text-amber-600"
+                              title="Mark all as reg fee paid"
+                            />
+                            Reg Fee Paid?
+                          </div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {validRows.map((r, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
+                        <tr key={i} className={`hover:bg-slate-50 ${regFeePaidSet.has(i) ? 'bg-emerald-50/40' : ''}`}>
                           <td className="px-4 py-2 font-medium text-slate-900">{r.first_name} {r.last_name}</td>
                           <td className="px-4 py-2">{r.class_name}</td>
                           <td className="px-4 py-2 text-slate-500">{r.date_of_birth || '—'}</td>
                           <td className="px-4 py-2 text-slate-500">{r.gender || '—'}</td>
                           <td className="px-4 py-2 text-slate-500">{r.guardian_name}</td>
                           <td className="px-4 py-2 text-slate-500">{r.guardian_phone}</td>
+                          <td className="px-4 py-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={regFeePaidSet.has(i)}
+                              onChange={() => toggleRegFeePaid(i)}
+                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
