@@ -1,0 +1,51 @@
+-- Migration 061: Update bulk_import_students to support a custom default password
+-- Run this in: Supabase Dashboard → SQL Editor → New query
+--
+-- STEP 1 ─────────────────────────────────────────────────────────────────────
+-- First, view your current function body so you can patch it:
+--
+--   SELECT prosrc FROM pg_proc WHERE proname = 'bulk_import_students';
+--
+-- Copy the full body into a text editor.
+--
+-- STEP 2 ─────────────────────────────────────────────────────────────────────
+-- In the function body, find the line that sets the account password.
+-- It will look something like one of these:
+--
+--   v_password    := v_registration_number;
+--   v_password    := p_students->>'registration_number';
+--   password_val  := reg_num;
+--
+-- Replace that line with:
+--
+--   v_password := COALESCE(NULLIF(p_default_password, ''), v_registration_number);
+--   -- (adjust variable names to match your actual function)
+--
+-- STEP 3 ─────────────────────────────────────────────────────────────────────
+-- Add p_default_password to the parameter list of the function, e.g.:
+--
+--   CREATE OR REPLACE FUNCTION bulk_import_students(
+--     p_school_id       UUID,
+--     p_academic_year   TEXT,
+--     p_students        JSONB,
+--     p_default_password TEXT DEFAULT ''    -- ← ADD THIS LINE
+--   )
+--
+-- STEP 4 ─────────────────────────────────────────────────────────────────────
+-- Run the CREATE OR REPLACE with the patched body and new parameter.
+--
+-- ── Quick test after patching ────────────────────────────────────────────────
+-- Verify the function now accepts the parameter:
+--
+--   SELECT pronargs, proargnames
+--   FROM pg_proc
+--   WHERE proname = 'bulk_import_students';
+--
+-- You should see p_default_password in proargnames.
+--
+-- ── What this enables ────────────────────────────────────────────────────────
+-- When IT Admin sets "default_student_password" in School Settings, the import
+-- page will pass that value to the RPC as p_default_password. All imported
+-- students will be created with that password instead of their registration number.
+-- If no default password is configured, the RPC falls back to registration number
+-- (existing behavior is unchanged).

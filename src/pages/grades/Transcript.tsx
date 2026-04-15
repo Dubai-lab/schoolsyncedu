@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { gradeService } from '@/services/gradeService';
 import { itAdminSiteService } from '@/services/itAdminService';
+import { studentPortalService } from '@/services/studentPortalService';
 import { notify } from '@/components/shared/Toast';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -374,14 +375,31 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
 
 export default function TranscriptPage() {
   const { user } = useAuth();
-  const schoolId  = user?.school_id ?? '';
-  const userId    = user?.id ?? '';
+  const schoolId    = user?.school_id ?? '';
+  const userId      = user?.id ?? '';
+  const isStudent   = user?.role === 'student';
 
   const [search, setSearch]         = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [scope, setScope]           = useState<ScopeType>('full');
   const [filterYear, setFilterYear] = useState('');
   const [filterTerm, setFilterTerm] = useState('');
+
+  // ── If the current user is a student, load their own record and auto-select ──
+  const { data: myStudentProfile } = useFetch(
+    ['my-student-profile', schoolId, userId],
+    () => studentPortalService.getMyProfile(schoolId, userId),
+    { enabled: !!schoolId && !!userId && isStudent },
+  );
+
+  // Auto-select the student's own record when it loads
+  useEffect(() => {
+    if (isStudent && myStudentProfile) {
+      const profile = myStudentProfile as Record<string, unknown>;
+      const id = profile.id as string;
+      if (id && selectedId !== id) setSelectedId(id);
+    }
+  }, [isStudent, myStudentProfile, selectedId]);
 
   // School details (for letterhead)
   const { data: school } = useFetch(
@@ -390,15 +408,17 @@ export default function TranscriptPage() {
     { enabled: !!schoolId },
   );
 
-  // Student list
+  // Student list — only loaded for staff (students never see this list)
   const { data: students, isLoading: studentsLoading } = useFetch(
     ['students-search', schoolId, search],
     () => gradeService.searchStudents(schoolId, search),
-    { enabled: !!schoolId },
+    { enabled: !!schoolId && !isStudent },
   );
 
-  // Selected student's details
-  const selectedStudent = students?.find((s) => s.id === selectedId) ?? null;
+  // For the student role, build a single-item "list" from their own profile
+  const selectedStudent = isStudent
+    ? (myStudentProfile as Record<string, unknown> | undefined ?? null)
+    : (students?.find((s) => s.id === selectedId) ?? null);
 
   // All grades for selected student
   const { data: gradesResult, isLoading: gradesLoading } = useFetch(
@@ -407,7 +427,7 @@ export default function TranscriptPage() {
     { enabled: !!selectedId },
   );
 
-  // Grade level per academic year
+  // Grade level per academic year (from class_assignments)
   const { data: academicYears } = useFetch(
     ['student-academic-years', selectedId],
     () => gradeService.getStudentAcademicYears(selectedId),
@@ -428,11 +448,14 @@ export default function TranscriptPage() {
     return map;
   }, [academicYears]);
 
-  // Available academic years for the dropdowns (derived from grades)
+  // Available years: union of years from grades AND from class_assignments.
+  // This ensures students imported without grades yet still see their enrolled year.
   const availableYears = useMemo(() => {
-    const years = [...new Set(grades.map((g) => g.academic_year))].sort();
+    const fromGrades = grades.map((g) => g.academic_year);
+    const fromEnrollments = (academicYears ?? []).map((y) => y.academic_year);
+    const years = [...new Set([...fromGrades, ...fromEnrollments])].filter(Boolean).sort();
     return years.map((y) => ({ value: y, label: y }));
-  }, [grades]);
+  }, [grades, academicYears]);
 
   // Build transcript table data
   const { columns, rows, totals } = useMemo(() => {
@@ -494,49 +517,51 @@ export default function TranscriptPage() {
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-3">
-            {/* ── Student search panel ── */}
-            <div className="lg:col-span-1 rounded-xl border border-slate-200 bg-white overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by name or reg. number…"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400"
-                  />
+          <div className={`mt-4 grid grid-cols-1 gap-5 ${isStudent ? '' : 'lg:grid-cols-3'}`}>
+            {/* ── Student search panel — hidden for students (they only see their own) ── */}
+            {!isStudent && (
+              <div className="lg:col-span-1 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search by name or reg. number…"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-[520px] overflow-y-auto divide-y divide-slate-100">
+                  {studentsLoading ? (
+                    <LoadingSpinner label="Loading…" fullPage={false} />
+                  ) : !students?.length ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-400">No students found.</p>
+                  ) : (
+                    students.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedId(s.id)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${
+                          selectedId === s.id ? 'bg-primary-50 border-l-2 border-primary-500' : ''
+                        }`}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                          <User className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{s.last_name}, {s.first_name}</p>
+                          <p className="text-xs text-slate-400">{s.registration_number ?? 'No reg. number'}</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
-              <div className="max-h-[520px] overflow-y-auto divide-y divide-slate-100">
-                {studentsLoading ? (
-                  <LoadingSpinner label="Loading…" fullPage={false} />
-                ) : !students?.length ? (
-                  <p className="px-4 py-8 text-center text-sm text-slate-400">No students found.</p>
-                ) : (
-                  students.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedId(s.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${
-                        selectedId === s.id ? 'bg-primary-50 border-l-2 border-primary-500' : ''
-                      }`}
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
-                        <User className="h-4 w-4 text-slate-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{s.last_name}, {s.first_name}</p>
-                        <p className="text-xs text-slate-400">{s.registration_number ?? 'No reg. number'}</p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
+            )}
 
             {/* ── Scope controls + preview ── */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className={`${isStudent ? '' : 'lg:col-span-2'} space-y-4`}>
               {selectedStudent ? (
                 <>
                   {/* Scope selector */}

@@ -43,10 +43,16 @@ export default function BulkStudentImport() {
   const [importing, setImporting]       = useState(false);
   const [importError, setImportError]   = useState('');
 
-  // Load academic year and classes for validation
+  // Load academic year, default password, and classes for validation
   const { data: academicYear } = useFetch(
     ['school-setting-academic-year', schoolId],
     () => registrarService.getSetting(schoolId, 'current_academic_year'),
+    { enabled: !!schoolId },
+  );
+
+  const { data: defaultPassword } = useFetch(
+    ['school-setting-default-student-password', schoolId],
+    () => registrarService.getSetting(schoolId, 'default_student_password'),
     { enabled: !!schoolId },
   );
 
@@ -122,6 +128,7 @@ export default function BulkStudentImport() {
         academicYear,
         validRows,
         (done, total) => setProgress({ done, total }),
+        defaultPassword ?? undefined,
       );
       setImportResults(results);
       setStep('done');
@@ -490,7 +497,8 @@ export default function BulkStudentImport() {
                 <div className="hidden print:block mb-4">
                   <h2 className="text-lg font-bold">Student Login Credentials — {academicYear}</h2>
                   <p className="text-xs text-gray-500">
-                    Generated {new Date().toLocaleDateString()}. Default password = registration number.
+                    Generated {new Date().toLocaleDateString()}.
+                    Default password: <strong>{defaultPassword ?? '(registration number)'}</strong>.
                     Instruct students to change their password after first login.
                   </p>
                 </div>

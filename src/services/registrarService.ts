@@ -461,12 +461,16 @@ export const studentImportService = {
    * Send validated rows to the DB for processing.
    * Batches in groups of 50 to avoid timeouts.
    * Returns combined results from all batches.
+   *
+   * @param defaultPassword - IT Admin's default student password (from school settings).
+   *   When provided, accounts are created with this password instead of the registration number.
    */
   async importStudents(
     schoolId: string,
     academicYear: string,
     rows: ImportStudentRow[],
     onProgress?: (done: number, total: number) => void,
+    defaultPassword?: string,
   ): Promise<ImportRowResult[]> {
     const BATCH_SIZE = 50;
     const results: ImportRowResult[] = [];
@@ -474,11 +478,15 @@ export const studentImportService = {
 
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batch = rows.slice(i, i + BATCH_SIZE);
-      const { data, error } = await supabase.rpc('bulk_import_students', {
-        p_school_id:     schoolId,
-        p_academic_year: academicYear,
-        p_students:      batch as unknown,
-      });
+      const rpcParams: Record<string, unknown> = {
+        p_school_id:      schoolId,
+        p_academic_year:  academicYear,
+        p_students:       batch as unknown,
+      };
+      if (defaultPassword) {
+        rpcParams.p_default_password = defaultPassword;
+      }
+      const { data, error } = await supabase.rpc('bulk_import_students', rpcParams as Parameters<typeof supabase.rpc>[1]);
       if (error) throw error;
       const batchResults = (data as ImportRowResult[]) ?? [];
       // Re-number rows relative to the full dataset
