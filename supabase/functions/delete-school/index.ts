@@ -23,6 +23,7 @@ serve(async (req) => {
   try {
     const supabaseUrl    = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const adminClient    = createClient(supabaseUrl, serviceRoleKey);
 
     // ── Verify caller is a super_admin ────────────────────────────────────────
     const authHeader = req.headers.get('Authorization');
@@ -32,13 +33,9 @@ serve(async (req) => {
       });
     }
 
-    // Use anon client to verify the JWT and get user identity
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const anonClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user: caller }, error: authError } = await anonClient.auth.getUser();
+    // Verify the JWT using the admin client
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await adminClient.auth.getUser(jwt);
     if (authError || !caller) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -46,7 +43,6 @@ serve(async (req) => {
     }
 
     // Fetch caller's role from users table
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: callerProfile } = await adminClient
       .from('users')
       .select('role')
