@@ -100,7 +100,16 @@ function StripeCardForm({ schoolId, studentId, studentFeeId, amountUsd, onSucces
       const { data, error: fnError } = await supabase.functions.invoke('school-stripe-payment', {
         body: { school_id: schoolId, student_id: studentId, student_fee_id: studentFeeId, amount_usd: amountUsd },
       });
-      if (fnError || data?.error) throw new Error(data?.error ?? fnError?.message ?? 'Failed to initiate payment');
+      if (fnError) {
+        // Extract the real error message from the Edge Function response body
+        let msg = fnError.message;
+        try {
+          const body = await (fnError as unknown as { context: Response }).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* ignore parse errors */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
 
       const { clientSecret, paymentIntentId } = data as { clientSecret: string; paymentIntentId: string };
       const cardEl = elements.getElement(CardElement);

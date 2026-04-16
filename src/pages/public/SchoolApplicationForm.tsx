@@ -61,7 +61,15 @@ function AppStripeCardForm({ schoolId, applicationId, amountUsd, onSuccess, onEr
       const { data, error: fnError } = await supabase.functions.invoke('school-stripe-payment', {
         body: { school_id: schoolId, application_id: applicationId, amount_usd: amountUsd },
       });
-      if (fnError || data?.error) throw new Error(data?.error ?? fnError?.message ?? 'Failed to initiate payment');
+      if (fnError) {
+        let msg = fnError.message;
+        try {
+          const body = await (fnError as unknown as { context: Response }).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
 
       const { clientSecret, paymentIntentId } = data as { clientSecret: string; paymentIntentId: string };
       const cardEl = elements.getElement(CardElement);
