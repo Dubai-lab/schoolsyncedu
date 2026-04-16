@@ -128,7 +128,7 @@ function StripeCardForm({ schoolId, studentId, studentFeeId, amountUsd, onSucces
         p_amount_usd:       amountUsd,
         p_amount_lrd:       0,
         p_currency_charged: 'USD',
-        p_payment_method:   'card',
+        p_payment_method:   'visa',
         p_gateway_ref:      paymentIntentId,
         p_recorded_by:      null,
       });
