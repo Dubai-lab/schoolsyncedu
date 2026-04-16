@@ -16,6 +16,24 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
 import { Save, UserCheck, UserX } from 'lucide-react';
 
+// ── Validation helpers ────────────────────────────────────────────────────────
+
+/** True when the email looks structurally valid (has @ and a real TLD). */
+function isValidEmail(v: string): boolean {
+  return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(v.trim());
+}
+
+/**
+ * True when the phone is either empty (it's optional) or looks like a real
+ * number: optional + prefix, then 7–15 digits (spaces/dashes allowed).
+ * Examples that pass:  +250788123456  +231886123456  0788123456  07881234567
+ * Examples that fail:  123  abc  +1  00000
+ */
+function isValidPhone(v: string): boolean {
+  if (!v.trim()) return true; // optional field
+  return /^\+?[\d\s\-().]{7,20}$/.test(v.trim()) && (v.replace(/\D/g, '').length >= 7);
+}
+
 const ROLE_OPTIONS = [
   { label: 'Principal', value: USER_ROLES.PRINCIPAL },
   { label: 'Vice Principal', value: USER_ROLES.VICE_PRINCIPAL },
@@ -41,6 +59,18 @@ export default function StaffForm() {
     role: USER_ROLES.TEACHER as UserRole, profile_photo_url: '',
     password: '',
   });
+
+  // Track which fields have been touched so we only show errors after the user
+  // has interacted with them (or tried to submit).
+  const [touched, setTouched] = useState({ email: false, phone: false });
+  const touch = (k: keyof typeof touched) => setTouched((t) => ({ ...t, [k]: true }));
+
+  const emailError  = touched.email && form.email.trim() && !isValidEmail(form.email)
+    ? 'Enter a valid email address (e.g. john@school.com)'
+    : '';
+  const phoneError  = touched.phone && !isValidPhone(form.phone)
+    ? 'Enter a valid phone number with country code (e.g. +250788123456)'
+    : '';
 
   // Fetch default staff password
   const { data: settingsData } = useFetch(
@@ -117,8 +147,15 @@ export default function StaffForm() {
   );
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSave = form.first_name.trim() && form.last_name.trim() && form.email.trim() && form.role
-    && (isEdit || form.password.length >= 8);
+
+  const canSave =
+    form.first_name.trim() &&
+    form.last_name.trim() &&
+    form.email.trim() &&
+    isValidEmail(form.email) &&
+    isValidPhone(form.phone) &&
+    form.role &&
+    (isEdit || form.password.length >= 8);
 
   return (
     <div className="space-y-5">
@@ -150,8 +187,17 @@ export default function StaffForm() {
             <Input label="First Name *" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} />
             <Input label="Last Name *" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} />
           </div>
-          <Input label="Email *" type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
-            disabled={isEdit} placeholder="staff@school.edu.lr" />
+          <div>
+            <Input label="Email *" type="email" value={form.email}
+              onChange={(e) => set('email', e.target.value)}
+              onBlur={() => touch('email')}
+              disabled={isEdit} placeholder="staff@school.edu.lr"
+              className={emailError ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20' : ''}
+            />
+            {emailError && (
+              <p className="mt-1 text-xs text-red-600">{emailError}</p>
+            )}
+          </div>
           {!isEdit && (
             <div>
               <Input label="Temporary Password *" type="password" value={form.password}
@@ -165,7 +211,17 @@ export default function StaffForm() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Phone" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+231..." />
+            <div>
+              <Input label="Phone" value={form.phone}
+                onChange={(e) => set('phone', e.target.value)}
+                onBlur={() => touch('phone')}
+                placeholder="+250788123456"
+                className={phoneError ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20' : ''}
+              />
+              {phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
+            </div>
             <Select label="Role *" options={ROLE_OPTIONS} value={form.role}
               onChange={(e) => set('role', e.target.value)} />
           </div>
@@ -200,8 +256,17 @@ export default function StaffForm() {
       )}
 
       <div className="max-w-2xl">
-        <Button onClick={() => isEdit ? updateStaff.mutate(undefined) : createStaff.mutate(undefined)}
-          loading={updateStaff.isPending || createStaff.isPending} disabled={!canSave}>
+        <Button
+          onClick={() => {
+            // Touch all validated fields so errors show even if the user
+            // never focused them before hitting Save.
+            setTouched({ email: true, phone: true });
+            if (!canSave) return;
+            isEdit ? updateStaff.mutate(undefined) : createStaff.mutate(undefined);
+          }}
+          loading={updateStaff.isPending || createStaff.isPending}
+          disabled={updateStaff.isPending || createStaff.isPending}
+        >
           <Save className="h-4 w-4 mr-1" /> {isEdit ? 'Save Changes' : 'Add Staff Member'}
         </Button>
       </div>
