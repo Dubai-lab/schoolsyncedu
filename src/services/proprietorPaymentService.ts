@@ -33,6 +33,11 @@ export interface PaymentConfig {
   bank_routing_number: string;
   bank_swift_code: string;
   bank_instructions: string;
+  // Stripe
+  stripe_public_key: string;
+  stripe_secret_key: string;
+  stripe_enabled: boolean;
+  stripe_currency: string;
   // Branding
   payment_title: string;
   payment_logo: string;
@@ -56,6 +61,9 @@ export interface PaymentConfigPublic {
   bank_routing_number: string;
   bank_swift_code: string;
   bank_instructions: string;
+  stripe_enabled: boolean;
+  stripe_public_key: string;
+  stripe_currency: string;
   payment_title: string;
   payment_logo: string;
 }

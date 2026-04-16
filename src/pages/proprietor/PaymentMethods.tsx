@@ -121,6 +121,12 @@ export default function PaymentMethods() {
   const [orangeKey, setOrangeKey] = useState('');
   const [orangeEnabled, setOrangeEnabled] = useState(false);
 
+  // Stripe
+  const [stripePublicKey,  setStripePublicKey]  = useState('');
+  const [stripeSecretKey,  setStripeSecretKey]  = useState('');
+  const [stripeEnabled,    setStripeEnabled]    = useState(false);
+  const [stripeCurrency,   setStripeCurrency]   = useState('USD');
+
   // Bank Transfer
   const [bankEnabled,        setBankEnabled]        = useState(false);
   const [bankAccountName,    setBankAccountName]    = useState('');
@@ -151,6 +157,10 @@ export default function PaymentMethods() {
       setOrangeCode(savedConfig.orange_merchant_code ?? '');
       setOrangeKey(savedConfig.orange_api_key ?? '');
       setOrangeEnabled(savedConfig.orange_enabled ?? false);
+      setStripePublicKey(savedConfig.stripe_public_key ?? '');
+      setStripeSecretKey(savedConfig.stripe_secret_key ?? '');
+      setStripeEnabled(savedConfig.stripe_enabled ?? false);
+      setStripeCurrency(savedConfig.stripe_currency ?? 'USD');
       setBankEnabled(savedConfig.bank_enabled ?? false);
       setBankAccountName(savedConfig.bank_account_name ?? '');
       setBankAccountNumber(savedConfig.bank_account_number ?? '');
@@ -186,6 +196,10 @@ export default function PaymentMethods() {
         orange_merchant_code: orangeCode.trim(),
         orange_api_key: orangeKey.trim(),
         orange_enabled: orangeEnabled,
+        stripe_public_key: stripePublicKey.trim(),
+        stripe_secret_key: stripeSecretKey.trim(),
+        stripe_enabled: stripeEnabled,
+        stripe_currency: stripeCurrency,
         bank_enabled: bankEnabled,
         bank_account_name: bankAccountName.trim(),
         bank_account_number: bankAccountNumber.trim(),
@@ -206,7 +220,7 @@ export default function PaymentMethods() {
     }
   }
 
-  const anyEnabled = flwEnabled || mtnEnabled || orangeEnabled || bankEnabled;
+  const anyEnabled = flwEnabled || mtnEnabled || orangeEnabled || bankEnabled || stripeEnabled;
 
   return (
     <div className="space-y-6">
@@ -462,7 +476,89 @@ export default function PaymentMethods() {
             </div>
           </Card>
 
-          {/* ── 4. Bank Transfer ── */}
+          {/* ── 4. Stripe ── */}
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 bg-slate-50 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100">
+                  <CreditCard className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">Stripe</p>
+                  <p className="text-xs text-slate-500">
+                    Visa / MasterCard / Amex — international card payments charged directly
+                  </p>
+                </div>
+              </div>
+              <GatewayToggle enabled={stripeEnabled} onToggle={() => setStripeEnabled((v) => !v)} />
+            </div>
+
+            <div className={`p-5 space-y-4 ${!stripeEnabled && 'opacity-60 pointer-events-none'}`}>
+              <div className="flex items-start gap-3 rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-xs text-indigo-800">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  Parents pay directly via a card form on the fee page — no redirect needed.
+                  Get your API keys at{' '}
+                  <a
+                    href="https://dashboard.stripe.com/apikeys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline"
+                  >
+                    dashboard.stripe.com/apikeys
+                  </a>
+                  . Use <strong>test keys</strong> (pk_test_ / sk_test_) while setting up, then switch to live keys.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <KeyInput
+                  label="Publishable Key"
+                  value={stripePublicKey}
+                  onChange={setStripePublicKey}
+                  placeholder="pk_live_... or pk_test_..."
+                  required
+                  note="Safe to display — used in the card payment form."
+                />
+                <KeyInput
+                  label="Secret Key"
+                  value={stripeSecretKey}
+                  onChange={setStripeSecretKey}
+                  placeholder="sk_live_... or sk_test_..."
+                  required
+                  isSecret
+                  note="Keep private — used server-side to create payment intents."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Currency</label>
+                <select
+                  value={stripeCurrency}
+                  onChange={(e) => setStripeCurrency(e.target.value)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="USD">USD — US Dollar</option>
+                  <option value="EUR">EUR — Euro</option>
+                  <option value="GBP">GBP — British Pound</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-400">
+                  USD is recommended for Liberian schools.
+                </p>
+              </div>
+
+              <a
+                href="https://dashboard.stripe.com/apikeys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium"
+              >
+                Get your Stripe API keys <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </Card>
+
+          {/* ── 5. Bank Transfer ── */}
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 bg-slate-50 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -600,6 +696,7 @@ export default function PaymentMethods() {
                   { label: 'Flutterwave (Cards)', active: savedConfig.flw_enabled, color: 'orange' },
                   { label: 'MTN MoMo', active: savedConfig.mtn_enabled, color: 'yellow' },
                   { label: 'Orange Money', active: savedConfig.orange_enabled, color: 'orange' },
+                  { label: 'Stripe (Cards)', active: savedConfig.stripe_enabled, color: 'indigo' },
                   { label: 'Bank Transfer', active: savedConfig.bank_enabled, color: 'blue' },
                 ].map((g) => (
                   <span
@@ -615,7 +712,7 @@ export default function PaymentMethods() {
                     {g.label}
                   </span>
                 ))}
-                {!savedConfig.flw_enabled && !savedConfig.mtn_enabled && !savedConfig.orange_enabled && !savedConfig.bank_enabled && (
+                {!savedConfig.flw_enabled && !savedConfig.mtn_enabled && !savedConfig.orange_enabled && !savedConfig.stripe_enabled && !savedConfig.bank_enabled && (
                   <span className="text-xs text-slate-400">No payment gateways are active yet.</span>
                 )}
               </div>

@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { studentPortalService } from '@/services/studentPortalService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
+import { supabase } from '@/lib/supabase';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import type { School, SiteConfig, FeeScheduleConfig } from '@/types/school.types';
 import {
   GraduationCap,
@@ -23,6 +26,7 @@ import {
   Receipt,
   ArrowRight,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -59,6 +63,112 @@ interface StudentFeeRow {
   } | null;
 }
 
+// ── Stripe card form (must be inside <Elements>) ───────────────────────────────
+
+interface StripeCardFormProps {
+  schoolId: string;
+  studentId: string;
+  studentFeeId: string;
+  amountUsd: number;
+  primaryColor: string;
+  onSuccess: (paymentIntentId: string) => void;
+  onError: (msg: string) => void;
+}
+
+function StripeCardForm({
+  schoolId, studentId, studentFeeId, amountUsd, primaryColor, onSuccess, onError,
+}: StripeCardFormProps) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setProcessing(true);
+
+    try {
+      // 1. Create PaymentIntent using school's own Stripe keys (server-side)
+      const { data, error: fnError } = await supabase.functions.invoke('school-stripe-payment', {
+        body: { school_id: schoolId, student_id: studentId, student_fee_id: studentFeeId, amount_usd: amountUsd },
+      });
+
+      if (fnError || data?.error) {
+        throw new Error(data?.error ?? fnError?.message ?? 'Failed to initiate payment');
+      }
+
+      const { clientSecret, paymentIntentId } = data as { clientSecret: string; paymentIntentId: string };
+
+      // 2. Confirm card payment in the browser
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) throw new Error('Card element unavailable');
+
+      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: cardEl },
+      });
+
+      if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
+      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment did not complete');
+
+      // 3. Record the payment in the database
+      const { error: rpcError } = await supabase.rpc('record_fee_payment', {
+        p_school_id:        schoolId,
+        p_student_id:       studentId,
+        p_student_fee_id:   studentFeeId,
+        p_amount_usd:       amountUsd,
+        p_amount_lrd:       0,
+        p_currency_charged: 'USD',
+        p_payment_method:   'visa',
+        p_gateway_ref:      paymentIntentId,
+        p_recorded_by:      null,
+      });
+
+      if (rpcError) throw new Error(rpcError.message);
+
+      onSuccess(paymentIntentId);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">Card Details</label>
+        <div className="rounded-lg border border-slate-200 px-3 py-3 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/20 transition-all bg-white">
+          <CardElement
+            options={{
+              hidePostalCode: true,
+              style: {
+                base: { fontSize: '14px', color: '#1e293b', fontFamily: 'ui-sans-serif, system-ui, sans-serif', '::placeholder': { color: '#94a3b8' } },
+                invalid: { color: '#dc2626' },
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={handlePay}
+        disabled={!stripe || processing}
+        className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow transition hover:opacity-90 disabled:opacity-50"
+        style={{ backgroundColor: primaryColor }}
+      >
+        {processing ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+        ) : (
+          <><Lock className="h-4 w-4" /> Pay ${amountUsd.toFixed(2)} with Card</>
+        )}
+      </button>
+
+      <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1">
+        <ShieldCheck className="h-3.5 w-3.5" /> Secure card payment powered by Stripe
+      </p>
+    </div>
+  );
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function SchoolFees() {
@@ -72,6 +182,14 @@ export default function SchoolFees() {
 
   // Payment config
   const [paymentCfg, setPaymentCfg] = useState<PaymentConfigPublic | null>(null);
+
+  // Stripe: lazy-load Stripe.js only when school has Stripe enabled
+  const stripePromise = useMemo(
+    () => (paymentCfg?.stripe_enabled && paymentCfg.stripe_public_key
+      ? loadStripe(paymentCfg.stripe_public_key)
+      : null),
+    [paymentCfg?.stripe_enabled, paymentCfg?.stripe_public_key],
+  );
 
   // Student / fees
   const [studentLoading, setStudentLoading] = useState(false);
@@ -482,7 +600,7 @@ export default function SchoolFees() {
                                   {fmt(f.balance)}
                                 </p>
                               </div>
-                              {f.status !== 'paid' && paymentCfg?.flw_enabled && (
+                              {f.status !== 'paid' && (paymentCfg?.flw_enabled || paymentCfg?.stripe_enabled) && (
                                 <button
                                   onClick={() => {
                                     setSelectedFee(f);
@@ -503,7 +621,7 @@ export default function SchoolFees() {
                     </div>
 
                     {/* No online payment configured */}
-                    {unpaidFees.length > 0 && !paymentCfg?.flw_enabled && (
+                    {unpaidFees.length > 0 && !paymentCfg?.flw_enabled && !paymentCfg?.stripe_enabled && (
                       <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                         <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                         <div className="text-sm text-amber-800">
@@ -598,8 +716,35 @@ export default function SchoolFees() {
                           </div>
                         )}
 
+                        {/* Stripe card payment */}
+                        {paymentCfg?.stripe_enabled && stripePromise && studentData && (
+                          <div className="space-y-2">
+                            <p className="font-medium text-sm text-slate-700">Pay by Card (Stripe)</p>
+                            <Elements stripe={stripePromise}>
+                              <StripeCardForm
+                                schoolId={school.id}
+                                studentId={(studentData as Record<string, unknown>).id as string}
+                                studentFeeId={selectedFee.id}
+                                amountUsd={Number(amount) || selectedFee.balance}
+                                primaryColor={primary}
+                                onSuccess={(ref) => {
+                                  setLastRef(ref);
+                                  setPaySuccess(true);
+                                  setSelectedFee(null);
+                                  // Refresh fee list
+                                  studentPortalService
+                                    .getMyFees(school.id, (studentData as Record<string, unknown>).id as string)
+                                    .then((f) => setFees((f ?? []) as StudentFeeRow[]))
+                                    .catch(() => {});
+                                }}
+                                onError={(msg) => setPayError(msg)}
+                              />
+                            </Elements>
+                          </div>
+                        )}
+
                         {/* No payment methods */}
-                        {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
+                        {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.stripe_enabled && (
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                             <p className="font-semibold">Online payment not available</p>
                             <p className="mt-1">Please visit the school finance office to pay your fees in person.</p>
