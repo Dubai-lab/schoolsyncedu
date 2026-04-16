@@ -200,10 +200,11 @@ serve(async (req) => {
             .update({ is_default: false })
             .eq('school_id', school_id);
 
-          await adminClient
+          const { error: insertErr } = await adminClient
             .from('saved_payment_tokens')
             .insert({
               school_id,
+              provider:   'stripe',
               card_type:  card.brand,
               card_last4: card.last4,
               card_name:  holderName,
@@ -211,6 +212,10 @@ serve(async (req) => {
               email,
               is_default: true,
             });
+
+          if (insertErr) {
+            console.error('stripe-webhook card save error:', insertErr.message);
+          }
 
           console.log(`Saved card for school ${school_id}: ${card.brand} ****${card.last4}`);
         }

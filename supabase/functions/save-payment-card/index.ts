@@ -74,10 +74,11 @@ serve(async (req) => {
       .update({ is_default: false })
       .eq('school_id', school_id);
 
-    await adminClient
+    const { error: insertError } = await adminClient
       .from('saved_payment_tokens')
       .insert({
         school_id,
+        provider:    'stripe',
         card_type:   card.brand,
         card_last4:  card.last4,
         card_name:   holderName,
@@ -85,6 +86,14 @@ serve(async (req) => {
         email,
         is_default:  true,
       });
+
+    if (insertError) {
+      console.error('save-payment-card insert error:', insertError.message);
+      return new Response(JSON.stringify({ error: `Failed to save card: ${insertError.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log(`Card saved for school ${school_id}: ${card.brand} ****${card.last4}`);
 

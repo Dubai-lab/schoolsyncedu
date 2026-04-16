@@ -322,7 +322,7 @@ export type SavedPaymentToken = {
   card_expiry: string | null;
   card_name: string | null;
   email: string | null;
-  flw_token: string;
+  flw_token: string | null;
   is_default: boolean;
   created_at: string;
 };
@@ -371,11 +371,12 @@ export const savedCardsService = {
   },
 
   async hasDefault(schoolId: UUID): Promise<boolean> {
-    const { count } = await supabase
-      .from('saved_payment_tokens')
-      .select('*', { count: 'exact', head: true })
-      .eq('school_id', schoolId)
-      .eq('is_default', true);
-    return (count ?? 0) > 0;
+    // Use the same Edge Function as list() — service role bypasses RLS
+    const { data, error } = await supabase.functions.invoke('get-saved-cards', {
+      body: { school_id: schoolId },
+    });
+    if (error) return false;
+    if (!Array.isArray(data)) return false;
+    return data.some((c: SavedPaymentToken) => c.is_default);
   },
 };
