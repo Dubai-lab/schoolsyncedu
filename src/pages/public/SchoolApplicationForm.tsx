@@ -15,7 +15,6 @@ import {
   AlertCircle,
   ArrowLeft,
   Send,
-  Loader2,
   Phone,
   Mail,
   MapPin,
