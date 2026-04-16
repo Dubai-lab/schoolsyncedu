@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useFetch } from '@/hooks/useFetch';
+import { useFetch, useMutate } from '@/hooks/useFetch';
 import { registrarService } from '@/services/registrarService';
 import { useNavigate } from 'react-router-dom';
 import type { StudentApplication } from '@/types/application.types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Breadcrumb from '@/components/shared/Breadcrumb';
+import { notify } from '@/components/shared/Toast';
 import {
   ClipboardList,
   FileCheck,
@@ -19,6 +21,8 @@ import {
   FileText,
   Mail,
   UserCheck,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
 // ==================== STAT CARD ====================
@@ -82,6 +86,7 @@ export default function RegistrarDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const schoolId = user?.school_id ?? '';
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
 
   // Dashboard stats
   const { data: stats } = useFetch(
@@ -90,11 +95,34 @@ export default function RegistrarDashboard() {
     { enabled: !!schoolId },
   );
 
+  // Bulk-imported students awaiting Bursar clearance
+  const { data: pendingImports = [], refetch: refetchPending } = useFetch(
+    ['pending-import-students', schoolId],
+    () => registrarService.getPendingImportStudents(schoolId),
+    { enabled: !!schoolId },
+  );
+
   // Recent applications
   const { data: recentApps } = useFetch(
     ['registrar-recent', schoolId],
     () => registrarService.getRecentApplications(schoolId, 8),
     { enabled: !!schoolId },
+  );
+
+  const confirmEnrollment = useMutate(
+    (studentId: string) => registrarService.confirmImportEnrollment(studentId),
+    [['registrar-stats', schoolId], ['pending-import-students', schoolId]],
+    {
+      onSuccess: (result) => {
+        notify.success(result?.message ?? 'Enrollment confirmed');
+        setEnrollingId(null);
+        refetchPending();
+      },
+      onError: (err: Error) => {
+        notify.error(err.message ?? 'Failed to confirm enrollment');
+        setEnrollingId(null);
+      },
+    },
   );
 
   const greeting = getGreeting();
@@ -133,6 +161,13 @@ export default function RegistrarDashboard() {
           color="green"
           trend={stats?.readyToEnroll ? 'Fee paid — action needed' : undefined}
         />
+        <StatCard
+          label="Pending Import"
+          value={stats?.pendingImportEnrollments ?? 0}
+          icon={AlertCircle}
+          color="amber"
+          trend={(stats?.pendingImportEnrollments ?? 0) > 0 ? 'Awaiting Bursar clearance' : undefined}
+        />
       </div>
 
       {/* Ready to Enroll alert */}
@@ -153,6 +188,77 @@ export default function RegistrarDashboard() {
           >
             View <ArrowRight className="h-3.5 w-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* ── Pending Import Enrollments ─────────────────────────────────────── */}
+      {pendingImports.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-white">
+          <div className="flex items-center gap-3 border-b border-amber-100 bg-amber-50 px-5 py-3.5 rounded-t-xl">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">
+                {pendingImports.length} imported student{pendingImports.length !== 1 ? 's' : ''} awaiting enrollment confirmation
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                These students were uploaded via bulk import. The Bursar must record their registration fee payment before you can confirm enrollment.
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs font-medium text-slate-500">
+                  <th className="px-5 py-2.5 text-left">Student</th>
+                  <th className="px-5 py-2.5 text-left">Class</th>
+                  <th className="px-5 py-2.5 text-left">Reg No.</th>
+                  <th className="px-5 py-2.5 text-left">Reg Fee</th>
+                  <th className="px-5 py-2.5 text-left">Imported</th>
+                  <th className="px-5 py-2.5 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {pendingImports.map((s) => (
+                  <tr key={s.student_id} className="hover:bg-slate-50">
+                    <td className="px-5 py-2.5 font-medium text-slate-900">
+                      {s.first_name} {s.last_name}
+                    </td>
+                    <td className="px-5 py-2.5 text-slate-600">{s.class_name}</td>
+                    <td className="px-5 py-2.5 font-mono text-xs text-slate-500">{s.registration_number}</td>
+                    <td className="px-5 py-2.5">
+                      {s.reg_fee_paid ? (
+                        <Badge variant="success" size="sm">
+                          <CheckCircle2 className="inline h-3 w-3 mr-0.5" /> Paid
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning" size="sm">
+                          Pending ${s.reg_fee_amount.toFixed(2)}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-5 py-2.5 text-xs text-slate-400">
+                      {new Date(s.imported_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-5 py-2.5 text-right">
+                      <Button
+                        size="sm"
+                        disabled={!s.reg_fee_paid || confirmEnrollment.isPending}
+                        loading={enrollingId === s.student_id && confirmEnrollment.isPending}
+                        title={s.reg_fee_paid ? 'Confirm enrollment' : 'Bursar must record registration fee payment first'}
+                        onClick={() => {
+                          setEnrollingId(s.student_id);
+                          confirmEnrollment.mutate(s.student_id);
+                        }}
+                      >
+                        <UserCheck className="h-3.5 w-3.5 mr-1" />
+                        {s.reg_fee_paid ? 'Enroll' : 'Fee Pending'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

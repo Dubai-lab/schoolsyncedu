@@ -1,0 +1,567 @@
+-- Migration 077: Fix two bugs in the fee + enrollment system
+--
+-- BUG 1 — "No installment records found" for newly enrolled students
+--   assign_class_fees_to_student() creates student_fees records but never
+--   copies fee_structure_installments → student_fee_installments for those
+--   new rows.  Result: if splits were saved BEFORE a student was added,
+--   that student sees "No installment records found" forever.
+--
+-- BUG 2 — Bulk import bypasses Bursar fee clearance
+--   bulk_import_students() always sets student_enrollments.status = 'active'
+--   even when reg_fee_paid = FALSE.  The Registrar (and Bursar) have no way
+--   to see or confirm these students before they are treated as fully enrolled.
+--   Fix: set status = 'pending_payment' when reg_fee_paid = FALSE, same as
+--   the application flow.
+--
+-- Run in: Supabase Dashboard → SQL Editor → New query
+
+-- ════════════════════════════════════════════════════════════════
+-- PART 1 — Fix assign_class_fees_to_student
+--           Now also creates student_fee_installments for any
+--           fee structure that already has splits defined.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION assign_class_fees_to_student(
+  p_student_id    UUID,
+  p_class_id      UUID,
+  p_school_id     UUID,
+  p_academic_year TEXT
+)
+RETURNS INT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count INT := 0;
+BEGIN
+  -- ── 1. Assign all active fee structures for this class ────────────────────
+  INSERT INTO student_fees (
+    student_id, fee_structure_id, school_id,
+    academic_year, amount_due, amount_paid, balance,
+    status, due_date
+  )
+  SELECT
+    p_student_id,
+    fs.id,
+    p_school_id,
+    p_academic_year,
+    fs.amount_usd,
+    0,
+    fs.amount_usd,
+    'pending',
+    fs.due_date
+  FROM fee_structures fs
+  WHERE fs.class_id      = p_class_id
+    AND fs.school_id     = p_school_id
+    AND fs.academic_year = p_academic_year
+  ON CONFLICT (student_id, fee_structure_id) DO NOTHING;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  -- ── 2. For every newly assigned fee whose structure already has term splits,
+  --       copy those splits into student_fee_installments now.
+  --       ON CONFLICT DO NOTHING makes this safe to call multiple times.
+  INSERT INTO student_fee_installments (
+    school_id,
+    student_id,
+    student_fee_id,
+    fee_structure_installment_id,
+    term_name,
+    term_order,
+    amount_due,
+    amount_paid,
+    balance,
+    status,
+    due_date
+  )
+  SELECT
+    sf.school_id,
+    sf.student_id,
+    sf.id,
+    fsi.id,
+    fsi.term_name,
+    fsi.term_order,
+    fsi.amount_usd,
+    0,
+    fsi.amount_usd,
+    'pending',
+    fsi.due_date
+  FROM student_fees sf
+  JOIN fee_structures          fs  ON fs.id  = sf.fee_structure_id
+  JOIN fee_structure_installments fsi ON fsi.fee_structure_id = fs.id
+  WHERE sf.student_id    = p_student_id
+    AND sf.school_id     = p_school_id
+    AND sf.academic_year = p_academic_year
+    AND fs.has_installments = TRUE
+  ON CONFLICT (student_fee_id, fee_structure_installment_id) DO NOTHING;
+
+  RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION assign_class_fees_to_student(UUID, UUID, UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION assign_class_fees_to_student(UUID, UUID, UUID, TEXT) TO service_role;
+
+
+-- ════════════════════════════════════════════════════════════════
+-- PART 2 — Fix bulk_import_students enrollment status
+--           Students whose reg fee is NOT pre-paid get
+--           pending_payment instead of active, so the Bursar
+--           must clear them before the Registrar enrolls.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION bulk_import_students(
+  p_school_id         UUID,
+  p_academic_year     TEXT,
+  p_students          JSONB,
+  p_default_password  TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_caller_role   user_role;
+  v_caller_school UUID;
+  v_student       JSONB;
+  v_row_num       INT := 0;
+  v_results       JSONB := '[]'::JSONB;
+
+  v_first_name    TEXT;
+  v_last_name     TEXT;
+  v_dob           DATE;
+  v_gender        TEXT;
+  v_class_name    TEXT;
+  v_class_id      UUID;
+  v_grade_level   TEXT;
+  v_g_name        TEXT;
+  v_g_phone       TEXT;
+  v_g_email       TEXT;
+  v_reg_fee_paid  BOOLEAN;
+
+  v_reg_number    TEXT;
+  v_student_id    UUID;
+  v_guardian_id   UUID;
+  v_auth_id       UUID;
+  v_user_id       UUID;
+  v_email         TEXT;
+  v_password      TEXT;
+  v_encrypted_pw  TEXT;
+  v_reg_fee_id    UUID;
+  v_enroll_status TEXT;
+BEGIN
+  -- ── 1. Authorisation ──────────────────────────────────────────────────────
+  SELECT role, school_id
+    INTO v_caller_role, v_caller_school
+    FROM users
+   WHERE auth_id = auth.uid();
+
+  IF v_caller_role NOT IN (
+      'registrar','admin_staff','it_admin','principal','vice_principal','super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized: only IT Admin, Registrar, or Admin Staff can import students';
+  END IF;
+
+  IF v_caller_role != 'super_admin' AND v_caller_school != p_school_id THEN
+    RAISE EXCEPTION 'You can only import students into your own school';
+  END IF;
+
+  -- ── 2. Process each row ───────────────────────────────────────────────────
+  FOR v_student IN SELECT * FROM jsonb_array_elements(p_students)
+  LOOP
+    v_row_num := v_row_num + 1;
+
+    BEGIN  -- inner block so one row failure doesn't abort the whole batch
+
+      v_first_name   := NULLIF(TRIM(v_student->>'first_name'), '');
+      v_last_name    := NULLIF(TRIM(v_student->>'last_name'),  '');
+      v_class_name   := NULLIF(TRIM(v_student->>'class_name'), '');
+      v_g_name       := NULLIF(TRIM(v_student->>'guardian_name'), '');
+      v_g_phone      := NULLIF(TRIM(v_student->>'guardian_phone'), '');
+      v_g_email      := NULLIF(TRIM(v_student->>'guardian_email'), '');
+      v_gender       := NULLIF(TRIM(v_student->>'gender'), '');
+      v_reg_fee_paid := COALESCE((v_student->>'reg_fee_paid')::BOOLEAN, FALSE);
+
+      BEGIN
+        v_dob := (v_student->>'date_of_birth')::DATE;
+      EXCEPTION WHEN OTHERS THEN
+        v_dob := NULL;
+      END;
+
+      IF v_first_name IS NULL THEN RAISE EXCEPTION 'first_name is required'; END IF;
+      IF v_last_name  IS NULL THEN RAISE EXCEPTION 'last_name is required';  END IF;
+      IF v_class_name IS NULL THEN RAISE EXCEPTION 'class_name is required'; END IF;
+      IF v_g_name     IS NULL THEN RAISE EXCEPTION 'guardian_name is required'; END IF;
+      IF v_g_phone    IS NULL THEN RAISE EXCEPTION 'guardian_phone is required'; END IF;
+
+      SELECT id, name INTO v_class_id, v_grade_level
+        FROM classes
+       WHERE school_id = p_school_id
+         AND LOWER(name) = LOWER(v_class_name)
+       LIMIT 1;
+
+      IF v_class_id IS NULL THEN
+        RAISE EXCEPTION 'Class "%" not found — check spelling matches exactly', v_class_name;
+      END IF;
+
+      v_reg_number := generate_registration_number(p_school_id);
+      v_password   := COALESCE(NULLIF(TRIM(p_default_password), ''), v_reg_number);
+
+      INSERT INTO students (
+        school_id, registration_number,
+        first_name, last_name,
+        date_of_birth, gender,
+        enrollment_date,
+        current_grade_level, current_class_id,
+        status
+      ) VALUES (
+        p_school_id, v_reg_number,
+        v_first_name, v_last_name,
+        v_dob, v_gender,
+        CURRENT_DATE,
+        v_grade_level, v_class_id,
+        'enrolled'::student_status
+      )
+      RETURNING id INTO v_student_id;
+
+      INSERT INTO guardians (
+        student_id, school_id, relationship,
+        full_name, email, phone
+      ) VALUES (
+        v_student_id, p_school_id, 'guardian',
+        v_g_name, v_g_email, v_g_phone
+      )
+      RETURNING id INTO v_guardian_id;
+
+      -- ── KEY FIX: pending_payment when reg fee not pre-paid ────────────────
+      v_enroll_status := CASE WHEN v_reg_fee_paid THEN 'active' ELSE 'pending_payment' END;
+
+      INSERT INTO student_enrollments (
+        student_id, school_id,
+        academic_year, enrollment_date, status
+      ) VALUES (
+        v_student_id, p_school_id,
+        p_academic_year, CURRENT_DATE, v_enroll_status
+      );
+
+      INSERT INTO class_assignments (class_id, student_id, academic_year)
+      VALUES (v_class_id, v_student_id, p_academic_year)
+      ON CONFLICT DO NOTHING;
+
+      -- assign_class_fees_to_student now also copies installment records
+      PERFORM assign_class_fees_to_student(
+        v_student_id, v_class_id, p_school_id, p_academic_year
+      );
+
+      -- ── If reg fee pre-paid: mark it paid + write audit payment ──────────
+      IF v_reg_fee_paid THEN
+        SELECT sf.id INTO v_reg_fee_id
+          FROM student_fees sf
+          JOIN fee_structures fs ON fs.id = sf.fee_structure_id
+         WHERE sf.student_id = v_student_id
+           AND sf.school_id  = p_school_id
+           AND fs.fee_type   = 'registration_fee'
+         LIMIT 1;
+
+        IF v_reg_fee_id IS NOT NULL THEN
+          UPDATE student_fees
+             SET amount_paid = amount_due,
+                 balance     = 0,
+                 status      = 'paid',
+                 updated_at  = NOW()
+           WHERE id = v_reg_fee_id;
+
+          INSERT INTO payments (
+            school_id, student_id, student_fee_id,
+            amount, payment_method, notes, status
+          ) VALUES (
+            p_school_id, v_student_id, v_reg_fee_id,
+            (SELECT amount_due FROM student_fees WHERE id = v_reg_fee_id),
+            'other',
+            'Pre-paid (marked during student import)',
+            'completed'
+          );
+        END IF;
+      END IF;
+
+      -- ── Create Supabase auth account ──────────────────────────────────────
+      v_email        := LOWER(TRIM(v_reg_number)) || '@student.schoolsync';
+      v_auth_id      := gen_random_uuid();
+      v_encrypted_pw := extensions.crypt(v_password, extensions.gen_salt('bf'));
+
+      IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = v_email) THEN
+        INSERT INTO auth.users (
+          instance_id, id, aud, role, email, encrypted_password,
+          email_confirmed_at,
+          invited_at, confirmation_token, confirmation_sent_at,
+          recovery_token, recovery_sent_at,
+          email_change_token_new, email_change, email_change_sent_at,
+          last_sign_in_at,
+          raw_app_meta_data, raw_user_meta_data,
+          is_super_admin, created_at, updated_at,
+          phone, phone_confirmed_at,
+          phone_change, phone_change_token, phone_change_sent_at,
+          email_change_token_current, email_change_confirm_status,
+          banned_until, reauthentication_token, reauthentication_sent_at,
+          is_sso_user, deleted_at, is_anonymous
+        ) VALUES (
+          '00000000-0000-0000-0000-000000000000',
+          v_auth_id, 'authenticated', 'authenticated',
+          v_email, v_encrypted_pw,
+          NOW(),
+          NULL, '', NULL,
+          '', NULL,
+          '', '', NULL,
+          NULL,
+          jsonb_build_object('provider', 'email', 'providers', ARRAY['email']),
+          jsonb_build_object(
+            'first_name', v_first_name,
+            'last_name',  v_last_name,
+            'role',       'student',
+            'school_id',  p_school_id::TEXT
+          ),
+          FALSE, NOW(), NOW(),
+          NULL, NULL,
+          '', '', NULL,
+          '', 0,
+          NULL, '', NULL,
+          FALSE, NULL, FALSE
+        );
+
+        INSERT INTO auth.identities (
+          id, user_id, provider_id, identity_data,
+          provider, last_sign_in_at, created_at, updated_at
+        ) VALUES (
+          gen_random_uuid(), v_auth_id, v_email,
+          jsonb_build_object(
+            'sub',            v_auth_id::TEXT,
+            'email',          v_email,
+            'email_verified', TRUE,
+            'phone_verified', FALSE
+          ),
+          'email', NOW(), NOW(), NOW()
+        );
+
+        INSERT INTO users (
+          auth_id, school_id, email,
+          first_name, last_name, full_name,
+          role, is_active
+        ) VALUES (
+          v_auth_id, p_school_id, v_email,
+          v_first_name, v_last_name,
+          v_first_name || ' ' || v_last_name,
+          'student', TRUE
+        )
+        RETURNING id INTO v_user_id;
+
+        UPDATE students
+           SET user_id    = v_user_id,
+               updated_at = NOW()
+         WHERE id = v_student_id;
+      END IF;
+
+      v_results := v_results || jsonb_build_array(jsonb_build_object(
+        'row_number',          v_row_num,
+        'success',             TRUE,
+        'first_name',          v_first_name,
+        'last_name',           v_last_name,
+        'class_name',          v_grade_level,
+        'registration_number', v_reg_number,
+        'login_email',         v_email,
+        'default_password',    v_password,
+        'reg_fee_paid',        v_reg_fee_paid,
+        'enrollment_status',   v_enroll_status
+      ));
+
+    EXCEPTION WHEN OTHERS THEN
+      v_results := v_results || jsonb_build_array(jsonb_build_object(
+        'row_number', v_row_num,
+        'success',    FALSE,
+        'first_name', v_student->>'first_name',
+        'last_name',  v_student->>'last_name',
+        'class_name', v_student->>'class_name',
+        'error',      SQLERRM
+      ));
+    END;
+  END LOOP;
+
+  RETURN v_results;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION bulk_import_students(UUID, TEXT, JSONB)      TO authenticated;
+GRANT EXECUTE ON FUNCTION bulk_import_students(UUID, TEXT, JSONB, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION bulk_import_students(UUID, TEXT, JSONB)      TO service_role;
+GRANT EXECUTE ON FUNCTION bulk_import_students(UUID, TEXT, JSONB, TEXT) TO service_role;
+
+
+-- ════════════════════════════════════════════════════════════════
+-- PART 3 — New RPC: list_pending_import_students
+--           Returns bulk-imported students whose enrollment is
+--           still pending_payment so the Registrar can see them
+--           and confirm enrollment once the Bursar has cleared
+--           their registration fee.
+--           (These students have no student_applications row.)
+-- ════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION list_pending_import_students(p_school_id UUID)
+RETURNS TABLE (
+  student_id          UUID,
+  first_name          TEXT,
+  last_name           TEXT,
+  registration_number TEXT,
+  class_name          TEXT,
+  reg_fee_paid        BOOLEAN,
+  reg_fee_amount      NUMERIC,
+  imported_at         TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_caller_role   user_role;
+  v_caller_school UUID;
+BEGIN
+  SELECT role, school_id
+    INTO v_caller_role, v_caller_school
+    FROM users WHERE auth_id = auth.uid();
+
+  IF v_caller_role NOT IN (
+    'registrar','principal','vice_principal','admin_staff','it_admin','super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  IF v_caller_role != 'super_admin' AND v_caller_school != p_school_id THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    s.id                                      AS student_id,
+    s.first_name,
+    s.last_name,
+    s.registration_number,
+    COALESCE(c.name, s.current_grade_level)   AS class_name,
+    -- reg fee paid if: no reg fee row exists OR the row is paid/partial
+    COALESCE(
+      (SELECT sf.status IN ('paid','partial')
+         FROM student_fees sf
+         JOIN fee_structures fs ON fs.id = sf.fee_structure_id
+        WHERE sf.student_id = s.id
+          AND fs.fee_type   = 'registration_fee'
+        ORDER BY sf.created_at DESC LIMIT 1),
+      TRUE   -- no reg fee structure → no barrier
+    )                                          AS reg_fee_paid,
+    COALESCE(
+      (SELECT sf.amount_due
+         FROM student_fees sf
+         JOIN fee_structures fs ON fs.id = sf.fee_structure_id
+        WHERE sf.student_id = s.id
+          AND fs.fee_type   = 'registration_fee'
+        ORDER BY sf.created_at DESC LIMIT 1),
+      0
+    )                                          AS reg_fee_amount,
+    se.created_at                              AS imported_at
+  FROM students s
+  JOIN student_enrollments se ON se.student_id = s.id
+                              AND se.status    = 'pending_payment'
+  LEFT JOIN classes c ON c.id = s.current_class_id
+  -- Bulk-imported students have NO linked student_application
+  WHERE s.school_id = p_school_id
+    AND NOT EXISTS (
+      SELECT 1 FROM student_applications sa WHERE sa.student_id = s.id
+    )
+  ORDER BY se.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION list_pending_import_students(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION list_pending_import_students(UUID) TO service_role;
+
+
+-- ════════════════════════════════════════════════════════════════
+-- PART 4 — New RPC: confirm_import_enrollment
+--           Registrar calls this to activate a bulk-imported
+--           student's enrollment after Bursar has cleared fees.
+--           Unlike enroll_student_after_payment, this does NOT
+--           create a login account (bulk import already did that);
+--           it only moves the enrollment from pending_payment →
+--           active and verifies reg fee payment first.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION confirm_import_enrollment(p_student_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_caller_role   user_role;
+  v_caller_school UUID;
+  v_student       RECORD;
+BEGIN
+  SELECT role, school_id
+    INTO v_caller_role, v_caller_school
+    FROM users WHERE auth_id = auth.uid();
+
+  IF v_caller_role NOT IN (
+    'registrar','principal','vice_principal','admin_staff','it_admin','super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized: only Registrar, Principal, or IT Admin can confirm enrollment';
+  END IF;
+
+  SELECT * INTO v_student FROM students WHERE id = p_student_id;
+
+  IF v_student.id IS NULL THEN
+    RAISE EXCEPTION 'Student not found';
+  END IF;
+
+  IF v_student.school_id != v_caller_school AND v_caller_role != 'super_admin' THEN
+    RAISE EXCEPTION 'Student belongs to a different school';
+  END IF;
+
+  -- Block if a registration fee record exists and is NOT yet paid
+  IF EXISTS (
+    SELECT 1
+    FROM student_fees sf
+    JOIN fee_structures fs ON fs.id = sf.fee_structure_id
+    WHERE sf.student_id = p_student_id
+      AND fs.fee_type   = 'registration_fee'
+      AND sf.status     NOT IN ('paid','partial')
+  ) THEN
+    RAISE EXCEPTION
+      'Registration fee has not been paid. The Bursar must record payment before enrollment can be confirmed.';
+  END IF;
+
+  -- Activate the enrollment
+  UPDATE student_enrollments
+     SET status     = 'active',
+         updated_at = NOW()
+   WHERE student_id = p_student_id
+     AND status     = 'pending_payment';
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success',  TRUE,
+      'message',  'Enrollment was already active.'
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success',             TRUE,
+    'student_id',          p_student_id,
+    'registration_number', v_student.registration_number,
+    'message',             'Enrollment confirmed — student is now active.'
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION confirm_import_enrollment(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION confirm_import_enrollment(UUID) TO service_role;
+
+
+NOTIFY pgrst, 'reload schema';

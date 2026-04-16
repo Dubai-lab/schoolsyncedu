@@ -134,6 +134,33 @@ export const registrarService = {
     };
   },
 
+  /** List bulk-imported students still awaiting Bursar fee clearance + Registrar confirmation */
+  async getPendingImportStudents(schoolId: string) {
+    const { data, error } = await supabase.rpc('list_pending_import_students', {
+      p_school_id: schoolId,
+    });
+    if (error) throw error;
+    return (data ?? []) as Array<{
+      student_id: string;
+      first_name: string;
+      last_name: string;
+      registration_number: string;
+      class_name: string;
+      reg_fee_paid: boolean;
+      reg_fee_amount: number;
+      imported_at: string;
+    }>;
+  },
+
+  /** Registrar confirms enrollment for a bulk-imported student (fee must be paid first) */
+  async confirmImportEnrollment(studentId: string) {
+    const { data, error } = await supabase.rpc('confirm_import_enrollment', {
+      p_student_id: studentId,
+    });
+    if (error) throw error;
+    return data as { success: boolean; student_id: string; registration_number: string; message: string };
+  },
+
   /** List students whose reg fee is paid but account not yet created */
   async listReadyToEnroll(schoolId: string) {
     const { data, error } = await supabase.rpc('list_ready_to_enroll', {
@@ -193,13 +220,22 @@ export const registrarService = {
         .eq('status', 'active'),
     ]);
 
-    // Count students ready to enroll (reg fee paid, no account yet)
+    // Count students ready to enroll from applications (reg fee paid, no account yet)
     let readyToEnrollData: { data: unknown[] } = { data: [] };
     try {
       const r = await supabase.rpc('list_ready_to_enroll', { p_school_id: schoolId });
       readyToEnrollData = { data: r.data ?? [] };
     } catch {
       // non-critical — dashboard still loads
+    }
+
+    // Count bulk-imported students still pending Bursar clearance
+    let pendingImportData: { data: unknown[] } = { data: [] };
+    try {
+      const r = await supabase.rpc('list_pending_import_students', { p_school_id: schoolId });
+      pendingImportData = { data: r.data ?? [] };
+    } catch {
+      // non-critical
     }
 
     return {
@@ -210,6 +246,7 @@ export const registrarService = {
       totalStudents: totalStudents ?? 0,
       activeEnrollments: activeEnrollments ?? 0,
       readyToEnroll: (readyToEnrollData.data as unknown[])?.length ?? 0,
+      pendingImportEnrollments: (pendingImportData.data as unknown[])?.length ?? 0,
     };
   },
 
