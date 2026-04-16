@@ -19,7 +19,7 @@ ALTER TABLE saved_payment_tokens
 -- ── 3. Ensure RLS is enabled ──────────────────────────────────────────────────
 ALTER TABLE saved_payment_tokens ENABLE ROW LEVEL SECURITY;
 
--- ── 4. SELECT policy: proprietor/owner of this school can read their cards ─────
+-- ── 4. SELECT policy: proprietor of this school can read their cards ─────────
 DROP POLICY IF EXISTS "School owner can read their saved cards" ON saved_payment_tokens;
 CREATE POLICY "School owner can read their saved cards"
   ON saved_payment_tokens
@@ -29,7 +29,7 @@ CREATE POLICY "School owner can read their saved cards"
     school_id IN (
       SELECT school_id FROM users
       WHERE auth_id = auth.uid()
-        AND role IN ('proprietor', 'owner')
+        AND role = 'proprietor'
     )
   );
 
