@@ -13,8 +13,11 @@ ALTER TABLE school_payment_configs
   ADD COLUMN IF NOT EXISTS stripe_currency    TEXT    NOT NULL DEFAULT 'USD';
 
 -- ── 2. Rebuild get_payment_config_public to expose Stripe public fields ───────
--- (never returns secret_key)
-CREATE OR REPLACE FUNCTION get_payment_config_public(p_school_id UUID)
+-- Must DROP first — PostgreSQL won't replace a RETURNS TABLE function when
+-- the column list changes (even with CREATE OR REPLACE).
+DROP FUNCTION IF EXISTS get_payment_config_public(UUID);
+
+CREATE FUNCTION get_payment_config_public(p_school_id UUID)
 RETURNS TABLE (
   flw_enabled          BOOLEAN,
   flw_public_key       TEXT,
