@@ -38,16 +38,19 @@ serve(async (req) => {
       school_id,
       student_id,
       student_fee_id,
+      application_id,
       amount_usd,
     } = await req.json() as {
-      school_id:      string;
-      student_id:     string;
-      student_fee_id: string;
-      amount_usd:     number;
+      school_id:       string;
+      student_id?:     string;
+      student_fee_id?: string;
+      application_id?: string;
+      amount_usd:      number;
     };
 
-    if (!school_id || !student_id || !student_fee_id || !amount_usd) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+    // Must have school_id, amount, and either student_fee_id or application_id
+    if (!school_id || !amount_usd || (!student_fee_id && !application_id)) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: school_id, amount_usd, and either student_fee_id or application_id' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -108,9 +111,10 @@ serve(async (req) => {
       currency,
       metadata: {
         school_id,
-        student_id,
-        student_fee_id,
-        source: 'schoolsync_fee_payment',
+        ...(student_id     && { student_id }),
+        ...(student_fee_id && { student_fee_id }),
+        ...(application_id && { application_id }),
+        source: application_id ? 'schoolsync_application_fee' : 'schoolsync_fee_payment',
       },
     });
 

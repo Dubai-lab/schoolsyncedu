@@ -666,6 +666,16 @@ export const publicApplicationService = {
       mtn_merchant_code: string;
       orange_enabled: boolean;
       orange_merchant_code: string;
+      bank_enabled: boolean;
+      bank_account_name: string;
+      bank_account_number: string;
+      bank_name: string;
+      bank_routing_number: string;
+      bank_swift_code: string;
+      bank_instructions: string;
+      stripe_enabled: boolean;
+      stripe_public_key: string;
+      stripe_currency: string;
       payment_title: string;
       payment_logo: string;
     };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { studentPortalService } from '@/services/studentPortalService';
@@ -6,6 +6,8 @@ import { invoiceService } from '@/services/feeService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
 import { bankTransferService, generateBankRef, type BankTransferProof } from '@/services/bankTransferService';
 import { supabase } from '@/lib/supabase';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb from '@/components/shared/Breadcrumb';
@@ -27,6 +29,8 @@ import {
   Copy,
   CheckCheck,
   Image,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -73,6 +77,94 @@ interface PaymentRow {
   created_at: string;
 }
 
+// ── Stripe Card Form (must be inside <Elements>) ──────────────────────────────
+
+interface StripeCardFormProps {
+  schoolId: string;
+  studentId: string;
+  studentFeeId: string;
+  amountUsd: number;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}
+
+function StripeCardForm({ schoolId, studentId, studentFeeId, amountUsd, onSuccess, onError }: StripeCardFormProps) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('school-stripe-payment', {
+        body: { school_id: schoolId, student_id: studentId, student_fee_id: studentFeeId, amount_usd: amountUsd },
+      });
+      if (fnError || data?.error) throw new Error(data?.error ?? fnError?.message ?? 'Failed to initiate payment');
+
+      const { clientSecret, paymentIntentId } = data as { clientSecret: string; paymentIntentId: string };
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) throw new Error('Card element unavailable');
+
+      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: cardEl },
+      });
+      if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
+      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment did not complete');
+
+      const { error: rpcError } = await supabase.rpc('record_fee_payment', {
+        p_school_id:        schoolId,
+        p_student_id:       studentId,
+        p_student_fee_id:   studentFeeId,
+        p_amount_usd:       amountUsd,
+        p_amount_lrd:       0,
+        p_currency_charged: 'USD',
+        p_payment_method:   'stripe_card',
+        p_gateway_ref:      paymentIntentId,
+        p_recorded_by:      null,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+
+      onSuccess();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1.5">Card Details</label>
+        <div className="rounded-lg border border-gray-300 px-3 py-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all bg-white">
+          <CardElement
+            options={{
+              hidePostalCode: true,
+              style: {
+                base: { fontSize: '14px', color: '#1e293b', fontFamily: 'ui-sans-serif, system-ui, sans-serif', '::placeholder': { color: '#94a3b8' } },
+                invalid: { color: '#dc2626' },
+              },
+            }}
+          />
+        </div>
+      </div>
+      <button
+        onClick={handlePay}
+        disabled={!stripe || processing}
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow transition hover:bg-blue-700 disabled:opacity-50"
+      >
+        {processing
+          ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+          : <><Lock className="h-4 w-4" /> Pay {fmtUSD(amountUsd)} with Card</>}
+      </button>
+      <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
+        <ShieldCheck className="h-3.5 w-3.5" /> Secure payment powered by Stripe
+      </p>
+    </div>
+  );
+}
+
 // ── PAYMENT MODAL ─────────────────────────────────────────────────────────────
 
 interface PaymentModalProps {
@@ -93,6 +185,16 @@ function PaymentModal({
   fee, student, schoolId, studentDbId, paymentCfg, schoolName, onClose, onPaid,
 }: PaymentModalProps) {
   const [amount, setAmount] = useState(String(fee.balance));
+
+  // Stripe state
+  const stripePromise = useMemo(
+    () => paymentCfg?.stripe_enabled && paymentCfg.stripe_public_key
+      ? loadStripe(paymentCfg.stripe_public_key)
+      : null,
+    [paymentCfg?.stripe_enabled, paymentCfg?.stripe_public_key],
+  );
+  const [stripeSuccess, setStripeSuccess] = useState(false);
+  const [stripeError,   setStripeError]   = useState('');
 
   // Bank transfer state
   const [existingProof,     setExistingProof]     = useState<BankTransferProof | null | undefined>(undefined);
@@ -172,8 +274,6 @@ function PaymentModal({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-
-  // Online card payment removed. Students pay via Mobile Money or at the finance office.
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -299,6 +399,38 @@ function PaymentModal({
                     Use Orange Money to send <strong>{canPay ? fmtUSD(amountNum) : 'the amount'}</strong> to this merchant code.
                     Bring your confirmation to the finance office.
                   </p>
+                </div>
+              )}
+
+              {/* ── STRIPE CARD PAYMENT ── */}
+              {paymentCfg?.stripe_enabled && stripePromise && canPay && (
+                <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-purple-700" />
+                    <p className="text-sm font-bold text-purple-800">Pay by Card (Stripe)</p>
+                  </div>
+                  {stripeSuccess ? (
+                    <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3 text-xs text-green-700">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Card payment successful! Your fee balance has been updated.
+                    </div>
+                  ) : (
+                    <>
+                      {stripeError && (
+                        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{stripeError}</p>
+                      )}
+                      <Elements stripe={stripePromise}>
+                        <StripeCardForm
+                          schoolId={schoolId}
+                          studentId={studentDbId}
+                          studentFeeId={fee.id}
+                          amountUsd={amountNum}
+                          onSuccess={() => { setStripeSuccess(true); setStripeError(''); onPaid(); }}
+                          onError={(msg) => setStripeError(msg)}
+                        />
+                      </Elements>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -463,7 +595,7 @@ function PaymentModal({
               </div>
 
               {/* No payment method configured */}
-              {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.bank_enabled && (
+              {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.bank_enabled && !paymentCfg?.stripe_enabled && (
                 <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   No online payment method is configured for your school. Please pay in person at the finance office.
