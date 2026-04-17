@@ -34,23 +34,34 @@ export const studentPortalService = {
 
   /** Get approved grades only (students must not see unapproved/draft grades) */
   async getMyGrades(schoolId: UUID, studentId: UUID) {
-    const { data, error } = await supabase
+    // Fetch grades without embedded join to avoid PostgREST FK cache issues
+    const { data: grades, error } = await supabase
       .from('grades')
-      .select('*, subjects(name, code)')
+      .select('*')
       .eq('school_id', schoolId)
       .eq('student_id', studentId)
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    if (!grades || grades.length === 0) return [];
+
+    // Fetch subjects for those grades separately
+    const subjectIds = [...new Set(grades.map((g) => g.subject_id).filter(Boolean))];
+    const { data: subjects } = await supabase
+      .from('subjects')
+      .select('id, name, code')
+      .in('id', subjectIds);
+
+    const subjectMap = new Map((subjects ?? []).map((s) => [s.id, s]));
+    return grades.map((g) => ({ ...g, subjects: subjectMap.get(g.subject_id) ?? null }));
   },
 
   /** Get my report cards */
-  async getMyReportCards(schoolId: UUID, studentId: UUID) {
+  async getMyReportCards(_schoolId: UUID, studentId: UUID) {
+    // report_cards has no school_id column — scope by student_id only
     const { data, error } = await supabase
       .from('report_cards')
       .select('*')
-      .eq('school_id', schoolId)
       .eq('student_id', studentId)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -58,11 +69,11 @@ export const studentPortalService = {
   },
 
   /** Get my transcripts */
-  async getMyTranscripts(schoolId: UUID, studentId: UUID) {
+  async getMyTranscripts(_schoolId: UUID, studentId: UUID) {
+    // transcripts has no school_id column — scope by student_id only
     const { data, error } = await supabase
       .from('transcripts')
       .select('*')
-      .eq('school_id', schoolId)
       .eq('student_id', studentId)
       .order('created_at', { ascending: false });
     if (error) throw error;

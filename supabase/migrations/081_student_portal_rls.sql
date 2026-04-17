@@ -5,38 +5,56 @@
 -- This migration covers every table queried by studentPortalService.ts.
 
 -- ── report_cards ──────────────────────────────────────────────────────────────
+-- report_cards has no school_id column — scope staff via students.school_id
 ALTER TABLE report_cards ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Staff can view school report cards" ON report_cards;
 DROP POLICY IF EXISTS "Students can view own report cards" ON report_cards;
+
+CREATE POLICY "Staff can view school report cards"
+  ON report_cards FOR SELECT TO authenticated
+  USING (
+    auth_user_role() != 'student'::user_role
+    AND student_id IN (
+      SELECT id FROM students WHERE school_id = auth_school_id()
+    )
+  );
+
 CREATE POLICY "Students can view own report cards"
   ON report_cards FOR SELECT TO authenticated
   USING (
-    school_id = auth_school_id()
-    AND (
-      auth_user_role() != 'student'::user_role
-      OR student_id IN (
-        SELECT s.id FROM students s
-        JOIN users u ON u.id = s.user_id
-        WHERE u.auth_id = auth.uid()
-      )
+    auth_user_role() = 'student'::user_role
+    AND student_id IN (
+      SELECT s.id FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
 -- ── transcripts ───────────────────────────────────────────────────────────────
+-- transcripts has no school_id column — scope staff via students.school_id
 ALTER TABLE transcripts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Staff can view school transcripts" ON transcripts;
 DROP POLICY IF EXISTS "Students can view own transcripts" ON transcripts;
+
+CREATE POLICY "Staff can view school transcripts"
+  ON transcripts FOR SELECT TO authenticated
+  USING (
+    auth_user_role() != 'student'::user_role
+    AND student_id IN (
+      SELECT id FROM students WHERE school_id = auth_school_id()
+    )
+  );
+
 CREATE POLICY "Students can view own transcripts"
   ON transcripts FOR SELECT TO authenticated
   USING (
-    school_id = auth_school_id()
-    AND (
-      auth_user_role() != 'student'::user_role
-      OR student_id IN (
-        SELECT s.id FROM students s
-        JOIN users u ON u.id = s.user_id
-        WHERE u.auth_id = auth.uid()
-      )
+    auth_user_role() = 'student'::user_role
+    AND student_id IN (
+      SELECT s.id FROM students s
+      JOIN users u ON u.id = s.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -65,12 +83,17 @@ DROP POLICY IF EXISTS "Students can view own fees" ON student_fees;
 CREATE POLICY "Students can view own fees"
   ON student_fees FOR SELECT TO authenticated
   USING (
-    auth_user_role() != 'student'::user_role
-    AND school_id = auth_school_id()
-    OR student_id IN (
-      SELECT s.id FROM students s
-      JOIN users u ON u.id = s.user_id
-      WHERE u.auth_id = auth.uid()
+    (
+      auth_user_role() != 'student'::user_role
+      AND school_id = auth_school_id()
+    )
+    OR (
+      auth_user_role() = 'student'::user_role
+      AND student_id IN (
+        SELECT s.id FROM students s
+        JOIN users u ON u.id = s.user_id
+        WHERE u.auth_id = auth.uid()
+      )
     )
   );
 
