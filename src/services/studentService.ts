@@ -270,3 +270,83 @@ export const enrollmentService = {
     return data as StudentEnrollment;
   },
 };
+
+// ==================== STUDENT DOCUMENTS ====================
+
+export interface StudentDocument {
+  id: string;
+  school_id: string;
+  student_id: string;
+  document_type: string;
+  document_name: string;
+  file_url: string;
+  file_path: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export const studentDocumentService = {
+  async list(studentId: UUID): Promise<StudentDocument[]> {
+    const { data, error } = await supabase
+      .from('student_documents')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as StudentDocument[];
+  },
+
+  async upload(
+    schoolId: UUID,
+    studentId: UUID,
+    file: File,
+    documentType: string,
+    documentName: string,
+    uploadedBy: UUID,
+  ): Promise<StudentDocument> {
+    const ext  = file.name.split('.').pop() ?? 'bin';
+    const path = `students/${studentId}/${Date.now()}_${documentType.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('documents')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
+
+    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+
+    const { data, error } = await supabase
+      .from('student_documents')
+      .insert({
+        school_id:     schoolId,
+        student_id:    studentId,
+        document_type: documentType,
+        document_name: documentName,
+        file_url:      urlData.publicUrl,
+        file_path:     path,
+        uploaded_by:   uploadedBy,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as StudentDocument;
+  },
+
+  async delete(id: UUID, filePath: string | null): Promise<void> {
+    if (filePath) {
+      await supabase.storage.from('documents').remove([filePath]);
+    }
+    const { error } = await supabase.from('student_documents').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Fetch the application linked to a student (if they applied online) */
+  async getLinkedApplication(studentId: UUID) {
+    const { data, error } = await supabase
+      .from('student_applications')
+      .select('id, application_number, documents')
+      .eq('student_id', studentId)
+      .maybeSingle();
+    if (error) throw error;
+    return data as { id: string; application_number: string; documents: Record<string, string> | null } | null;
+  },
+};

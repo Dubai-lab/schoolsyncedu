@@ -316,27 +316,26 @@ export default function ApplicationDetail() {
             </div>
           </Card>
 
-          {/* Documents */}
-          {app.documents && (app.documents as unknown as Record<string, string>[]).length > 0 && (
+          {/* Documents — stored as { "Label": "url" } JSONB object */}
+          {app.documents && Object.keys(app.documents as unknown as Record<string, string>).length > 0 && (
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FileText className="h-5 w-5 text-amber-600" />
-                <h2 className="text-lg font-semibold text-slate-900">Documents</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Submitted Documents</h2>
               </div>
               <div className="space-y-2">
-                {(app.documents as unknown as Record<string, string>[]).map((doc, i) => (
+                {Object.entries(app.documents as unknown as Record<string, string>).map(([label, url]) => (
                   <div
-                    key={i}
+                    key={label}
                     className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3"
                   >
                     <FileText className="h-4 w-4 text-slate-400" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-700">{doc.name || `Document ${i + 1}`}</p>
-                      {doc.type && <p className="text-xs text-slate-400">{doc.type}</p>}
+                      <p className="text-sm font-medium text-slate-700">{label}</p>
                     </div>
-                    {doc.url && (
+                    {url && (
                       <a
-                        href={doc.url}
+                        href={url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary-600 hover:text-primary-700 font-medium"
