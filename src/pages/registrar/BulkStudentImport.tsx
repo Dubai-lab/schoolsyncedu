@@ -10,8 +10,7 @@ import Badge from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import {
   Download, Upload, CheckCircle2, XCircle, AlertCircle,
-  Users, FileSpreadsheet, Printer, ChevronRight, RefreshCw,
-  BadgeDollarSign,
+  Users, FileSpreadsheet, ChevronRight, RefreshCw, Info,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -34,7 +33,6 @@ export default function BulkStudentImport() {
   const schoolId  = user?.school_id ?? '';
 
   const fileRef = useRef<HTMLInputElement>(null);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep]                 = useState<Step>('upload');
   const [rows, setRows]                 = useState<ValidatedRow[]>([]);
@@ -43,9 +41,6 @@ export default function BulkStudentImport() {
   const [progress, setProgress]         = useState({ done: 0, total: 0 });
   const [importing, setImporting]       = useState(false);
   const [importError, setImportError]   = useState('');
-
-  // Track which valid-row indices have reg fee marked as pre-paid (index into validRows)
-  const [regFeePaidSet, setRegFeePaidSet] = useState<Set<number>>(new Set());
 
   // Load academic year, default password, and classes for validation
   const { data: academicYear } = useFetch(
@@ -127,14 +122,10 @@ export default function BulkStudentImport() {
     setStep('importing');
 
     try {
-      const rowsWithFeeFlag = validRows.map((r, idx) => ({
-        ...r,
-        reg_fee_paid: regFeePaidSet.has(idx),
-      }));
       const results = await studentImportService.importStudents(
         schoolId,
         academicYear,
-        rowsWithFeeFlag,
+        validRows,
         (done, total) => setProgress({ done, total }),
         defaultPassword ?? undefined,
       );
@@ -148,9 +139,6 @@ export default function BulkStudentImport() {
     }
   };
 
-  // ── Credentials print ────────────────────────────────────────────────────
-  const printCredentials = () => window.print();
-
   const successful = importResults.filter((r) => r.success);
   const failed     = importResults.filter((r) => !r.success);
 
@@ -162,24 +150,6 @@ export default function BulkStudentImport() {
     setParseError('');
     setImportError('');
     setProgress({ done: 0, total: 0 });
-    setRegFeePaidSet(new Set());
-  };
-
-  const toggleRegFeePaid = (idx: number) => {
-    setRegFeePaidSet((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  };
-
-  const toggleAllRegFeePaid = () => {
-    if (regFeePaidSet.size === validRows.length) {
-      setRegFeePaidSet(new Set());
-    } else {
-      setRegFeePaidSet(new Set(validRows.map((_, i) => i)));
-    }
   };
 
   return (
@@ -192,7 +162,7 @@ export default function BulkStudentImport() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Import Existing Students</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Bulk-enroll students from your Excel register book — each student gets a login account automatically.
+            Import existing students from your register book. The Bursar confirms fees, then you enroll each student to create their login account.
           </p>
         </div>
         {academicYear && (
@@ -267,11 +237,11 @@ export default function BulkStudentImport() {
               </div>
               <div className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">4</span>
-                <p>Confirm the import. Each student gets a registration number, class assignment, fee assignment, and a login account automatically.</p>
+                <p>Confirm the import. Each student gets a registration number, class assignment, and fees assigned. They are pending until the Bursar confirms fees.</p>
               </div>
               <div className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">5</span>
-                <p>Print the credentials sheet and distribute login cards to students. Default password = their registration number.</p>
+                <p>The Bursar confirms registration fees for each student. Once confirmed, you can enroll the student — this creates their login account.</p>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 mt-2">
@@ -378,28 +348,21 @@ export default function BulkStudentImport() {
           {validRows.length > 0 && (
             <Card>
               <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <CardTitle>
-                    <CheckCircle2 className="inline h-4 w-4 mr-1.5 text-emerald-600" />
-                    {validRows.length} students ready to import
-                  </CardTitle>
-                  <div className="text-right">
-                    <span className="text-xs text-slate-500">
-                      {regFeePaidSet.size} of {validRows.length} marked as fee paid
-                    </span>
-                  </div>
-                </div>
+                <CardTitle>
+                  <CheckCircle2 className="inline h-4 w-4 mr-1.5 text-emerald-600" />
+                  {validRows.length} students ready to import
+                </CardTitle>
               </CardHeader>
 
-              {/* Registration fee info banner */}
-              <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-                <BadgeDollarSign className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+              {/* Workflow info banner */}
+              <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
+                <Info className="h-4 w-4 mt-0.5 shrink-0 text-blue-500" />
                 <div>
-                  <p className="font-semibold">Registration Fee Status</p>
-                  <p className="mt-0.5 text-amber-700">
-                    Check <strong>Reg Fee Paid</strong> for students who already paid the registration fee in the previous system.
-                    Their fee will be marked as paid automatically — they won't need to visit the finance office.
-                    Leave it unchecked for students who still need to pay — the fee will be assigned and they must pay before the term starts.
+                  <p className="font-semibold">What happens after import</p>
+                  <p className="mt-0.5 text-blue-700">
+                    All students will be imported as <strong>pending</strong> — no login accounts yet.
+                    The Bursar must confirm each student's registration fee payment.
+                    Once confirmed, return here to enroll them and create their login accounts.
                   </p>
                 </div>
               </div>
@@ -415,37 +378,17 @@ export default function BulkStudentImport() {
                         <th className="px-4 py-2 font-medium">Gender</th>
                         <th className="px-4 py-2 font-medium">Guardian</th>
                         <th className="px-4 py-2 font-medium">Phone</th>
-                        <th className="px-4 py-2 font-medium text-amber-700">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={regFeePaidSet.size === validRows.length && validRows.length > 0}
-                              onChange={toggleAllRegFeePaid}
-                              className="rounded border-amber-300 text-amber-600"
-                              title="Mark all as reg fee paid"
-                            />
-                            Reg Fee Paid?
-                          </div>
-                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {validRows.map((r, i) => (
-                        <tr key={i} className={`hover:bg-slate-50 ${regFeePaidSet.has(i) ? 'bg-emerald-50/40' : ''}`}>
+                        <tr key={i} className="hover:bg-slate-50">
                           <td className="px-4 py-2 font-medium text-slate-900">{r.first_name} {r.last_name}</td>
                           <td className="px-4 py-2">{r.class_name}</td>
                           <td className="px-4 py-2 text-slate-500">{r.date_of_birth || '—'}</td>
                           <td className="px-4 py-2 text-slate-500">{r.gender || '—'}</td>
                           <td className="px-4 py-2 text-slate-500">{r.guardian_name}</td>
                           <td className="px-4 py-2 text-slate-500">{r.guardian_phone}</td>
-                          <td className="px-4 py-2 text-center">
-                            <input
-                              type="checkbox"
-                              checked={regFeePaidSet.has(i)}
-                              onChange={() => toggleRegFeePaid(i)}
-                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                            />
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -542,79 +485,27 @@ export default function BulkStudentImport() {
             </div>
           )}
 
-          {/* Credentials sheet */}
+          {/* Next steps */}
           {successful.length > 0 && (
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">Student Login Credentials</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Print this sheet and distribute to students. Default password = registration number.
-                    Students should change their password after first login.
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={printCredentials}>
-                  <Printer className="h-4 w-4 mr-1" /> Print Credentials
-                </Button>
-              </div>
-
-              {/* Printable area */}
-              <div ref={printRef} className="print-credentials">
-                {/* Print-only header */}
-                <div className="hidden print:block mb-4">
-                  <h2 className="text-lg font-bold">Student Login Credentials — {academicYear}</h2>
-                  <p className="text-xs text-gray-500">
-                    Generated {new Date().toLocaleDateString()}.
-                    Default password: <strong>{defaultPassword ?? '(registration number)'}</strong>.
-                    Instruct students to change their password after first login.
-                  </p>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr className="text-left text-xs font-semibold text-slate-600">
-                        <th className="px-4 py-3">#</th>
-                        <th className="px-4 py-3">Student Name</th>
-                        <th className="px-4 py-3">Class</th>
-                        <th className="px-4 py-3">Registration No.</th>
-                        <th className="px-4 py-3">Login Email</th>
-                        <th className="px-4 py-3">Default Password</th>
-                        <th className="px-4 py-3 print:hidden">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {successful.map((r, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                          <td className="px-4 py-2.5 text-slate-400 text-xs">{i + 1}</td>
-                          <td className="px-4 py-2.5 font-medium text-slate-900">
-                            {r.first_name} {r.last_name}
-                          </td>
-                          <td className="px-4 py-2.5 text-slate-600">{r.class_name}</td>
-                          <td className="px-4 py-2.5 font-mono text-sm font-semibold text-slate-800">
-                            {r.registration_number}
-                          </td>
-                          <td className="px-4 py-2.5 font-mono text-xs text-slate-600">
-                            {r.login_email}
-                          </td>
-                          <td className="px-4 py-2.5 font-mono text-sm text-primary-700 font-semibold">
-                            {r.default_password}
-                          </td>
-                          <td className="px-4 py-2.5 print:hidden">
-                            <Badge variant="success" size="sm">
-                              <CheckCircle2 className="inline h-3 w-3 mr-0.5" /> Active
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <p className="mt-3 text-xs text-slate-400">
-                Tip: Cut this sheet into individual login slips using the registration number as each student's identifier. Remind students their password is temporary.
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-3">
+              <p className="text-sm font-semibold text-blue-900">
+                <CheckCircle2 className="inline h-4 w-4 mr-1.5 text-emerald-600" />
+                Import complete — here's what happens next:
               </p>
+              <ol className="space-y-2 text-sm text-blue-800 list-none">
+                <li className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-800">1</span>
+                  <span><strong>Bursar</strong> goes to <em>Finance → Reg Fee Confirmation</em> and confirms which students have paid their registration fee.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-800">2</span>
+                  <span><strong>You (Registrar)</strong> go to <em>Students → Pending Imports</em> and click <em>Enroll</em> for each cleared student. This creates their login account.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-800">3</span>
+                  <span>After enrollment, print login credentials from the <em>Pending Imports</em> page and distribute to students.</span>
+                </li>
+              </ol>
             </div>
           )}
 

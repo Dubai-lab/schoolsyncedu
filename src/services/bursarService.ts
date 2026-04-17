@@ -456,3 +456,97 @@ export const feeInstallmentService = {
     return (data ?? []) as StudentFeeInstallment[];
   },
 };
+
+// ==================== BURSAR IMPORT WORKFLOW ====================
+
+export const bursarImportService = {
+  /** List bulk-imported students still awaiting Bursar reg fee confirmation */
+  async getPendingImportStudents(schoolId: string) {
+    const { data, error } = await supabase.rpc('list_pending_import_students', {
+      p_school_id: schoolId,
+    });
+    if (error) throw error;
+    return (data ?? []) as Array<{
+      student_id: string;
+      first_name: string;
+      last_name: string;
+      registration_number: string;
+      class_name: string;
+      reg_fee_paid: boolean;
+      reg_fee_amount: number;
+      imported_at: string;
+    }>;
+  },
+
+  /** Bursar confirms that a student's registration fee has been paid */
+  async confirmRegFee(studentId: string) {
+    const { data, error } = await supabase.rpc('bursar_confirm_reg_fee', {
+      p_student_id: studentId,
+    });
+    if (error) throw error;
+    return data as { success: boolean; amount: number; message: string };
+  },
+
+  /** Search students by name for fee correction */
+  async searchStudents(schoolId: string, query: string) {
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, registration_number, current_grade_level, current_class_id, classes:current_class_id(name)')
+      .eq('school_id', schoolId)
+      .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,registration_number.ilike.%${query}%`)
+      .limit(10);
+    if (error) throw error;
+    return (data ?? []) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      registration_number: string;
+      current_grade_level: string;
+      classes: { name: string } | null;
+    }>;
+  },
+
+  /** Get all fee records for a student (for correction page) */
+  async getStudentFees(studentId: string) {
+    const { data, error } = await supabase
+      .from('student_fees')
+      .select('*, fee_structures(fee_type, academic_year, grade_level)')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Array<{
+      id: string;
+      student_id: string;
+      school_id: string;
+      fee_structure_id: string;
+      academic_year: string;
+      amount_due: number;
+      amount_paid: number;
+      balance: number;
+      status: string;
+      fee_structures: {
+        fee_type: string;
+        academic_year: string;
+        grade_level: string;
+      } | null;
+    }>;
+  },
+
+  /** Bursar corrects a student fee paid amount — creates audit payment record */
+  async correctFee(studentFeeId: string, paidAmount: number, reason: string) {
+    const { data, error } = await supabase.rpc('bursar_correct_fee', {
+      p_student_fee_id: studentFeeId,
+      p_paid_amount:    paidAmount,
+      p_reason:         reason,
+    });
+    if (error) throw error;
+    return data as {
+      success: boolean;
+      old_paid: number;
+      new_paid: number;
+      new_balance: number;
+      new_status: string;
+      message: string;
+    };
+  },
+};

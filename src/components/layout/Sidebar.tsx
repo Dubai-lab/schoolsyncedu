@@ -39,6 +39,8 @@ import {
   TrendingDown,
   Upload,
   Landmark,
+  UserCheck,
+  PenLine,
 } from 'lucide-react';
 
 // ==================== NAV CONFIG ====================
@@ -212,6 +214,8 @@ const navGroups: NavGroup[] = [
       { label: 'Fee Structures', path: '/bursar/fee-structures', icon: Layers, roles: [USER_ROLES.BURSAR] },
       { label: 'Student Fees', path: '/fees', icon: DollarSign, roles: [USER_ROLES.BURSAR] },
       { label: 'Bank Transfer Proofs', path: '/bursar/bank-transfers', icon: Landmark, roles: [USER_ROLES.BURSAR] },
+      { label: 'Reg Fee Confirmation', path: '/bursar/reg-fee-confirmation', icon: UserCheck, roles: [USER_ROLES.BURSAR] },
+      { label: 'Fee Correction', path: '/bursar/fee-correction', icon: PenLine, roles: [USER_ROLES.BURSAR] },
       { label: 'Payment History', path: '/fees/history', icon: FileText, roles: [USER_ROLES.BURSAR] },
     ],
   },
