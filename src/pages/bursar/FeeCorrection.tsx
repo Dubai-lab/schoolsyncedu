@@ -143,7 +143,7 @@ function CorrectionModal({
             <Input
               type="number"
               min="0"
-              max={fee.amount_due}
+              max={String(fee.amount_due)}
               step="0.01"
               value={paidAmount}
               onChange={(e) => setPaidAmount(e.target.value)}
@@ -214,7 +214,7 @@ export default function FeeCorrection() {
   );
 
   const { data: fees = [], isLoading: feesLoading } = useFetch(
-    ['student-fees-correction', selectedStudent?.id, feesKey],
+    ['student-fees-correction', selectedStudent?.id ?? '', String(feesKey)],
     () => bursarImportService.getStudentFees(selectedStudent!.id),
     { enabled: !!selectedStudent },
   );

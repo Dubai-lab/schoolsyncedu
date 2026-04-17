@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useFetch, useMutate } from '@/hooks/useFetch';
+import { useFetch } from '@/hooks/useFetch';
 import { bursarImportService } from '@/services/bursarService';
 import { registrarService } from '@/services/registrarService';
 import { notify } from '@/components/shared/Toast';

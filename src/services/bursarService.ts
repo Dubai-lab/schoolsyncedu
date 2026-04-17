@@ -496,7 +496,7 @@ export const bursarImportService = {
       .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,registration_number.ilike.%${query}%`)
       .limit(10);
     if (error) throw error;
-    return (data ?? []) as Array<{
+    return (data ?? []) as unknown as Array<{
       id: string;
       first_name: string;
       last_name: string;

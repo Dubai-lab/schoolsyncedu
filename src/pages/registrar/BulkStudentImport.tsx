@@ -6,7 +6,6 @@ import type { ImportStudentRow, ImportRowResult } from '@/services/registrarServ
 import { classService } from '@/services/classService';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import {
   Download, Upload, CheckCircle2, XCircle, AlertCircle,
