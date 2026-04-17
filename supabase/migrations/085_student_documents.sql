@@ -25,16 +25,17 @@ CREATE INDEX IF NOT EXISTS idx_student_documents_school_id
 -- ── RLS ───────────────────────────────────────────────────────────────────────
 ALTER TABLE student_documents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "staff_manage_student_documents"  ON student_documents;
+DROP POLICY IF EXISTS "student_view_own_documents"       ON student_documents;
+
 -- School staff can manage documents for students in their school
 CREATE POLICY "staff_manage_student_documents" ON student_documents
   FOR ALL TO authenticated
   USING (
-    school_id = (SELECT school_id FROM users WHERE auth_id = auth.uid() LIMIT 1)
-    OR EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'super_admin')
+    school_id = auth_school_id()
   )
   WITH CHECK (
-    school_id = (SELECT school_id FROM users WHERE auth_id = auth.uid() LIMIT 1)
-    OR EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'super_admin')
+    school_id = auth_school_id()
   );
 
 -- Students can view their own documents
@@ -42,9 +43,10 @@ CREATE POLICY "student_view_own_documents" ON student_documents
   FOR SELECT TO authenticated
   USING (
     student_id IN (
-      SELECT s.id FROM students s
-      JOIN users u ON u.id = s.user_id
-      WHERE u.auth_id = auth.uid()
+      SELECT s.id
+        FROM students s
+        JOIN users u ON u.id = s.user_id
+       WHERE u.auth_id = auth.uid()
     )
   );
 

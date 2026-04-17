@@ -106,7 +106,7 @@ export default function StudentDetail() {
     if (!docFile || !user?.school_id || !id) return;
     setUploading(true);
     try {
-      const label = docName.trim() || DOCUMENT_TYPES.find((t) => t.value === docType)?.label ?? docType;
+      const label = docName.trim() || (DOCUMENT_TYPES.find((t) => t.value === docType)?.label ?? docType);
       await studentDocumentService.upload(
         user.school_id,
         id,
