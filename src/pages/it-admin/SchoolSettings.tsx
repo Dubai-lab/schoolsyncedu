@@ -6,6 +6,8 @@ import type { SchoolSetting } from '@/types/application.types';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import {
   Settings,
@@ -20,7 +22,23 @@ import {
   EyeOff,
   ArrowRight,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
+
+const MONTHS = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
 
 // ==================== SETTINGS GROUPS ====================
 
@@ -97,6 +115,8 @@ export default function SchoolSettingsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [showCloseYear, setShowCloseYear] = useState(false);
+  const [closingYear, setClosingYear] = useState(false);
 
   // Load all settings
   const { data: settings, isLoading } = useFetch(
@@ -133,6 +153,23 @@ export default function SchoolSettingsPage() {
 
   const togglePassword = (key: string) => {
     setShowPasswords((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const closeYear = async () => {
+    const next = values['next_academic_year']?.trim();
+    if (!next) return;
+    setClosingYear(true);
+    try {
+      await registrarService.upsertSetting(schoolId, 'current_academic_year', next);
+      await registrarService.upsertSetting(schoolId, 'next_academic_year', '');
+      setValues((prev) => ({ ...prev, current_academic_year: next, next_academic_year: '' }));
+      setShowCloseYear(false);
+    } catch (err) {
+      console.error('Failed to close year:', err);
+      alert('Failed to close academic year');
+    } finally {
+      setClosingYear(false);
+    }
   };
 
   if (isLoading) {
@@ -253,9 +290,22 @@ export default function SchoolSettingsPage() {
 
       {/* Academic Year Management */}
       <Card className="p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Calendar className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Academic Year Management</h2>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Academic Year Management</h2>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCloseYear(true)}
+            disabled={!values['next_academic_year']?.trim()}
+            title={!values['next_academic_year']?.trim() ? 'Set Next Academic Year first' : 'Close current year and open the next'}
+            className="text-amber-600 border-amber-300 hover:bg-amber-50"
+          >
+            <RefreshCw className="h-4 w-4 mr-1.5" />
+            Close Current Year
+          </Button>
         </div>
 
         <div className="space-y-6">
@@ -267,7 +317,8 @@ export default function SchoolSettingsPage() {
                 <label className="text-sm font-medium text-slate-700">Current Academic Year</label>
               </div>
               <p className="text-xs text-slate-400 mt-0.5 ml-6">
-                The active year used for new student enrollments, fee assignments, and class records (e.g. <strong>2024/2025</strong>).
+                The active year for enrollments, fees, and class records (e.g. <strong>2025-2026</strong>).
+                In Liberia this runs <strong>September → June</strong>.
               </p>
             </div>
             <div className="flex items-center gap-2 sm:w-80">
@@ -275,7 +326,7 @@ export default function SchoolSettingsPage() {
                 type="text"
                 value={values['current_academic_year'] ?? ''}
                 onChange={(e) => setValues({ ...values, current_academic_year: e.target.value })}
-                placeholder="e.g. 2024/2025"
+                placeholder="e.g. 2025-2026"
                 className="flex-1"
               />
               <Button
@@ -302,8 +353,8 @@ export default function SchoolSettingsPage() {
                 <label className="text-sm font-medium text-slate-700">Next Academic Year</label>
               </div>
               <p className="text-xs text-slate-400 mt-0.5 ml-6">
-                The target year for year-end promotions (e.g. <strong>2025/2026</strong>).
-                The Registrar's promotion page reads this value automatically — set it before running promotions.
+                Target year for promotions (e.g. <strong>2026-2027</strong>).
+                Set this before the Registrar runs year-end promotions. Click <em>Close Current Year</em> when ready to open it.
               </p>
             </div>
             <div className="flex items-center gap-2 sm:w-80">
@@ -311,7 +362,7 @@ export default function SchoolSettingsPage() {
                 type="text"
                 value={values['next_academic_year'] ?? ''}
                 onChange={(e) => setValues({ ...values, next_academic_year: e.target.value })}
-                placeholder="e.g. 2025/2026"
+                placeholder="e.g. 2026-2027"
                 className="flex-1"
               />
               <Button
@@ -329,8 +380,108 @@ export default function SchoolSettingsPage() {
               </Button>
             </div>
           </div>
+
+          {/* Year Start & End Months */}
+          <div className="border-t border-slate-100 pt-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="h-4 w-4 text-slate-400" />
+                <label className="text-sm font-medium text-slate-700">Year Start Month</label>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">Month the academic year begins (Liberia: September).</p>
+              <div className="flex items-center gap-2">
+                <Select
+                  options={MONTHS}
+                  value={values['academic_year_start_month'] ?? '9'}
+                  onChange={(e) => setValues({ ...values, academic_year_start_month: e.target.value })}
+                  placeholder="Select month"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={saving === 'academic_year_start_month'}
+                  onClick={() => handleSave('academic_year_start_month')}
+                  className="shrink-0"
+                >
+                  {saved === 'academic_year_start_month' ? (
+                    <><Check className="h-4 w-4 mr-1 text-emerald-600" /> Saved</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-1" /> Save</>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="h-4 w-4 text-slate-400" />
+                <label className="text-sm font-medium text-slate-700">Year End Month</label>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">Month the academic year closes (Liberia: June).</p>
+              <div className="flex items-center gap-2">
+                <Select
+                  options={MONTHS}
+                  value={values['academic_year_end_month'] ?? '6'}
+                  onChange={(e) => setValues({ ...values, academic_year_end_month: e.target.value })}
+                  placeholder="Select month"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={saving === 'academic_year_end_month'}
+                  onClick={() => handleSave('academic_year_end_month')}
+                  className="shrink-0"
+                >
+                  {saved === 'academic_year_end_month' ? (
+                    <><Check className="h-4 w-4 mr-1 text-emerald-600" /> Saved</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-1" /> Save</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
+
+      {/* Close Year Confirmation Dialog */}
+      {showCloseYear && (
+        <Dialog open onClose={() => setShowCloseYear(false)} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close Academic Year?</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <p className="text-sm text-slate-600">
+              This will close <strong>{values['current_academic_year']}</strong> and open{' '}
+              <strong>{values['next_academic_year']}</strong> as the new current year.
+            </p>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700 space-y-1">
+              <p className="font-medium">Before closing, make sure:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>All year-end promotions have been processed by the Registrar</li>
+                <li>All promoted students have been assigned to a class</li>
+                <li>Graduation ceremony has been completed</li>
+              </ul>
+            </div>
+            <p className="text-xs text-slate-400">
+              New enrollments, fee structures, and class assignments will reference <strong>{values['next_academic_year']}</strong> going forward.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowCloseYear(false)}>Cancel</Button>
+            <Button
+              loading={closingYear}
+              onClick={closeYear}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-0"
+            >
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              Close {values['current_academic_year']} &amp; Open {values['next_academic_year']}
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      )}
 
       {/* Info box */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
