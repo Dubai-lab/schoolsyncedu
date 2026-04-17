@@ -41,7 +41,7 @@ export const studentPortalService = {
       .eq('school_id', schoolId)
       .eq('student_id', studentId)
       .eq('status', 'approved')
-      .order('created_at', { ascending: false });
+      .order('entered_at', { ascending: false });
     if (error) throw error;
     if (!grades || grades.length === 0) return [];
 
