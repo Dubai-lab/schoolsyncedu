@@ -248,8 +248,6 @@ BEGIN
 
   -- ── Create auth account if it does not exist yet ──────────────────────────
   IF NOT EXISTS (
-    SELECT 1 FROM users WHERE student_id_ref = p_student_id
-  ) AND NOT EXISTS (
     SELECT 1 FROM students s JOIN users u ON u.id = s.user_id WHERE s.id = p_student_id
   ) THEN
     -- Get default password from school settings
