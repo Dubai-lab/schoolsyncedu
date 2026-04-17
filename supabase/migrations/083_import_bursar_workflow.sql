@@ -601,11 +601,11 @@ BEGIN
 
   RETURN QUERY
   SELECT
-    s.id,
-    s.first_name,
-    s.last_name,
-    s.registration_number,
-    COALESCE(c.name, s.current_grade_level) AS class_name,
+    s.id                                        AS student_id,
+    s.first_name::TEXT                          AS first_name,
+    s.last_name::TEXT                           AS last_name,
+    s.registration_number::TEXT                 AS registration_number,
+    COALESCE(c.name, s.current_grade_level)::TEXT AS class_name,
     COALESCE(
       (SELECT sf.status::TEXT IN ('paid','partial')
          FROM student_fees sf
@@ -614,17 +614,17 @@ BEGIN
           AND fs.fee_type   = 'registration_fee'
         ORDER BY sf.created_at DESC LIMIT 1),
       TRUE
-    ) AS reg_fee_paid,
+    )                                           AS reg_fee_paid,
     COALESCE(
-      (SELECT sf.amount_due
+      (SELECT sf.amount_due::NUMERIC
          FROM student_fees sf
          JOIN fee_structures fs ON fs.id = sf.fee_structure_id
         WHERE sf.student_id = s.id
           AND fs.fee_type   = 'registration_fee'
         ORDER BY sf.created_at DESC LIMIT 1),
-      0
-    ) AS reg_fee_amount,
-    se.created_at::TIMESTAMPTZ AS imported_at
+      0::NUMERIC
+    )                                           AS reg_fee_amount,
+    se.created_at::TIMESTAMPTZ                  AS imported_at
   FROM students s
   JOIN student_enrollments se ON se.student_id = s.id
                               AND se.status     = 'pending_payment'
