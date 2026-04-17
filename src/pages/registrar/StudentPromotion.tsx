@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { promotionService } from '@/services/promotionService';
@@ -12,13 +12,13 @@ import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/c
 import { notify } from '@/components/shared/Toast';
 import {
   GraduationCap, TrendingUp, AlertTriangle, CheckCircle2,
-  Users, BarChart2, ChevronDown, ChevronUp,
+  Users, BarChart2, ChevronDown, ChevronUp, AlertCircle,
 } from 'lucide-react';
 
 const OUTCOME_CONFIG: Record<PromotionOutcome, { label: string; color: string; badgeVariant: 'success' | 'danger' | 'info' }> = {
   promoted:  { label: 'Promoted',  color: 'bg-emerald-100 text-emerald-700 border-emerald-300', badgeVariant: 'success' },
-  retained:  { label: 'Retained',  color: 'bg-red-100 text-red-700 border-red-300',             badgeVariant: 'danger' },
-  graduated: { label: 'Graduated', color: 'bg-blue-100 text-blue-700 border-blue-300',          badgeVariant: 'info' },
+  retained:  { label: 'Retained',  color: 'bg-red-100 text-red-700 border-red-300',             badgeVariant: 'danger'  },
+  graduated: { label: 'Graduated', color: 'bg-blue-100 text-blue-700 border-blue-300',          badgeVariant: 'info'    },
 };
 
 function OutcomeToggle({ value, onChange }: { value: PromotionOutcome; onChange: (v: PromotionOutcome) => void }) {
@@ -43,12 +43,13 @@ export default function StudentPromotion() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
 
-  const [selectedYear, setSelectedYear] = useState('');
-  const [decisions, setDecisions] = useState<Record<string, PromotionDecision>>({});
+  const [selectedYear, setSelectedYear]   = useState('');
+  const [nextYear, setNextYear]           = useState('');
+  const [decisions, setDecisions]         = useState<Record<string, PromotionDecision>>({});
   const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [notesFor, setNotesFor] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState('');
+  const [showConfirm, setShowConfirm]     = useState(false);
+  const [notesFor, setNotesFor]           = useState<string | null>(null);
+  const [noteText, setNoteText]           = useState('');
 
   const { data: years = [] } = useFetch(
     ['grade-years', schoolId],
@@ -56,13 +57,22 @@ export default function StudentPromotion() {
     { enabled: !!schoolId },
   );
 
+  // Pre-fill next year from school settings
+  const { data: settingNextYear } = useFetch(
+    ['next-academic-year', schoolId],
+    () => promotionService.getNextAcademicYear(schoolId),
+    { enabled: !!schoolId },
+  );
+  useEffect(() => {
+    if (settingNextYear && !nextYear) setNextYear(settingNextYear);
+  }, [settingNextYear]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: students = [], isLoading } = useFetch(
     ['promotion-students', schoolId, selectedYear],
     () => promotionService.getStudentsWithGrades(schoolId, selectedYear),
     { enabled: !!schoolId && !!selectedYear },
   );
 
-  // Initialise decisions from suggestions when students load
   useMemo(() => {
     if ((students as StudentGradeSummary[]).length > 0) {
       const initial: Record<string, PromotionDecision> = {};
@@ -77,23 +87,26 @@ export default function StudentPromotion() {
   }, [students]);
 
   const saveMutation = useMutate(
-    () => promotionService.savePromotions(
+    () => promotionService.processPromotion(
       schoolId,
       selectedYear,
+      nextYear.trim(),
       Object.values(decisions),
       user?.id ?? '',
     ),
-    [['promotion-students'], ['grade-years'], ['registrar-students']],
+    [['promotion-students'], ['grade-years'], ['registrar-students'], ['promoted-pending', schoolId]],
     {
-      onSuccess: () => {
-        notify.success(`${Object.values(decisions).length} students promoted for ${selectedYear}`);
+      onSuccess: (result) => {
+        notify.success(result?.message ?? 'Promotions processed');
         setShowConfirm(false);
         setDecisions({});
+      },
+      onError: (err: Error) => {
+        notify.error(err.message ?? 'Failed to process promotions');
       },
     },
   );
 
-  // Group students by grade level
   const byGrade = useMemo(() => {
     const map = new Map<string, StudentGradeSummary[]>();
     for (const s of students as StudentGradeSummary[]) {
@@ -140,6 +153,8 @@ export default function StudentPromotion() {
   const retainedCount  = Object.values(decisions).filter((d) => d.outcome === 'retained').length;
   const graduatedCount = Object.values(decisions).filter((d) => d.outcome === 'graduated').length;
   const totalStudents  = (students as StudentGradeSummary[]).length;
+  const allDecided     = totalStudents > 0 && Object.keys(decisions).length === totalStudents;
+  const canConfirm     = allDecided && !!selectedYear && nextYear.trim().length > 0;
 
   const yearOptions = (years as string[]).map((y) => ({ value: y, label: y }));
 
@@ -150,7 +165,8 @@ export default function StudentPromotion() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">Year-End Student Promotion</h1>
         <p className="text-sm text-slate-500">
-          Review student grades and confirm promotion, retention, or graduation for the selected academic year.
+          Review student grades and confirm promotion, retention, or graduation decisions.
+          Promoted students will appear in the Registrar dashboard awaiting class assignment for the new year.
         </p>
       </div>
 
@@ -159,13 +175,27 @@ export default function StudentPromotion() {
         <div className="flex flex-wrap items-end gap-4">
           <div className="w-56">
             <Select
-              label="Academic Year to Process"
+              label="Academic Year to Close"
               options={yearOptions}
               value={selectedYear}
               onChange={(e) => { setSelectedYear(e.target.value); setDecisions({}); }}
               placeholder="Select year..."
             />
           </div>
+
+          <div className="w-48">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Next Academic Year
+            </label>
+            <input
+              type="text"
+              value={nextYear}
+              onChange={(e) => setNextYear(e.target.value)}
+              placeholder="e.g. 2025-2026"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+            />
+          </div>
+
           {selectedYear && totalStudents > 0 && (
             <p className="text-sm text-slate-500 pb-1">
               <strong>{totalStudents}</strong> students pending promotion decision
@@ -174,10 +204,18 @@ export default function StudentPromotion() {
           {selectedYear && !isLoading && totalStudents === 0 && (
             <p className="text-sm text-slate-500 pb-1 flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              No pending students — either all have been processed or no approved grades exist for this year yet.
+              No pending students — all processed or no approved grades exist yet.
             </p>
           )}
         </div>
+
+        {/* Warn if next year is missing when there are students to decide */}
+        {totalStudents > 0 && !nextYear.trim() && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Enter the next academic year before confirming — it is required to create enrollments for promoted students.
+          </div>
+        )}
       </Card>
 
       {/* Summary bar */}
@@ -214,13 +252,12 @@ export default function StudentPromotion() {
         </div>
       ) : (
         byGrade.map(([grade, gradeStudents]) => {
-          const isExpanded = expandedGrades.has(grade);
+          const isExpanded  = expandedGrades.has(grade);
           const avgForGrade = gradeStudents.reduce((s, g) => s + (g.average_score ?? 0), 0) / gradeStudents.length;
-          const passCount = gradeStudents.filter((s) => (s.average_score ?? 0) >= 50).length;
+          const passCount   = gradeStudents.filter((s) => (s.average_score ?? 0) >= 50).length;
 
           return (
             <Card key={grade} className="overflow-hidden">
-              {/* Grade header */}
               <div
                 className="flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-100 cursor-pointer select-none"
                 onClick={() => toggleGrade(grade)}
@@ -233,7 +270,6 @@ export default function StudentPromotion() {
                   <span className="text-xs text-slate-400">· {passCount}/{gradeStudents.length} passed</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Bulk actions */}
                   <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => bulkSetGrade(grade, 'promoted')}
@@ -247,23 +283,27 @@ export default function StudentPromotion() {
                     >
                       Retain All
                     </button>
+                    <button
+                      onClick={() => bulkSetGrade(grade, 'graduated')}
+                      className="px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                    >
+                      Graduate All
+                    </button>
                   </div>
                   {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                 </div>
               </div>
 
-              {/* Student rows */}
               {isExpanded && (
                 <div className="divide-y divide-slate-50">
                   {gradeStudents.map((s) => {
-                    const decision = decisions[s.student_id];
-                    const outcome = decision?.outcome ?? s.suggested_outcome;
-                    const hasNote = decision?.notes;
+                    const decision   = decisions[s.student_id];
+                    const outcome    = decision?.outcome ?? s.suggested_outcome;
+                    const hasNote    = decision?.notes;
                     const isSuggested = outcome === s.suggested_outcome;
 
                     return (
                       <div key={s.student_id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50/60 transition-colors">
-                        {/* Student info */}
                         <div className="w-52 min-w-0">
                           <p className="font-medium text-slate-900 text-sm truncate">
                             {s.last_name}, {s.first_name}
@@ -271,30 +311,23 @@ export default function StudentPromotion() {
                           <p className="text-xs text-slate-400">{s.registration_number}</p>
                         </div>
 
-                        {/* Grade stats */}
                         <div className="flex gap-4 text-xs text-slate-500 flex-1">
                           <div className="flex items-center gap-1">
                             <BarChart2 className="h-3.5 w-3.5" />
-                            <span>
-                              {s.average_score !== null ? (
-                                <span className={s.average_score >= 50 ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>
-                                  {s.average_score}%
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 italic">No grades</span>
-                              )}
-                            </span>
+                            {s.average_score !== null ? (
+                              <span className={s.average_score >= 50 ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                {s.average_score}%
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">No grades</span>
+                            )}
                           </div>
                           <span>{s.subjects_passed}/{s.subject_count} subjects passed</span>
-                          {!isSuggested && (
-                            <Badge variant="warning" size="sm">Overridden</Badge>
-                          )}
+                          {!isSuggested && <Badge variant="warning" size="sm">Overridden</Badge>}
                         </div>
 
-                        {/* Outcome toggle */}
                         <OutcomeToggle value={outcome} onChange={(v) => setOutcome(s.student_id, v)} />
 
-                        {/* Notes button */}
                         <button
                           onClick={() => { setNotesFor(s.student_id); setNoteText(decision?.notes ?? ''); }}
                           className={`text-xs px-2 py-1 rounded border transition-colors ${hasNote ? 'bg-amber-50 text-amber-700 border-amber-200' : 'text-slate-400 border-slate-200 hover:bg-slate-100'}`}
@@ -312,9 +345,14 @@ export default function StudentPromotion() {
       )}
 
       {/* Confirm button */}
-      {totalStudents > 0 && Object.keys(decisions).length === totalStudents && (
+      {allDecided && (
         <div className="flex justify-end pt-2">
-          <Button onClick={() => setShowConfirm(true)} className="px-6">
+          <Button
+            onClick={() => setShowConfirm(true)}
+            disabled={!canConfirm}
+            title={!nextYear.trim() ? 'Enter the next academic year above first' : undefined}
+            className="px-6"
+          >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Confirm Promotion for {selectedYear}
           </Button>
@@ -348,22 +386,24 @@ export default function StudentPromotion() {
           <DialogBody className="space-y-3">
             <p className="text-sm text-slate-600">
               You are about to finalise promotion decisions for <strong>{selectedYear}</strong>.
-              This will update all student grade levels and cannot be undone.
+              Promoted students will move to <strong>{nextYear}</strong> and will appear in your
+              dashboard awaiting class assignment.
             </p>
             <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-emerald-700 font-medium">Promoted</span>
+                <span className="text-emerald-700 font-medium">Promoted → needs class assignment</span>
                 <span className="font-bold">{promotedCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-red-600 font-medium">Retained</span>
+                <span className="text-red-600 font-medium">Retained → stays in {selectedYear}</span>
                 <span className="font-bold">{retainedCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-blue-700 font-medium">Graduated</span>
+                <span className="text-blue-700 font-medium">Graduated → account deactivated</span>
                 <span className="font-bold">{graduatedCount}</span>
               </div>
             </div>
+            <p className="text-xs text-slate-400">This action cannot be undone.</p>
           </DialogBody>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowConfirm(false)}>Cancel</Button>

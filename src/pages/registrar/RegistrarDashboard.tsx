@@ -8,6 +8,8 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
+import { promotionService } from '@/services/promotionService';
+import type { PromotedPendingAssignment } from '@/services/promotionService';
 import {
   ClipboardList,
   FileCheck,
@@ -88,6 +90,13 @@ export default function RegistrarDashboard() {
   const schoolId = user?.school_id ?? '';
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
 
+  // Promoted students awaiting class assignment
+  const { data: promotedPending = [] } = useFetch(
+    ['promoted-pending', schoolId],
+    () => promotionService.listPendingAssignment(schoolId),
+    { enabled: !!schoolId },
+  );
+
   // Dashboard stats
   const { data: stats } = useFetch(
     ['registrar-stats', schoolId],
@@ -147,7 +156,7 @@ export default function RegistrarDashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard label="Total Applications" value={stats?.totalApplications ?? 0} icon={ClipboardList} color="blue" />
         <StatCard label="Pending Review" value={stats?.pendingReview ?? 0} icon={Clock} color="amber" />
         <StatCard label="Accepted" value={stats?.accepted ?? 0} icon={FileCheck} color="green" />
@@ -167,6 +176,13 @@ export default function RegistrarDashboard() {
           icon={AlertCircle}
           color="amber"
           trend={(stats?.pendingImportEnrollments ?? 0) > 0 ? 'Awaiting Bursar clearance' : undefined}
+        />
+        <StatCard
+          label="Promoted — Needs Class"
+          value={(promotedPending as PromotedPendingAssignment[]).length}
+          icon={GraduationCap}
+          color="purple"
+          trend={(promotedPending as PromotedPendingAssignment[]).length > 0 ? 'Assign class to activate' : undefined}
         />
       </div>
 
@@ -258,6 +274,73 @@ export default function RegistrarDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Promoted Students Pending Class Assignment ────────────── */}
+      {(promotedPending as PromotedPendingAssignment[]).length > 0 && (
+        <div className="rounded-xl border border-purple-200 bg-white">
+          <div className="flex items-center gap-3 border-b border-purple-100 bg-purple-50 px-5 py-3.5 rounded-t-xl">
+            <GraduationCap className="h-5 w-5 text-purple-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-purple-800">
+                {(promotedPending as PromotedPendingAssignment[]).length} promoted student{(promotedPending as PromotedPendingAssignment[]).length !== 1 ? 's' : ''} awaiting class assignment
+              </p>
+              <p className="text-xs text-purple-600 mt-0.5">
+                Registration fee must be paid first; then assign each student to a class to activate their enrollment.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/registrar/promoted')}
+              className="shrink-0 flex items-center gap-1 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
+            >
+              Assign Classes <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs font-medium text-slate-500">
+                  <th className="px-5 py-2.5 text-left">Student</th>
+                  <th className="px-5 py-2.5 text-left">From Grade</th>
+                  <th className="px-5 py-2.5 text-left">New Year</th>
+                  <th className="px-5 py-2.5 text-left">Reg Fee</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {(promotedPending as PromotedPendingAssignment[]).slice(0, 5).map((s) => (
+                  <tr key={s.student_id} className="hover:bg-slate-50">
+                    <td className="px-5 py-2.5 font-medium text-slate-900">
+                      {s.first_name} {s.last_name}
+                    </td>
+                    <td className="px-5 py-2.5 text-slate-600">{s.from_grade_level}</td>
+                    <td className="px-5 py-2.5 text-slate-600">{s.next_year}</td>
+                    <td className="px-5 py-2.5">
+                      {s.reg_fee_paid ? (
+                        <Badge variant="success" size="sm">
+                          <CheckCircle2 className="inline h-3 w-3 mr-0.5" /> Paid
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning" size="sm">
+                          Pending ${Number(s.reg_fee_amount).toFixed(2)}
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(promotedPending as PromotedPendingAssignment[]).length > 5 && (
+              <div className="px-5 py-3 border-t border-slate-50 text-center">
+                <button
+                  onClick={() => navigate('/registrar/promoted')}
+                  className="text-sm text-purple-600 font-medium hover:text-purple-700"
+                >
+                  View all {(promotedPending as PromotedPendingAssignment[]).length} students →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

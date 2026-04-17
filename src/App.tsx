@@ -167,6 +167,7 @@ import RegistrarDashboard from '@/pages/registrar/RegistrarDashboard';
 import ApplicationReview from '@/pages/registrar/ApplicationReview';
 import ApplicationDetail from '@/pages/registrar/ApplicationDetail';
 import StudentPromotion from '@/pages/registrar/StudentPromotion';
+import PromotedStudents from '@/pages/registrar/PromotedStudents';
 import BulkStudentImport from '@/pages/registrar/BulkStudentImport';
 
 // Bursar pages
@@ -373,6 +374,7 @@ export default function App() {
           <Route path="/registrar/applications" element={<ApplicationReview />} />
           <Route path="/registrar/applications/:id" element={<ApplicationDetail />} />
           <Route path="/registrar/promotion" element={<StudentPromotion />} />
+          <Route path="/registrar/promoted" element={<PromotedStudents />} />
           <Route path="/registrar/import" element={<BulkStudentImport />} />
           {/* Bursar / Finance module */}
           <Route path="/bursar" element={<BursarDashboard />} />
