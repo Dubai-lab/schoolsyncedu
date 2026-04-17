@@ -31,9 +31,13 @@ export default function PromotedStudents() {
     { enabled: !!schoolId },
   );
 
+  // The next_year for promoted students — derived from the first pending row
+  const nextYear = (pending as PromotedPendingAssignment[])[0]?.next_year ?? '';
+
+  // Load classes for the next year specifically so the dropdown is relevant
   const { data: classData } = useFetch(
-    ['classes', schoolId],
-    () => classService.list(schoolId),
+    ['classes', schoolId, nextYear],
+    () => classService.list(schoolId, undefined, nextYear || undefined),
     { enabled: !!schoolId },
   );
   const classes: Class[] = classData?.data ?? [];
@@ -202,8 +206,11 @@ export default function PromotedStudents() {
               </select>
               {classes.length === 0 && (
                 <p className="mt-1.5 text-xs text-amber-600">
-                  No classes found. Ask the Principal to create classes for {assigningStudent.next_year} first.
+                  No classes found for {assigningStudent.next_year}. Ask the Principal to create classes for that year first.
                 </p>
+              )}
+              {classes.length > 0 && (
+                <p className="mt-1 text-xs text-slate-400">Showing classes for {assigningStudent.next_year}</p>
               )}
             </div>
           </DialogBody>
