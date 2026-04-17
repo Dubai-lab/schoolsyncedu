@@ -116,12 +116,12 @@ export const studentPortalService = {
 
   // ==================== FEES ====================
 
-  /** Get my assigned fees */
+  /** Get my assigned fees (with term installments when they exist) */
   async getMyFees(_schoolId: UUID, studentId: UUID) {
     const { data, error } = await supabase
       .from('student_fees')
       .select(
-        '*, fee_structures(fee_type, amount_usd, amount_lrd, academic_year, grade_level, due_date)',
+        '*, fee_structures(fee_type, amount_usd, amount_lrd, academic_year, grade_level, due_date), student_fee_installments(id, term_name, term_order, amount_due, amount_paid, balance, status, due_date)',
       )
       .eq('student_id', studentId)
       .order('created_at', { ascending: false });

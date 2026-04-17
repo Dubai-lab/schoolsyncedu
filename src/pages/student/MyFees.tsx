@@ -48,6 +48,17 @@ function statusVariant(s: string) {
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
+interface InstallmentRow {
+  id: string;
+  term_name: string;
+  term_order: number;
+  amount_due: number;
+  amount_paid: number;
+  balance: number;
+  status: string;
+  due_date: string | null;
+}
+
 interface FeeRow {
   id: string;
   student_id: string;
@@ -65,6 +76,7 @@ interface FeeRow {
     grade_level: string;
     due_date: string | null;
   } | null;
+  student_fee_installments?: InstallmentRow[];
 }
 
 interface PaymentRow {
@@ -186,14 +198,16 @@ interface PaymentModalProps {
   userEmail: string;
   paymentCfg: PaymentConfigPublic | null;
   schoolName: string;
+  /** Pre-fill the amount field (e.g. for paying a specific installment) */
+  initialAmount?: number;
   onClose: () => void;
   onPaid: () => void;
 }
 
 function PaymentModal({
-  fee, student, schoolId, studentDbId, paymentCfg, schoolName, onClose, onPaid,
+  fee, student, schoolId, studentDbId, paymentCfg, schoolName, initialAmount, onClose, onPaid,
 }: PaymentModalProps) {
-  const [amount, setAmount] = useState(String(fee.balance));
+  const [amount, setAmount] = useState(String(initialAmount ?? fee.balance));
 
   // Stripe state
   const stripePromise = useMemo(
@@ -624,9 +638,10 @@ export default function MyFees() {
   const schoolId = user?.school_id ?? '';
   const userId   = user?.id ?? '';
 
-  const [activeTab,     setActiveTab]     = useState<'fees' | 'history' | 'invoices'>('fees');
-  const [selectedFee,   setSelectedFee]   = useState<FeeRow | null>(null);
-  const [paymentCfg,    setPaymentCfg]    = useState<PaymentConfigPublic | null>(null);
+  const [activeTab,          setActiveTab]          = useState<'fees' | 'history' | 'invoices'>('fees');
+  const [selectedFee,        setSelectedFee]        = useState<FeeRow | null>(null);
+  const [selectedFeeAmount,  setSelectedFeeAmount]  = useState<number | undefined>(undefined);
+  const [paymentCfg,         setPaymentCfg]         = useState<PaymentConfigPublic | null>(null);
   const [cfgLoaded,     setCfgLoaded]     = useState(false);
   const [schoolName,    setSchoolName]    = useState('');
 
@@ -744,7 +759,7 @@ export default function MyFees() {
             </div>
           </div>
           <button
-            onClick={() => { setActiveTab('fees'); if (unpaidFees[0]) setSelectedFee(unpaidFees[0]); }}
+            onClick={() => { setActiveTab('fees'); if (unpaidFees[0]) { setSelectedFee(unpaidFees[0]); setSelectedFeeAmount(undefined); } }}
             className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700"
           >
             <CreditCard className="h-3.5 w-3.5" /> View Fees
@@ -809,15 +824,17 @@ export default function MyFees() {
           ) : (
             <div className="space-y-3">
               {fees.map((f) => {
-                const feeType = f.fee_structures?.fee_type?.replace(/_/g, ' ') ?? 'Fee';
-                const isPaid  = f.status === 'paid';
+                const feeType      = f.fee_structures?.fee_type?.replace(/_/g, ' ') ?? 'Fee';
+                const isPaid       = f.status === 'paid';
+                const installments = (f.student_fee_installments ?? [])
+                  .slice()
+                  .sort((a, b) => a.term_order - b.term_order);
+                const hasInstallments = installments.length > 0;
+
                 return (
-                  <Card
-                    key={f.id}
-                    className={`overflow-hidden transition-shadow ${!isPaid ? 'hover:shadow-md' : ''}`}
-                  >
+                  <Card key={f.id} className="overflow-hidden transition-shadow">
+                    {/* Fee header row */}
                     <div className="flex items-center gap-4 p-4">
-                      {/* Icon */}
                       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
                         isPaid ? 'bg-emerald-100' : 'bg-blue-100'
                       }`}>
@@ -827,21 +844,25 @@ export default function MyFees() {
                         }
                       </div>
 
-                      {/* Details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-slate-800 capitalize">{feeType}</p>
                           <Badge variant={statusVariant(f.status)} size="sm">{f.status}</Badge>
+                          {hasInstallments && (
+                            <span className="text-xs text-slate-400">{installments.length} terms</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
-                          <span>Due: {f.due_date ? new Date(f.due_date).toLocaleDateString() : 'N/A'}</span>
+                          {!hasInstallments && (
+                            <span>Due: {f.due_date ? new Date(f.due_date).toLocaleDateString() : 'N/A'}</span>
+                          )}
+                          <span>Total: {fmtUSD(f.amount_due)}</span>
                           {f.amount_paid > 0 && (
                             <span className="text-emerald-600">Paid: {fmtUSD(f.amount_paid)}</span>
                           )}
                         </div>
                       </div>
 
-                      {/* Amount + action */}
                       <div className="flex items-center gap-4 shrink-0">
                         <div className="text-right">
                           <p className="text-xs text-slate-400">Balance</p>
@@ -849,17 +870,70 @@ export default function MyFees() {
                             {fmtUSD(f.balance)}
                           </p>
                         </div>
+                        {/* Pay full balance — always available when not fully paid */}
                         {!isPaid && (
                           <button
-                            onClick={() => setSelectedFee(f)}
+                            onClick={() => { setSelectedFee(f); setSelectedFeeAmount(undefined); }}
                             className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow transition hover:bg-blue-700"
                           >
                             <CreditCard className="h-4 w-4" />
-                            Pay Now
+                            {hasInstallments ? 'Pay Full' : 'Pay Now'}
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {/* Installment rows — shown when term splits exist */}
+                    {hasInstallments && (
+                      <div className="border-t border-slate-100">
+                        <div className="px-4 py-2 bg-slate-50">
+                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Term Installments</p>
+                        </div>
+                        <div className="divide-y divide-slate-50">
+                          {installments.map((inst) => {
+                            const instPaid = inst.status === 'paid';
+                            return (
+                              <div key={inst.id} className="flex items-center gap-3 px-4 py-3">
+                                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                  instPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {inst.term_order}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-700">{inst.term_name}</p>
+                                  {inst.due_date && (
+                                    <p className="text-xs text-slate-400">
+                                      Due: {new Date(inst.due_date).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-sm font-bold text-slate-800">{fmtUSD(inst.amount_due)}</p>
+                                  {inst.amount_paid > 0 && inst.amount_paid < inst.amount_due && (
+                                    <p className="text-xs text-emerald-600">Paid: {fmtUSD(inst.amount_paid)}</p>
+                                  )}
+                                </div>
+                                <div className="shrink-0">
+                                  {instPaid ? (
+                                    <Badge variant="success" size="sm">
+                                      <CheckCircle2 className="h-3 w-3 mr-0.5" /> Paid
+                                    </Badge>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setSelectedFee(f); setSelectedFeeAmount(inst.balance); }}
+                                      className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600"
+                                    >
+                                      <CreditCard className="h-3 w-3" />
+                                      Pay {fmtUSD(inst.balance)}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
@@ -990,7 +1064,8 @@ export default function MyFees() {
           userEmail={user?.email ?? ''}
           paymentCfg={paymentCfg}
           schoolName={schoolName}
-          onClose={() => setSelectedFee(null)}
+          initialAmount={selectedFeeAmount}
+          onClose={() => { setSelectedFee(null); setSelectedFeeAmount(undefined); }}
           onPaid={handlePaid}
         />
       )}
