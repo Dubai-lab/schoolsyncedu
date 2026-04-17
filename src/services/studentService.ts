@@ -43,7 +43,7 @@ export const studentService = {
     if (error) throw error;
 
     return {
-      data: (data ?? []) as (Student & { guardians: Pick<Guardian, 'id' | 'full_name' | 'phone' | 'relationship'>[] })[],
+      data: (data ?? []) as (Student & { guardians: Pick<Guardian, 'id' | 'full_name' | 'phone' | 'relationship'>[]; student_enrollments?: { status: string }[] })[],
       total: count ?? 0,
       page,
       pageSize,

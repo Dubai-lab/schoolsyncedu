@@ -37,7 +37,7 @@ interface StudentRow {
   status: StudentStatus;
   enrollment_date: string;
   guardians: { full_name: string; phone: string; relationship: string }[];
-  student_enrollments: { status: string }[];
+  student_enrollments?: { status: string }[];
 }
 
 // ==================== COLUMNS ====================
