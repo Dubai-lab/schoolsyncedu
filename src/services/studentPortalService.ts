@@ -63,7 +63,7 @@ export const studentPortalService = {
       .from('report_cards')
       .select('*')
       .eq('student_id', studentId)
-      .order('created_at', { ascending: false });
+      .order('generated_at', { ascending: false });
     if (error) throw error;
     return data ?? [];
   },
@@ -75,7 +75,7 @@ export const studentPortalService = {
       .from('transcripts')
       .select('*')
       .eq('student_id', studentId)
-      .order('created_at', { ascending: false });
+      .order('generated_at', { ascending: false });
     if (error) throw error;
     return data ?? [];
   },
