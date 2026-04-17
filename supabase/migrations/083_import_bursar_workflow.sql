@@ -251,10 +251,10 @@ BEGIN
     SELECT 1 FROM students s JOIN users u ON u.id = s.user_id WHERE s.id = p_student_id
   ) THEN
     -- Get default password from school settings
-    SELECT value INTO v_default_pw
+    SELECT setting_value INTO v_default_pw
       FROM school_settings
-     WHERE school_id = v_student.school_id
-       AND key       = 'default_student_password'
+     WHERE school_id  = v_student.school_id
+       AND setting_key = 'default_student_password'
      LIMIT 1;
 
     v_email       := LOWER(TRIM(v_student.registration_number)) || '@student.schoolsync';
