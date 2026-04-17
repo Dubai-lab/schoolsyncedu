@@ -76,8 +76,8 @@ export const bursarService = {
     schoolId: string,
     form: {
       academicYear: string;
-      classId: string; // classes.id
-      className: string; // classes.name e.g. "12A" — stored in grade_level for display
+      classId?: string | null; // null = school-wide (e.g. registration fee)
+      className: string;       // display label stored in grade_level
       feeType: string;
       amountUsd: number;
       amountLrd: number;
@@ -88,24 +88,28 @@ export const bursarService = {
     const { data, error } = await supabase
       .from('fee_structures')
       .insert({
-        school_id: schoolId,
+        school_id:    schoolId,
         academic_year: form.academicYear,
-        class_id: form.classId,
-        grade_level: form.className, // store class name for easy display
-        fee_type: form.feeType,
-        amount_usd: form.amountUsd,
-        amount_lrd: form.amountLrd,
-        description: form.description ?? null,
-        due_date: form.dueDate,
+        class_id:     form.classId ?? null,
+        grade_level:  form.className,
+        fee_type:     form.feeType,
+        amount_usd:   form.amountUsd,
+        amount_lrd:   form.amountLrd,
+        description:  form.description ?? null,
+        due_date:     form.dueDate,
       })
       .select()
       .single();
     if (error) throw error;
 
-    // Auto-assign this fee to all currently enrolled students in the class
-    await supabase.rpc('auto_assign_fees_for_new_structure', {
-      p_fee_structure_id: data.id,
-    });
+    // Only auto-assign to enrolled students when this is a class-specific fee.
+    // School-wide fees (class_id IS NULL, e.g. registration) are assigned
+    // individually during the promotion flow — not bulk-pushed to everyone.
+    if (form.classId) {
+      await supabase.rpc('auto_assign_fees_for_new_structure', {
+        p_fee_structure_id: data.id,
+      });
+    }
 
     return data as FeeStructure;
   },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { bursarService, feeInstallmentService } from '@/services/bursarService';
@@ -94,13 +94,34 @@ export default function FeeStructures() {
   const [splitSaving, setSplitSaving] = useState(false);
   const [splitError, setSplitError] = useState('');
 
-  // Academic year from school settings
+  // Academic years from school settings
   const { data: currentAcademicYear } = useFetch(
     ['school-setting-academic-year', schoolId],
     () => registrarService.getSetting(schoolId, 'current_academic_year'),
     { enabled: !!schoolId },
   );
-  const academicYear = currentAcademicYear || '';
+  const { data: nextAcademicYear } = useFetch(
+    ['school-setting-next-academic-year', schoolId],
+    () => registrarService.getSetting(schoolId, 'next_academic_year'),
+    { enabled: !!schoolId },
+  );
+
+  // Which year is currently being viewed/edited — defaults to current year
+  const [selectedYear, setSelectedYear] = useState('');
+
+  // Once settings load, default to current year
+  useEffect(() => {
+    if (currentAcademicYear && !selectedYear) {
+      setSelectedYear(currentAcademicYear as string);
+    }
+  }, [currentAcademicYear, selectedYear]);
+
+  const academicYear = selectedYear || (currentAcademicYear as string) || '';
+
+  const yearOptions = [
+    currentAcademicYear ? { label: `${currentAcademicYear} (Current)`, value: currentAcademicYear as string } : null,
+    nextAcademicYear    ? { label: `${nextAcademicYear} (Next)`,    value: nextAcademicYear as string }    : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   // Classes created by the principal
   const { data: classesResult, isLoading: classesLoading } = useFetch(
@@ -110,10 +131,16 @@ export default function FeeStructures() {
   );
   const classes = classesResult?.data ?? [];
 
-  const classOptions = classes.map((c) => ({
-    label: `${c.name}${c.grade_level ? ` (${c.grade_level})` : ''}`,
-    value: c.id,
-  }));
+  // "school-wide" sentinel value means class_id = NULL (school-wide registration fee)
+  const SCHOOL_WIDE = '__school_wide__';
+
+  const classOptions = [
+    { label: 'School-wide (Registration fee — no specific class)', value: SCHOOL_WIDE },
+    ...classes.map((c) => ({
+      label: `${c.name}${c.grade_level ? ` (${c.grade_level})` : ''}`,
+      value: c.id,
+    })),
+  ];
 
   // Fee structures for this academic year
   const { data: feeStructures, isLoading, refetch } = useFetch(
@@ -134,11 +161,12 @@ export default function FeeStructures() {
           dueDate: form.dueDate,
         });
       } else {
+        const isSchoolWide = form.classId === SCHOOL_WIDE;
         const selectedClass = classes.find((c) => c.id === form.classId);
         await bursarService.createFeeStructure(schoolId, {
           academicYear,
-          classId: form.classId,
-          className: selectedClass?.name ?? form.classId,
+          classId:   isSchoolWide ? null : form.classId,
+          className: isSchoolWide ? 'School-wide' : (selectedClass?.name ?? form.classId),
           feeType: form.feeType,
           amountUsd: parseFloat(form.amountUsd),
           amountLrd: parseFloat(form.amountLrd) || 0,
@@ -311,17 +339,28 @@ export default function FeeStructures() {
             {feeStructures?.length ?? 0} fee structure{(feeStructures?.length ?? 0) !== 1 ? 's' : ''} defined
           </p>
         </div>
-        <div className="flex gap-2">
-          {academicYear && (
+        <div className="flex items-center gap-2">
+          {/* Year selector */}
+          {yearOptions.length > 1 ? (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 focus:border-primary-400 focus:outline-none"
+            >
+              {yearOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : academicYear ? (
             <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">
               {academicYear}
             </span>
-          )}
+          ) : null}
           <Button
             size="sm"
             icon={<Plus className="h-4 w-4" />}
             onClick={() => { setEditingFee(null); setForm(emptyForm); setShowForm(!showForm); }}
-            disabled={noClasses}
+            disabled={!academicYear}
           >
             {showForm ? 'Cancel' : 'Add Fee'}
           </Button>
@@ -345,27 +384,29 @@ export default function FeeStructures() {
       )}
 
       {/* Create / Edit Form */}
-      {showForm && !noClasses && (
+      {showForm && (
         <Card className="p-6 border-primary-200 bg-primary-50/30">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">
             {editingFee ? 'Edit Fee Structure' : 'New Fee Structure'}
           </h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Creating for: <strong>{academicYear || 'No year set'}</strong>
+            {academicYear === (nextAcademicYear as string) && (
+              <span className="ml-2 inline-flex items-center rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 text-xs font-medium">
+                Next year — use for promotion registration fees
+              </span>
+            )}
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Academic Year</label>
-              <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700">
-                {academicYear || 'Not set'}
-              </div>
-            </div>
             <Select
-              label="Class *"
+              label="Class / Scope *"
               options={classOptions}
               value={form.classId}
               onChange={(e) => {
                 const cls = classes.find((c) => c.id === e.target.value);
                 setForm({ ...form, classId: e.target.value, className: cls?.name ?? '' });
               }}
-              placeholder={classesLoading ? 'Loading classes…' : 'Select class'}
+              placeholder={classesLoading ? 'Loading classes…' : 'Select class or School-wide'}
               disabled={!!editingFee}
             />
             <Select
@@ -411,7 +452,7 @@ export default function FeeStructures() {
             <Button
               size="sm"
               loading={saving}
-              disabled={!form.classId || !form.feeType || !form.amountUsd || !form.dueDate}
+              disabled={!form.feeType || !form.amountUsd || !form.dueDate || (!form.classId && form.feeType !== 'registration')}
               onClick={handleSave}
             >
               <Check className="h-4 w-4 mr-1" /> {editingFee ? 'Update Fee Structure' : 'Save Fee Structure'}
