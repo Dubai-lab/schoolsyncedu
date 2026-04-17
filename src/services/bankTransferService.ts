@@ -146,7 +146,7 @@ export const bankTransferService = {
       p_amount_usd:       opts.amountUsd,
       p_amount_lrd:       0,
       p_currency_charged: 'USD',
-      p_payment_method:   'bank_transfer',
+      p_payment_method:   'bank',
       p_gateway_ref:      `BTR-${opts.proofId.slice(-8)}`,
       p_recorded_by:      opts.verifiedBy,
     });
