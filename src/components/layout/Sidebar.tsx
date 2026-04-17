@@ -201,7 +201,7 @@ const navGroups: NavGroup[] = [
       { label: 'Applications', path: '/registrar/applications', icon: ClipboardList, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Report Cards', path: '/grades/reports', icon: FileText, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Transcripts', path: '/grades/transcript', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR] },
-      { label: 'Year-End Promotion', path: '/registrar/promotion', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL] },
+      { label: 'Promoted Students', path: '/registrar/promoted', icon: UserCheck, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Import Students', path: '/registrar/import', icon: Upload, roles: [USER_ROLES.REGISTRAR, USER_ROLES.IT_ADMIN, USER_ROLES.ADMIN_STAFF] },
     ],
   },
