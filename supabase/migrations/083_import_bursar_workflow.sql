@@ -394,7 +394,7 @@ BEGIN
     FROM student_fees sf
     JOIN fee_structures fs ON fs.id = sf.fee_structure_id
    WHERE sf.student_id = p_student_id
-     AND fs.fee_type   = 'registration_fee'
+     AND fs.fee_type   = 'registration'
    ORDER BY sf.created_at DESC
    LIMIT 1;
 
