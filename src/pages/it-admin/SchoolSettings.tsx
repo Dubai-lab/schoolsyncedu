@@ -18,6 +18,8 @@ import {
   Calendar,
   Eye,
   EyeOff,
+  ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 
 // ==================== SETTINGS GROUPS ====================
@@ -39,7 +41,7 @@ const settingsGroups: { title: string; icon: React.ElementType; fields: SettingF
       {
         key: 'default_staff_password',
         label: 'Default Staff Password',
-        description: 'Password assigned to new staff accounts. IT Admin shares this with the new staff member. They should change it after first login.',
+        description: 'Password assigned to new staff accounts. Share with the new staff member — they should change it after first login.',
         type: 'password',
         icon: Shield,
         placeholder: 'e.g., Staff@2025',
@@ -47,7 +49,7 @@ const settingsGroups: { title: string; icon: React.ElementType; fields: SettingF
       {
         key: 'default_student_password',
         label: 'Default Student Password',
-        description: 'Password assigned to new student accounts when accepted. Students can change it after first login.',
+        description: 'Password assigned to new student accounts when accepted. Students log in with their registration number and this password.',
         type: 'password',
         icon: Shield,
         placeholder: 'e.g., Welcome@2025',
@@ -80,14 +82,6 @@ const settingsGroups: { title: string; icon: React.ElementType; fields: SettingF
         type: 'number',
         icon: DollarSign,
         placeholder: '0.00',
-      },
-      {
-        key: 'current_academic_year',
-        label: 'Current Academic Year',
-        description: 'The active academic year for new enrollments.',
-        type: 'text',
-        icon: Calendar,
-        placeholder: '2025-2026',
       },
     ],
   },
@@ -256,6 +250,87 @@ export default function SchoolSettingsPage() {
           </div>
         </Card>
       ))}
+
+      {/* Academic Year Management */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <Calendar className="h-5 w-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-slate-900">Academic Year Management</h2>
+        </div>
+
+        <div className="space-y-6">
+          {/* Current Academic Year */}
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <ArrowRight className="h-4 w-4 text-slate-400" />
+                <label className="text-sm font-medium text-slate-700">Current Academic Year</label>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5 ml-6">
+                The active year used for new student enrollments, fee assignments, and class records (e.g. <strong>2024/2025</strong>).
+              </p>
+            </div>
+            <div className="flex items-center gap-2 sm:w-80">
+              <Input
+                type="text"
+                value={values['current_academic_year'] ?? ''}
+                onChange={(e) => setValues({ ...values, current_academic_year: e.target.value })}
+                placeholder="e.g. 2024/2025"
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                loading={saving === 'current_academic_year'}
+                onClick={() => handleSave('current_academic_year')}
+                className="shrink-0"
+              >
+                {saved === 'current_academic_year' ? (
+                  <><Check className="h-4 w-4 mr-1 text-emerald-600" /> Saved</>
+                ) : (
+                  <><Save className="h-4 w-4 mr-1" /> Save</>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Next Academic Year */}
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-400" />
+                <label className="text-sm font-medium text-slate-700">Next Academic Year</label>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5 ml-6">
+                The target year for year-end promotions (e.g. <strong>2025/2026</strong>).
+                The Registrar's promotion page reads this value automatically — set it before running promotions.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 sm:w-80">
+              <Input
+                type="text"
+                value={values['next_academic_year'] ?? ''}
+                onChange={(e) => setValues({ ...values, next_academic_year: e.target.value })}
+                placeholder="e.g. 2025/2026"
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                loading={saving === 'next_academic_year'}
+                onClick={() => handleSave('next_academic_year')}
+                className="shrink-0"
+              >
+                {saved === 'next_academic_year' ? (
+                  <><Check className="h-4 w-4 mr-1 text-emerald-600" /> Saved</>
+                ) : (
+                  <><Save className="h-4 w-4 mr-1" /> Save</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Info box */}
       <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">

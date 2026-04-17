@@ -157,7 +157,7 @@ export default function ITAdminDashboard() {
           <QuickAction label="NFC Assignment" description="Encode NFC chips to student cards" icon={Wifi} to="/it-admin/cards/nfc" />
           <QuickAction label="School Website" description="Customize the public school site" icon={Globe} to="/it-admin/site" />
           <QuickAction label="Audit Logs" description="Review recent system activity" icon={Shield} to="/it-admin/system" />
-          <QuickAction label="School Settings" description="View school configuration" icon={Settings} to="/settings" />
+          <QuickAction label="School Profile" description="Edit school name, logo & contact info" icon={Settings} to="/settings" />
         </div>
       </div>
 
