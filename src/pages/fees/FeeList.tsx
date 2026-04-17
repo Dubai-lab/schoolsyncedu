@@ -104,14 +104,8 @@ export default function FeeList() {
     { enabled: !!schoolId },
   );
 
-  // Default to current year once loaded
-  useEffect(() => {
-    if (currentAcademicYear && !selectedYear) {
-      setSelectedYear(currentAcademicYear as string);
-    }
-  }, [currentAcademicYear, selectedYear]);
-
-  const activeYear = selectedYear || (currentAcademicYear as string) || '';
+  // selectedYear = '' means All Years (default — shows complete history)
+  const activeYear = selectedYear;
 
   const yearOptions = [
     { label: 'All Years', value: '' },

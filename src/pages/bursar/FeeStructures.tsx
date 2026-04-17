@@ -41,6 +41,7 @@ function formatCurrency(amount: number) {
 // ==================== FORM STATE ====================
 
 interface FeeForm {
+  feeYear: string;
   classId: string;
   className: string;
   feeType: string;
@@ -51,6 +52,7 @@ interface FeeForm {
 }
 
 const emptyForm: FeeForm = {
+  feeYear: '',
   classId: '',
   className: '',
   feeType: '',
@@ -106,19 +108,13 @@ export default function FeeStructures() {
     { enabled: !!schoolId },
   );
 
-  // Which year is currently being viewed/edited — defaults to current year
+  // Year filter — empty string = show all years (default)
   const [selectedYear, setSelectedYear] = useState('');
 
-  // Once settings load, default to current year
-  useEffect(() => {
-    if (currentAcademicYear && !selectedYear) {
-      setSelectedYear(currentAcademicYear as string);
-    }
-  }, [currentAcademicYear, selectedYear]);
-
-  const academicYear = selectedYear || (currentAcademicYear as string) || '';
+  const academicYear = selectedYear;
 
   const yearOptions = [
+    { label: 'All Years', value: '' },
     currentAcademicYear ? { label: `${currentAcademicYear} (Current)`, value: currentAcademicYear as string } : null,
     nextAcademicYear    ? { label: `${nextAcademicYear} (Next)`,    value: nextAcademicYear as string }    : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -164,7 +160,7 @@ export default function FeeStructures() {
         const isSchoolWide = form.classId === SCHOOL_WIDE;
         const selectedClass = classes.find((c) => c.id === form.classId);
         await bursarService.createFeeStructure(schoolId, {
-          academicYear,
+          academicYear: form.feeYear || (currentAcademicYear as string) || '',
           classId:   isSchoolWide ? null : form.classId,
           className: isSchoolWide ? 'School-wide' : (selectedClass?.name ?? form.classId),
           feeType: form.feeType,
@@ -201,13 +197,14 @@ export default function FeeStructures() {
   const startEdit = (fee: FeeStructure) => {
     setEditingFee(fee);
     setForm({
-      classId: fee.class_id ?? '',
-      className: fee.grade_level,
-      feeType: fee.fee_type,
-      amountUsd: String(fee.amount_usd),
-      amountLrd: String(fee.amount_lrd ?? 0),
+      feeYear:     fee.academic_year,
+      classId:     fee.class_id ?? '',
+      className:   fee.grade_level,
+      feeType:     fee.fee_type,
+      amountUsd:   String(fee.amount_usd),
+      amountLrd:   String(fee.amount_lrd ?? 0),
       description: fee.description || '',
-      dueDate: fee.due_date || '',
+      dueDate:     fee.due_date || '',
     });
     setShowForm(true);
   };
@@ -389,15 +386,29 @@ export default function FeeStructures() {
           <h2 className="text-lg font-semibold text-slate-900 mb-1">
             {editingFee ? 'Edit Fee Structure' : 'New Fee Structure'}
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
-            Creating for: <strong>{academicYear || 'No year set'}</strong>
-            {academicYear === (nextAcademicYear as string) && (
-              <span className="ml-2 inline-flex items-center rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 text-xs font-medium">
-                Next year — use for promotion registration fees
-              </span>
-            )}
-          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Academic year for this fee structure */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Academic Year *</label>
+              {yearOptions.filter((o) => o.value).length > 0 ? (
+                <select
+                  value={form.feeYear ?? (currentAcademicYear as string) ?? ''}
+                  onChange={(e) => setForm({ ...form, feeYear: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+                >
+                  {yearOptions.filter((o) => o.value).map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                  Not set — configure in School Settings
+                </div>
+              )}
+              {(form.feeYear ?? '') === (nextAcademicYear as string) && (
+                <p className="mt-1 text-xs text-amber-600">Next year — for promotion registration fees</p>
+              )}
+            </div>
             <Select
               label="Class / Scope *"
               options={classOptions}
