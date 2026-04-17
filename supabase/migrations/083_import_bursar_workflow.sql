@@ -232,7 +232,7 @@ BEGIN
     FROM student_fees sf
     JOIN fee_structures fs ON fs.id = sf.fee_structure_id
     WHERE sf.student_id = p_student_id
-      AND fs.fee_type   = 'registration_fee'
+      AND fs.fee_type   = 'registration'
       AND sf.status     NOT IN ('paid', 'partial')
   ) THEN
     RAISE EXCEPTION
@@ -611,7 +611,7 @@ BEGIN
          FROM student_fees sf
          JOIN fee_structures fs ON fs.id = sf.fee_structure_id
         WHERE sf.student_id = s.id
-          AND fs.fee_type   = 'registration_fee'
+          AND fs.fee_type   = 'registration'
         ORDER BY sf.created_at DESC LIMIT 1),
       TRUE
     )                                           AS reg_fee_paid,
@@ -620,7 +620,7 @@ BEGIN
          FROM student_fees sf
          JOIN fee_structures fs ON fs.id = sf.fee_structure_id
         WHERE sf.student_id = s.id
-          AND fs.fee_type   = 'registration_fee'
+          AND fs.fee_type   = 'registration'
         ORDER BY sf.created_at DESC LIMIT 1),
       0::NUMERIC
     )                                           AS reg_fee_amount,

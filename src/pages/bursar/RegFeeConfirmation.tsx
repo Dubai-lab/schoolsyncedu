@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { bursarImportService } from '@/services/bursarService';
-import { registrarService } from '@/services/registrarService';
 import { notify } from '@/components/shared/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import {
-  CheckCircle2, Clock, Users, DollarSign, AlertTriangle, UserCheck,
+  CheckCircle2, Users, DollarSign, AlertTriangle, Clock,
 } from 'lucide-react';
 
 function formatCurrency(n: number) {
@@ -26,9 +25,7 @@ export default function RegFeeConfirmation() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
 
-  // Track which student is being actioned to show per-row loading
   const [confirming, setConfirming] = useState<string | null>(null);
-  const [enrolling,  setEnrolling]  = useState<string | null>(null);
 
   const { data: students = [], refetch, isLoading, isError, error } = useFetch(
     ['pending-import-students', schoolId],
@@ -36,9 +33,10 @@ export default function RegFeeConfirmation() {
     { enabled: !!schoolId },
   );
 
-  // Split: awaiting bursar confirmation vs. fee cleared, awaiting registrar
-  const awaitingBursar    = students.filter((s) => !s.reg_fee_paid);
-  const awaitingRegistrar = students.filter((s) =>  s.reg_fee_paid);
+  // Bursar only sees students whose reg fee has NOT yet been confirmed
+  const awaitingConfirmation = students.filter((s) => !s.reg_fee_paid);
+  // Students already confirmed are shown as info (read-only) — Registrar handles enrollment
+  const feeConfirmed = students.filter((s) => s.reg_fee_paid);
 
   const handleConfirmFee = async (studentId: string, name: string) => {
     setConfirming(studentId);
@@ -50,19 +48,6 @@ export default function RegFeeConfirmation() {
       notify.error((err as Error).message ?? 'Could not confirm fee');
     } finally {
       setConfirming(null);
-    }
-  };
-
-  const handleEnroll = async (studentId: string, name: string) => {
-    setEnrolling(studentId);
-    try {
-      await registrarService.confirmImportEnrollment(studentId);
-      notify.success(`${name} enrolled — login account created`);
-      void refetch();
-    } catch (err) {
-      notify.error((err as Error).message ?? 'Could not enroll student');
-    } finally {
-      setEnrolling(null);
     }
   };
 
@@ -98,7 +83,7 @@ export default function RegFeeConfirmation() {
         <h1 className="text-xl font-bold text-slate-900">Registration Fee Confirmation</h1>
         <p className="text-sm text-slate-500 mt-0.5">
           Confirm registration fee payments for imported students. Once confirmed, the Registrar
-          can enroll the student and create their login account.
+          will be able to complete their enrollment.
         </p>
       </div>
 
@@ -111,15 +96,15 @@ export default function RegFeeConfirmation() {
           </p>
         </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
-          <p className="text-2xl font-bold text-amber-700">{awaitingBursar.length}</p>
+          <p className="text-2xl font-bold text-amber-700">{awaitingConfirmation.length}</p>
           <p className="text-xs text-amber-600 mt-0.5 flex items-center justify-center gap-1">
             <DollarSign className="h-3 w-3" /> Awaiting fee confirmation
           </p>
         </div>
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center col-span-2 sm:col-span-1">
-          <p className="text-2xl font-bold text-emerald-700">{awaitingRegistrar.length}</p>
+          <p className="text-2xl font-bold text-emerald-700">{feeConfirmed.length}</p>
           <p className="text-xs text-emerald-600 mt-0.5 flex items-center justify-center gap-1">
-            <UserCheck className="h-3 w-3" /> Fee cleared, awaiting enrollment
+            <Clock className="h-3 w-3" /> Fee confirmed, awaiting Registrar
           </p>
         </div>
       </div>
@@ -130,19 +115,19 @@ export default function RegFeeConfirmation() {
             <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
             <p className="text-slate-700 font-medium">No pending imported students</p>
             <p className="text-sm text-slate-400 mt-1">
-              All imported students have been cleared and enrolled, or no imports have been done yet.
+              All imported students have been cleared, or no imports have been done yet.
             </p>
           </CardContent>
         </Card>
       )}
 
       {/* Section 1 — Awaiting Bursar fee confirmation */}
-      {awaitingBursar.length > 0 && (
+      {awaitingConfirmation.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-700">
               <AlertTriangle className="h-4 w-4" />
-              Awaiting Registration Fee Confirmation ({awaitingBursar.length})
+              Awaiting Registration Fee Confirmation ({awaitingConfirmation.length})
             </CardTitle>
             <p className="text-xs text-slate-500 mt-0.5">
               Verify each student's payment in your records, then click <strong>Confirm Paid</strong>.
@@ -162,7 +147,7 @@ export default function RegFeeConfirmation() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {awaitingBursar.map((s) => (
+                  {awaitingConfirmation.map((s) => (
                     <tr key={s.student_id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {s.first_name} {s.last_name}
@@ -185,7 +170,7 @@ export default function RegFeeConfirmation() {
                             `${s.first_name} ${s.last_name}`,
                           )}
                           loading={confirming === s.student_id}
-                          disabled={!!confirming || !!enrolling}
+                          disabled={!!confirming}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                           Confirm Paid
@@ -200,17 +185,17 @@ export default function RegFeeConfirmation() {
         </Card>
       )}
 
-      {/* Section 2 — Fee cleared, waiting for Registrar to enroll */}
-      {awaitingRegistrar.length > 0 && (
+      {/* Section 2 — Fee confirmed, read-only info for bursar */}
+      {feeConfirmed.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-700">
-              <Clock className="h-4 w-4" />
-              Fee Confirmed — Awaiting Enrollment ({awaitingRegistrar.length})
+              <CheckCircle2 className="h-4 w-4" />
+              Fee Confirmed — Pending Registrar Enrollment ({feeConfirmed.length})
             </CardTitle>
             <p className="text-xs text-slate-500 mt-0.5">
-              Registration fee confirmed. Click <strong>Enroll</strong> to create the student's
-              login account and activate their enrollment.
+              Registration fee confirmed. The Registrar will complete enrollment and create
+              login accounts for these students.
             </p>
           </CardHeader>
           <CardContent className="p-0">
@@ -223,11 +208,10 @@ export default function RegFeeConfirmation() {
                     <th className="px-4 py-3">Class</th>
                     <th className="px-4 py-3">Reg Fee</th>
                     <th className="px-4 py-3">Imported</th>
-                    <th className="px-4 py-3">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {awaitingRegistrar.map((s) => (
+                  {feeConfirmed.map((s) => (
                     <tr key={s.student_id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {s.first_name} {s.last_name}
@@ -243,21 +227,6 @@ export default function RegFeeConfirmation() {
                       </td>
                       <td className="px-4 py-3 text-slate-500 text-xs">
                         {formatDate(s.imported_at)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleEnroll(
-                            s.student_id,
-                            `${s.first_name} ${s.last_name}`,
-                          )}
-                          loading={enrolling === s.student_id}
-                          disabled={!!confirming || !!enrolling}
-                        >
-                          <UserCheck className="h-3.5 w-3.5 mr-1" />
-                          Enroll
-                        </Button>
                       </td>
                     </tr>
                   ))}

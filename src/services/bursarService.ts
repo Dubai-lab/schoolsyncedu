@@ -337,7 +337,7 @@ export const bursarService = {
           | Record<string, string>
           | undefined;
 
-        if (structure?.fee_type === 'registration_fee') {
+        if (structure?.fee_type === 'registration') {
           await supabase.rpc('activate_student_enrollment', {
             p_student_id: form.studentId,
             p_academic_year: structure.academic_year,
