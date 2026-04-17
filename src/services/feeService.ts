@@ -74,7 +74,7 @@ export const studentFeeService = {
     schoolId: UUID,
     params: FeeFilterParams & { page?: number; pageSize?: number } = {},
   ) {
-    const { page = 1, pageSize = 25, academicYear, gradeLevel, feeType, status, studentId } = params;
+    const { page = 1, pageSize = 25, academicYear, gradeLevel, feeType, status, studentId, studentSearch } = params;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -93,6 +93,12 @@ export const studentFeeService = {
     if (gradeLevel) query = query.eq('fee_structures.grade_level', gradeLevel);
     if (feeType) query = query.eq('fee_structures.fee_type', feeType);
     if (status) query = query.eq('status', status);
+    if (studentSearch?.trim()) {
+      query = query.or(
+        `first_name.ilike.%${studentSearch}%,last_name.ilike.%${studentSearch}%,registration_number.ilike.%${studentSearch}%`,
+        { referencedTable: 'students' },
+      );
+    }
 
     const { data, count, error } = await query;
     if (error) throw error;

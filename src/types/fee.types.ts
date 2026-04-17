@@ -209,4 +209,5 @@ export interface FeeFilterParams {
   feeType?: FeeType;
   status?: StudentFeeStatus;
   studentId?: UUID;
+  studentSearch?: string; // filter by student name or registration number
 }

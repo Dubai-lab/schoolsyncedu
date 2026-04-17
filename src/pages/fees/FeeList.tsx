@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
@@ -16,7 +16,7 @@ import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import Dialog, { DialogHeader, DialogTitle, DialogBody } from '@/components/ui/Dialog';
 import Breadcrumb from '@/components/shared/Breadcrumb';
-import { DollarSign, CreditCard, CalendarDays } from 'lucide-react';
+import { DollarSign, CreditCard, CalendarDays, Search } from 'lucide-react';
 
 type FeeRow = {
   id: string;
@@ -77,28 +77,58 @@ export default function FeeList() {
 
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ feeType: '', status: '' });
+  const [studentSearch, setStudentSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
 
   // Term installments dialog
   const [installmentFee, setInstallmentFee] = useState<FeeRow | null>(null);
   const [installments, setInstallments] = useState<StudentFeeInstallment[]>([]);
   const [installmentsLoading, setInstallmentsLoading] = useState(false);
 
-  // Current academic year
+  // Debounce student search
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(studentSearch); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [studentSearch]);
+
+  // Academic years from school settings
   const { data: currentAcademicYear } = useFetch(
     ['school-setting-academic-year', schoolId],
     () => registrarService.getSetting(schoolId, 'current_academic_year'),
     { enabled: !!schoolId },
   );
+  const { data: nextAcademicYear } = useFetch(
+    ['school-setting-next-academic-year', schoolId],
+    () => registrarService.getSetting(schoolId, 'next_academic_year'),
+    { enabled: !!schoolId },
+  );
+
+  // Default to current year once loaded
+  useEffect(() => {
+    if (currentAcademicYear && !selectedYear) {
+      setSelectedYear(currentAcademicYear as string);
+    }
+  }, [currentAcademicYear, selectedYear]);
+
+  const activeYear = selectedYear || (currentAcademicYear as string) || '';
+
+  const yearOptions = [
+    { label: 'All Years', value: '' },
+    currentAcademicYear ? { label: `${currentAcademicYear} (Current)`, value: currentAcademicYear as string } : null,
+    nextAcademicYear    ? { label: `${nextAcademicYear} (Next)`,    value: nextAcademicYear as string }    : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   const { data: result, isLoading } = useFetch(
-    ['student-fees', schoolId, String(page), JSON.stringify(filters), currentAcademicYear ?? ''],
+    ['student-fees', schoolId, String(page), JSON.stringify(filters), activeYear, debouncedSearch],
     () =>
       studentFeeService.list(schoolId, {
         page,
         pageSize: 25,
-        feeType: (filters.feeType as 'tuition') || undefined,
-        status: (filters.status as 'pending') || undefined,
-        academicYear: currentAcademicYear || undefined,
+        feeType:       (filters.feeType as 'tuition') || undefined,
+        status:        (filters.status as 'pending') || undefined,
+        academicYear:  activeYear || undefined,
+        studentSearch: debouncedSearch || undefined,
       }),
     { enabled: !!schoolId },
   );
@@ -224,7 +254,34 @@ export default function FeeList() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-end">
+        {/* Student search */}
+        <div className="w-56">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Search Student</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              placeholder="Name or reg number..."
+              className="w-full rounded-lg border border-slate-200 py-2 pl-8 pr-3 text-sm focus:border-primary-400 focus:outline-none"
+            />
+          </div>
+        </div>
+        {/* Academic year selector */}
+        <div className="w-48">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Academic Year</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => { setSelectedYear(e.target.value); setPage(1); }}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+          >
+            {yearOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
         <Select
           label="Fee Type"
           options={feeTypeOptions}
