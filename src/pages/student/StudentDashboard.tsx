@@ -150,6 +150,16 @@ export default function StudentDashboard() {
     { enabled: !!schoolId },
   );
 
+  // Fetch class subjects so Subjects widget shows assigned subjects even before grades exist
+  const classId = (student as Record<string, unknown> | null)?.current_class_id as string ?? '';
+  const { data: myClass } = useFetch(
+    ['my-class', schoolId, classId],
+    () => studentPortalService.getMyClass(schoolId, classId),
+    { enabled: !!classId },
+  );
+  const classSubjects = ((myClass as Record<string, unknown> | null)
+    ?.class_subjects as Record<string, unknown>[] | null) ?? [];
+
   // Compute grade average
   const gradeScores = (grades as Record<string, unknown>[])
     .map((g) => Number(g.score ?? 0))
@@ -236,8 +246,8 @@ export default function StudentDashboard() {
         />
         <StatCard
           label="Subjects"
-          value={String(new Set((grades as Record<string, unknown>[]).map((g) => (g.subjects as Record<string, unknown> | null)?.id)).size || gradeScores.length || '—')}
-          sub={gradeScores.length > 0 ? 'With grades' : 'No data yet'}
+          value={classSubjects.length > 0 ? String(classSubjects.length) : '—'}
+          sub={classSubjects.length > 0 ? 'In your class' : 'No subjects assigned'}
           icon={BookOpen}
           color="purple"
           onClick={() => navigate('/student/grades')}
