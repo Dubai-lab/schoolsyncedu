@@ -420,15 +420,19 @@ BEGIN
   -- Create audit payment record
   INSERT INTO payments (
     school_id, student_id, student_fee_id,
-    amount, payment_method, notes, status
+    amount_usd, amount_lrd, currency_charged,
+    payment_method, gateway_ref, status, payment_date
   ) VALUES (
     v_student.school_id,
     p_student_id,
     v_fee.id,
     v_fee.amount_due,
+    0,
+    'USD',
     'manual',
     'Registration fee confirmed by Bursar (imported student)',
-    'completed'
+    'success',
+    NOW()
   );
 
   RETURN jsonb_build_object(
@@ -525,15 +529,19 @@ BEGIN
   -- Always create an audit record even if adjustment is zero
   INSERT INTO payments (
     school_id, student_id, student_fee_id,
-    amount, payment_method, notes, status
+    amount_usd, amount_lrd, currency_charged,
+    payment_method, gateway_ref, status, payment_date
   ) VALUES (
-    v_fee.school_id,
+    v_fee.student_school_id,
     v_fee.student_id,
     p_student_fee_id,
     v_adjustment,
+    0,
+    'USD',
     'manual',
     'Bursar correction: ' || TRIM(p_reason),
-    'completed'
+    'success',
+    NOW()
   );
 
   RETURN jsonb_build_object(
@@ -599,7 +607,7 @@ BEGIN
     s.registration_number,
     COALESCE(c.name, s.current_grade_level) AS class_name,
     COALESCE(
-      (SELECT sf.status IN ('paid','partial')
+      (SELECT sf.status::TEXT IN ('paid','partial')
          FROM student_fees sf
          JOIN fee_structures fs ON fs.id = sf.fee_structure_id
         WHERE sf.student_id = s.id
@@ -616,7 +624,7 @@ BEGIN
         ORDER BY sf.created_at DESC LIMIT 1),
       0
     ) AS reg_fee_amount,
-    se.created_at AS imported_at
+    se.created_at::TIMESTAMPTZ AS imported_at
   FROM students s
   JOIN student_enrollments se ON se.student_id = s.id
                               AND se.status     = 'pending_payment'

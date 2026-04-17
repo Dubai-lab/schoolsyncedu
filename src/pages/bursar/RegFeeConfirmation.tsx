@@ -30,7 +30,7 @@ export default function RegFeeConfirmation() {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [enrolling,  setEnrolling]  = useState<string | null>(null);
 
-  const { data: students = [], refetch, isLoading } = useFetch(
+  const { data: students = [], refetch, isLoading, isError, error } = useFetch(
     ['pending-import-students', schoolId],
     () => bursarImportService.getPendingImportStudents(schoolId),
     { enabled: !!schoolId },
@@ -70,6 +70,20 @@ export default function RegFeeConfirmation() {
     return (
       <div className="flex justify-center py-16">
         <div className="animate-spin h-8 w-8 rounded-full border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="max-w-5xl space-y-5">
+        <Breadcrumb
+          items={[{ label: 'Finance', href: '/bursar' }, { label: 'Reg Fee Confirmation' }]}
+        />
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <p className="font-semibold text-red-800">Failed to load pending students</p>
+          <p className="text-sm text-red-600 mt-1 font-mono">{(error as Error)?.message ?? 'Unknown error'}</p>
+        </div>
       </div>
     );
   }
