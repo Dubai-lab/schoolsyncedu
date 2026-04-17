@@ -24,7 +24,7 @@ export const studentService = {
 
     let query = supabase
       .from('students')
-      .select('*, guardians(id, full_name, phone, relationship)', { count: 'exact' })
+      .select('*, guardians(id, full_name, phone, relationship), student_enrollments(status)', { count: 'exact' })
       .eq('school_id', schoolId)
       .order('created_at', { ascending: false })
       .range(from, to);

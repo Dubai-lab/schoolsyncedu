@@ -37,6 +37,7 @@ interface StudentRow {
   status: StudentStatus;
   enrollment_date: string;
   guardians: { full_name: string; phone: string; relationship: string }[];
+  student_enrollments: { status: string }[];
 }
 
 // ==================== COLUMNS ====================
@@ -86,11 +87,19 @@ const columns: Column<StudentRow>[] = [
   {
     key: 'status',
     header: 'Status',
-    render: (row) => (
-      <Badge variant={statusVariant[row.status]}>
-        {row.status.replace(/_/g, ' ')}
-      </Badge>
-    ),
+    render: (row) => {
+      const isPendingEnrollment = row.student_enrollments?.some(
+        (e) => e.status === 'pending_payment',
+      );
+      if (isPendingEnrollment) {
+        return <Badge variant="warning">Pending Enrollment</Badge>;
+      }
+      return (
+        <Badge variant={statusVariant[row.status]}>
+          {row.status.replace(/_/g, ' ')}
+        </Badge>
+      );
+    },
   },
   {
     key: 'enrollment_date',
