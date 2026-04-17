@@ -97,13 +97,15 @@ export const bankTransferService = {
     return data as BankTransferProof;
   },
 
-  /** Get pending proof for a specific student fee (to check if already submitted) */
+  /** Get the latest unresolved proof for a fee (pending = awaiting bursar, rejected = needs re-upload).
+   *  Verified proofs are intentionally excluded so students can submit a new proof
+   *  for any remaining balance after a previous payment is confirmed. */
   async getProofForFee(studentFeeId: UUID): Promise<BankTransferProof | null> {
     const { data, error } = await supabase
       .from('bank_transfer_proofs')
       .select('*')
       .eq('student_fee_id', studentFeeId)
-      .in('status', ['pending', 'verified'])
+      .in('status', ['pending', 'rejected'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();

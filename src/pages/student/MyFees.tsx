@@ -975,7 +975,10 @@ export default function MyFees() {
                           {fmtUSD(p.amount_usd)}
                         </td>
                         <td className="px-4 py-3 text-slate-500 capitalize">
-                          {p.payment_method === 'visa'   ? 'Card (Flutterwave)' :
+                          {p.payment_method === 'visa'   ? 'Card (Stripe)' :
+                           p.payment_method === 'bank'   ? 'Bank Transfer' :
+                           p.payment_method === 'mtn'    ? 'MTN Mobile Money' :
+                           p.payment_method === 'orange' ? 'Orange Money' :
                            p.payment_method === 'manual' ? 'Cash' :
                            p.payment_method}
                         </td>
