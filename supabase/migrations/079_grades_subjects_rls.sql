@@ -58,7 +58,7 @@ CREATE POLICY "Staff can manage subjects"
       'admin_staff'::user_role,
       'it_admin'::user_role,
       'teacher'::user_role,
-      'dean'::user_role
+      'dean_of_students'::user_role
     )
   );
 
@@ -84,7 +84,7 @@ CREATE POLICY "Staff can manage class subjects"
       'admin_staff'::user_role,
       'it_admin'::user_role,
       'teacher'::user_role,
-      'dean'::user_role
+      'dean_of_students'::user_role
     )
   );
 
