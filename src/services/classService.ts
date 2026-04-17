@@ -13,16 +13,14 @@ import type { DayOfWeek } from '@/types/common.types';
 // ==================== CLASSES ====================
 
 export const classService = {
-  async list(schoolId: UUID, gradeLevel?: string, academicYear?: string) {
+  async list(schoolId: UUID, gradeLevel?: string) {
     let query = supabase
       .from('classes')
       .select('*, users!classes_class_teacher_id_fkey(id, first_name, last_name)', { count: 'exact' })
       .eq('school_id', schoolId)
-      .order('academic_year', { ascending: false, nullsFirst: false })
       .order('grade_level')
       .order('name');
-    if (gradeLevel)    query = query.eq('grade_level', gradeLevel);
-    if (academicYear)  query = query.eq('academic_year', academicYear);
+    if (gradeLevel) query = query.eq('grade_level', gradeLevel);
     const { data, count, error } = await query;
     if (error) throw error;
     return {
@@ -43,7 +41,7 @@ export const classService = {
 
   async create(schoolId: UUID, entry: {
     name: string; grade_level: string; section?: string;
-    class_teacher_id?: UUID; capacity: number; academic_year?: string;
+    class_teacher_id?: UUID; capacity: number;
   }) {
     const { data, error } = await supabase
       .from('classes')
@@ -56,7 +54,7 @@ export const classService = {
 
   async update(id: UUID, entry: Partial<{
     name: string; grade_level: string; section: string;
-    class_teacher_id: UUID; capacity: number; academic_year: string;
+    class_teacher_id: UUID; capacity: number;
   }>) {
     const { data, error } = await supabase
       .from('classes')
@@ -83,15 +81,6 @@ export const classService = {
     return [...new Set((data ?? []).map((d) => d.grade_level as string))].sort();
   },
 
-  async getAcademicYears(schoolId: UUID) {
-    const { data, error } = await supabase
-      .from('classes')
-      .select('academic_year')
-      .eq('school_id', schoolId)
-      .not('academic_year', 'is', null);
-    if (error) throw error;
-    return [...new Set((data ?? []).map((d) => d.academic_year as string))].sort().reverse();
-  },
 };
 
 // ==================== CLASS ASSIGNMENTS ====================

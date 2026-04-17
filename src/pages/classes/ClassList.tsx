@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { classService, classSubjectService, classAssignmentService } from '@/services/classService';
-import { registrarService } from '@/services/registrarService';
 import Table from '@/components/ui/Table';
 import type { Column } from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
@@ -22,10 +21,9 @@ type ClassRow = {
   section: string;
   teacher: string;
   capacity: number;
-  academicYear: string;
 };
 
-const initialForm = { name: '', grade_level: '', section: '', capacity: '30', academic_year: '' };
+const initialForm = { name: '', grade_level: '', section: '', capacity: '30' };
 
 export default function ClassList() {
   const navigate = useNavigate();
@@ -33,7 +31,6 @@ export default function ClassList() {
   const schoolId = user?.school_id ?? '';
 
   const [gradeFilter, setGradeFilter] = useState('');
-  const [yearFilter, setYearFilter]   = useState('');
   const [showCreate, setShowCreate]   = useState(false);
   const [form, setForm]               = useState(initialForm);
 
@@ -47,21 +44,9 @@ export default function ClassList() {
     { enabled: !!schoolId },
   );
 
-  const { data: academicYears } = useFetch(
-    ['class-academic-years', schoolId],
-    () => classService.getAcademicYears(schoolId),
-    { enabled: !!schoolId },
-  );
-
-  const { data: currentYear } = useFetch(
-    ['school-year', schoolId],
-    () => registrarService.getSetting(schoolId, 'current_academic_year'),
-    { enabled: !!schoolId },
-  );
-
   const { data: result, isLoading } = useFetch(
-    ['classes', schoolId, gradeFilter, yearFilter],
-    () => classService.list(schoolId, gradeFilter || undefined, yearFilter || undefined),
+    ['classes', schoolId, gradeFilter],
+    () => classService.list(schoolId, gradeFilter || undefined),
     { enabled: !!schoolId },
   );
 
@@ -81,14 +66,13 @@ export default function ClassList() {
 
   const createClass = useMutate(
     () => classService.create(schoolId, {
-      name:          form.name,
-      grade_level:   form.grade_level,
-      section:       form.section || undefined,
-      capacity:      Number(form.capacity) || 30,
-      academic_year: form.academic_year || undefined,
+      name:        form.name,
+      grade_level: form.grade_level,
+      section:     form.section || undefined,
+      capacity:    Number(form.capacity) || 30,
     }),
-    [['classes'], ['class-grade-levels'], ['class-academic-years']],
-    { onSuccess: () => { setShowCreate(false); setForm({ ...initialForm, academic_year: currentYear ?? '' }); } },
+    [['classes'], ['class-grade-levels']],
+    { onSuccess: () => { setShowCreate(false); setForm(initialForm); } },
   );
 
   const deleteClass = useMutate(
@@ -97,26 +81,21 @@ export default function ClassList() {
   );
 
   const rows: ClassRow[] = (result?.data ?? []).map((c) => ({
-    id:           c.id,
-    name:         c.name,
-    gradeLevel:   c.grade_level ?? '',
-    section:      c.section ?? '',
-    teacher:      c.users ? `${c.users.first_name} ${c.users.last_name}` : '—',
-    capacity:     c.capacity,
-    academicYear: c.academic_year ?? '—',
+    id:         c.id,
+    name:       c.name,
+    gradeLevel: c.grade_level ?? '',
+    section:    c.section ?? '',
+    teacher:    c.users ? `${c.users.first_name} ${c.users.last_name}` : '—',
+    capacity:   c.capacity,
   }));
 
   const gradeOptions = (grades ?? []).map((g) => ({ label: g, value: g }));
-  const yearOptions  = (academicYears ?? []).map((y) => ({ label: y, value: y }));
 
   const columns: Column<ClassRow>[] = [
     { key: 'name', header: 'Class Name', render: (r) => (
       <button className="font-medium text-primary-600 hover:underline" onClick={() => { setSelectedClass(r.id); setDetailTab('students'); }}>
         {r.name}
       </button>
-    )},
-    { key: 'academicYear', header: 'Year', render: (r) => (
-      <span className="text-xs font-mono text-slate-600">{r.academicYear}</span>
     )},
     { key: 'gradeLevel', header: 'Grade', render: (r) => <Badge variant="info" size="sm">{r.gradeLevel}</Badge> },
     { key: 'section', header: 'Section', render: (r) => <span className="text-sm">{r.section || '—'}</span> },
@@ -148,16 +127,13 @@ export default function ClassList() {
           <Button variant="outline" size="sm" onClick={() => navigate('/classes/timetable')}>
             <Calendar className="h-4 w-4 mr-1" /> Timetable
           </Button>
-          <Button size="sm" onClick={() => { setForm({ ...initialForm, academic_year: currentYear ?? '' }); setShowCreate(true); }}>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4 mr-1" /> New Class
           </Button>
         </div>
       </div>
 
       <div className="flex gap-3">
-        <Select label="Academic Year" options={yearOptions} value={yearFilter}
-          onChange={(e) => setYearFilter(e.target.value)}
-          placeholder="All Years" className="w-44" />
         <Select label="Grade Level" options={gradeOptions} value={gradeFilter}
           onChange={(e) => setGradeFilter(e.target.value)}
           placeholder="All Grades" className="w-44" />
@@ -228,19 +204,11 @@ export default function ClassList() {
       </div>
 
       {/* Create Class Dialog */}
-      <Dialog open={showCreate} onClose={() => { setShowCreate(false); setForm({ ...initialForm, academic_year: currentYear ?? '' }); }}>
+      <Dialog open={showCreate} onClose={() => { setShowCreate(false); setForm(initialForm); }}>
         <DialogHeader><DialogTitle>Create Class</DialogTitle></DialogHeader>
         <DialogBody>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Class Name *" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Grade 7A" />
-              <Input
-                label="Academic Year *"
-                value={form.academic_year}
-                onChange={(e) => set('academic_year', e.target.value)}
-                placeholder={currentYear ?? 'e.g. 2025-2026'}
-              />
-            </div>
+            <Input label="Class Name *" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Grade 7A" />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Grade Level *" value={form.grade_level} onChange={(e) => set('grade_level', e.target.value)} placeholder="e.g. Grade 7" />
               <Input label="Section" value={form.section} onChange={(e) => set('section', e.target.value)} placeholder="e.g. A" />
@@ -249,7 +217,7 @@ export default function ClassList() {
           </div>
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" onClick={() => { setShowCreate(false); setForm({ ...initialForm, academic_year: currentYear ?? '' }); }}>Cancel</Button>
+          <Button variant="outline" onClick={() => { setShowCreate(false); setForm(initialForm); }}>Cancel</Button>
           <Button onClick={() => createClass.mutate(undefined)} loading={createClass.isPending} disabled={!form.name || !form.grade_level}>
             Create
           </Button>

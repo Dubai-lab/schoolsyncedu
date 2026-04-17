@@ -129,7 +129,6 @@ export interface Class extends SchoolScopedEntity {
   section: string | null;
   class_teacher_id: UUID | null;
   capacity: number;
-  academic_year: string | null;
   updated_at: Timestamp;
 }
 

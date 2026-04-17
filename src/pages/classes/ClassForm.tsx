@@ -22,7 +22,7 @@ export default function ClassForm() {
   const schoolId = user?.school_id ?? '';
   const isEdit = !!id;
 
-  const [form, setForm] = useState({ name: '', grade_level: '', section: '', capacity: '30', class_teacher_id: '', academic_year: '' });
+  const [form, setForm] = useState({ name: '', grade_level: '', section: '', capacity: '30', class_teacher_id: '' });
 
   // Fetch class details for editing
   const { data: classData } = useFetch(
@@ -39,7 +39,6 @@ export default function ClassForm() {
         section:          classData.section ?? '',
         capacity:         String(classData.capacity),
         class_teacher_id: classData.class_teacher_id ?? '',
-        academic_year:    classData.academic_year ?? '',
       });
     }
   }, [classData]);
@@ -95,7 +94,6 @@ export default function ClassForm() {
       section:          form.section || undefined,
       capacity:         Number(form.capacity),
       class_teacher_id: form.class_teacher_id || undefined,
-      academic_year:    form.academic_year || undefined,
     }),
     [['classes'], ['class-detail']],
     { onSuccess: () => notify.success('Class updated') },
@@ -103,11 +101,10 @@ export default function ClassForm() {
 
   const createClass = useMutate(
     () => classService.create(schoolId, {
-      name:          form.name,
-      grade_level:   form.grade_level,
-      section:       form.section || undefined,
-      capacity:      Number(form.capacity),
-      academic_year: form.academic_year || undefined,
+      name:        form.name,
+      grade_level: form.grade_level,
+      section:     form.section || undefined,
+      capacity:    Number(form.capacity),
     }),
     [['classes'], ['class-grade-levels']],
     { onSuccess: () => { notify.success('Class created'); navigate('/classes'); } },
@@ -117,18 +114,12 @@ export default function ClassForm() {
   const [showAddSubject, setShowAddSubject] = useState(false);
   const [subjectForm, setSubjectForm] = useState({ subject_id: '', teacher_id: '', academic_year: '' });
 
-  // Pre-fill academic year on both the class form (new class) and the subject form
+  // Set academic year from school settings when loaded
   useEffect(() => {
-    if (currentAcademicYear) {
-      if (!isEdit && !form.academic_year) {
-        setForm((f) => ({ ...f, academic_year: currentAcademicYear }));
-      }
-      if (!subjectForm.academic_year) {
-        setSubjectForm((f) => ({ ...f, academic_year: currentAcademicYear }));
-      }
+    if (currentAcademicYear && !subjectForm.academic_year) {
+      setSubjectForm((f) => ({ ...f, academic_year: currentAcademicYear }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentAcademicYear]);
+  }, [currentAcademicYear, subjectForm.academic_year]);
 
   const assignSubject = useMutate(
     () => classSubjectService.assign({
@@ -169,10 +160,7 @@ export default function ClassForm() {
       <Card className="p-5 max-w-2xl">
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Class Details</h2>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Class Name *" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Grade 7A" />
-            <Input label="Academic Year *" value={form.academic_year} onChange={(e) => set('academic_year', e.target.value)} placeholder="e.g. 2025-2026" />
-          </div>
+          <Input label="Class Name *" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Grade 7A" />
           <div className="grid grid-cols-3 gap-3">
             <Input label="Grade Level *" value={form.grade_level} onChange={(e) => set('grade_level', e.target.value)} placeholder="e.g. Grade 7" />
             <Input label="Section" value={form.section} onChange={(e) => set('section', e.target.value)} />
