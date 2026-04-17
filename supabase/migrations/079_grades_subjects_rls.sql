@@ -63,20 +63,25 @@ CREATE POLICY "Staff can manage subjects"
   );
 
 -- ── class_subjects ────────────────────────────────────────────────────────────
+-- class_subjects has no school_id — scope through class_id → classes.school_id
 ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "School members can view class subjects" ON class_subjects;
 CREATE POLICY "School members can view class subjects"
   ON class_subjects FOR SELECT TO authenticated
   USING (
-    school_id = auth_school_id()
+    class_id IN (
+      SELECT id FROM classes WHERE school_id = auth_school_id()
+    )
   );
 
 DROP POLICY IF EXISTS "Staff can manage class subjects" ON class_subjects;
 CREATE POLICY "Staff can manage class subjects"
   ON class_subjects FOR ALL TO authenticated
   USING (
-    school_id = auth_school_id()
+    class_id IN (
+      SELECT id FROM classes WHERE school_id = auth_school_id()
+    )
     AND auth_user_role() IN (
       'principal'::user_role,
       'vice_principal'::user_role,
