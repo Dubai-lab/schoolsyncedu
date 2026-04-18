@@ -47,6 +47,7 @@ export interface PromotedPendingAssignment {
   registration_number: string;
   from_grade_level: string;
   next_year: string;
+  outcome: 'promoted' | 'retained';
   reg_fee_paid: boolean;
   reg_fee_amount: number;
   promoted_at: string;
@@ -166,7 +167,7 @@ export const promotionService = {
    *  and activates the next-year enrollment. */
   async assignToClass(
     studentId: UUID,
-    classId: UUID,
+    classId: UUID | null,  // null = retained student, uses current class
     nextYear: string,
   ): Promise<{ class_name: string; grade_level: string; fees_assigned: number; message: string }> {
     const { data, error } = await supabase.rpc('assign_promoted_student_to_class', {
