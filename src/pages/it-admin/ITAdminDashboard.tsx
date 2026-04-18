@@ -18,6 +18,7 @@ import {
   CreditCard,
   FileStack,
   Wifi,
+  FileText,
 } from 'lucide-react';
 
 // ==================== STAT CARD ====================
@@ -158,6 +159,7 @@ export default function ITAdminDashboard() {
           <QuickAction label="School Website" description="Customize the public school site" icon={Globe} to="/it-admin/site" />
           <QuickAction label="Audit Logs" description="Review recent system activity" icon={Shield} to="/it-admin/system" />
           <QuickAction label="School Profile" description="Edit school name, logo & contact info" icon={Settings} to="/settings" />
+          <QuickAction label="Transcript Designer" description="Customise transcript colours & signatories" icon={FileText} to="/it-admin/transcript" />
         </div>
       </div>
 

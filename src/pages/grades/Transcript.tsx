@@ -11,8 +11,17 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { Printer, FileText, Search, User } from 'lucide-react';
 import type { Grade } from '@/types/grade.types';
-import type { School } from '@/types/school.types';
+import type { School, TranscriptConfig } from '@/types/school.types';
 import { ACADEMIC_YEAR_TERMS } from '@/utils/constants';
+
+const TRANSCRIPT_DEFAULTS: TranscriptConfig = {
+  header_bg_color: '#b91c1c',
+  header_text_color: '#ffffff',
+  table_header_bg: '#f1f5f9',
+  principal_name: '',
+  registrar_name: '',
+  show_motto_footer: true,
+};
 
 // ── Term labels ────────────────────────────────────────────────────────────────
 const TERM_LABELS: Record<string, string> = {
@@ -158,11 +167,14 @@ interface PrintDocProps {
   totals: Record<string, { aggregate: number; count: number }>;
   dateGenerated: string;
   scope: ScopeType;
+  currentClass: string | null;
+  transcriptCfg: TranscriptConfig;
 }
 
-function PrintDocument({ student, school, columns, rows, totals, dateGenerated }: PrintDocProps) {
+function PrintDocument({ student, school, columns, rows, totals, dateGenerated, currentClass, transcriptCfg }: PrintDocProps) {
   const dob = fmtDob(student.date_of_birth);
   const age = calcAge(student.date_of_birth);
+  const cfg = transcriptCfg;
 
   return (
     <div
@@ -173,7 +185,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
       {/* ── Header ── */}
       <div className="border-2 border-slate-800 mb-0">
         {/* School header */}
-        <div className="bg-red-700 text-white text-center py-2 px-4">
+        <div className="text-center py-2 px-4" style={{ backgroundColor: cfg.header_bg_color, color: cfg.header_text_color }}>
           {school.motto && (
             <p className="text-xs uppercase tracking-widest opacity-80">{school.motto}</p>
           )}
@@ -271,7 +283,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
           <div className="grid grid-cols-3 gap-4">
             <div className="flex items-baseline gap-1">
               <span className="text-xs text-slate-500 shrink-0">Class:</span>
-              <span className="border-b border-slate-400 flex-1 text-sm"> </span>
+              <span className="border-b border-slate-400 flex-1 text-sm">{currentClass ?? ' '}</span>
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-xs text-slate-500 shrink-0">Promoted To:</span>
@@ -287,7 +299,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
         {/* ── Grade Table ── */}
         <table className="w-full border-collapse border-t-2 border-slate-700 text-xs">
           <thead>
-            <tr className="bg-slate-100">
+            <tr style={{ backgroundColor: cfg.table_header_bg }}>
               <th className="border border-slate-400 px-2 py-1.5 text-left font-bold text-slate-900 w-48">
                 SUBJECTS
               </th>
@@ -319,7 +331,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
                 ))}
 
                 {/* Total Score */}
-                <tr className="bg-slate-200 font-semibold">
+                <tr className="font-semibold" style={{ backgroundColor: cfg.table_header_bg }}>
                   <td className="border border-slate-400 px-2 py-1.5 text-slate-900">Total Score (Aggregate)</td>
                   {columns.map((col) => (
                     <td key={col.key} className="border border-slate-400 px-2 py-1.5 text-center text-slate-900">
@@ -329,7 +341,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
                 </tr>
 
                 {/* Average */}
-                <tr className="bg-slate-200 font-semibold">
+                <tr className="font-semibold" style={{ backgroundColor: cfg.table_header_bg }}>
                   <td className="border border-slate-400 px-2 py-1.5 text-slate-900">Average / Division</td>
                   {columns.map((col) => {
                     const t = totals[col.key];
@@ -350,16 +362,22 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated }
         <div className="grid grid-cols-2 gap-12 px-10 pt-6 pb-4 border-t border-slate-300 bg-white">
           <div className="text-center">
             <div className="border-b border-slate-700 mb-1 h-8" />
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-700">Registrar</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-700">
+              {cfg.registrar_name || 'Registrar'}
+            </p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Registrar</p>
           </div>
           <div className="text-center">
             <div className="border-b border-slate-700 mb-1 h-8" />
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-700">Principal</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-700">
+              {cfg.principal_name || 'Principal'}
+            </p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Principal</p>
           </div>
         </div>
 
         {/* Motto footer */}
-        {school.motto && (
+        {cfg.show_motto_footer && school.motto && (
           <div className="text-center py-2 border-t border-slate-200 bg-slate-50">
             <p className="text-xs italic text-slate-600">
               MOTTO: {school.motto}
@@ -447,6 +465,29 @@ export default function TranscriptPage() {
     for (const y of academicYears ?? []) map[y.academic_year] = y.grade_level;
     return map;
   }, [academicYears]);
+
+  // Most recent class for the student (shown in Class field on transcript)
+  const currentClass = useMemo(() => {
+    const sorted = [...(academicYears ?? [])].sort((a, b) =>
+      b.academic_year.localeCompare(a.academic_year),
+    );
+    if (scope === 'year' && filterYear) {
+      const match = (academicYears ?? []).find((y) => y.academic_year === filterYear);
+      return match?.class_name ?? match?.grade_level ?? null;
+    }
+    if (scope === 'term' && filterYear) {
+      const match = (academicYears ?? []).find((y) => y.academic_year === filterYear);
+      return match?.class_name ?? match?.grade_level ?? null;
+    }
+    return sorted[0]?.class_name ?? sorted[0]?.grade_level ?? null;
+  }, [academicYears, scope, filterYear]);
+
+  // Transcript design config from school settings
+  const transcriptCfg: TranscriptConfig = useMemo(() => ({
+    ...TRANSCRIPT_DEFAULTS,
+    principal_name: school?.principal_name ?? '',
+    ...school?.site_config?.transcript_config,
+  }), [school]);
 
   // Available years: union of years from grades AND from class_assignments.
   // This ensures students imported without grades yet still see their enrolled year.
@@ -622,6 +663,8 @@ export default function TranscriptPage() {
                         totals={totals}
                         dateGenerated={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                         scope={scope}
+                        currentClass={currentClass}
+                        transcriptCfg={transcriptCfg}
                       />
                     </div>
                   )}

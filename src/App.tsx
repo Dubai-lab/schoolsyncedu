@@ -151,6 +151,7 @@ import StudentAccounts from '@/pages/it-admin/StudentAccounts';
 import EmailSettings from '@/pages/it-admin/EmailSettings';
 import FeeScheduleEditor from '@/pages/it-admin/FeeScheduleEditor';
 import AuthPageDesigner from '@/pages/it-admin/AuthPageDesigner';
+import TranscriptDesigner from '@/pages/it-admin/TranscriptDesigner';
 
 // School public site
 import SchoolSite from '@/pages/public/SchoolSite';
@@ -369,6 +370,7 @@ export default function App() {
           <Route path="/it-admin/cards/nfc" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><NfcAssignment /></RequireRole>} />
           <Route path="/it-admin/students" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><StudentAccounts /></RequireRole>} />
           <Route path="/it-admin/email" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><EmailSettings /></RequireRole>} />
+          <Route path="/it-admin/transcript" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><TranscriptDesigner /></RequireRole>} />
           {/* Registrar module */}
           <Route path="/registrar" element={<RegistrarDashboard />} />
           <Route path="/registrar/applications" element={<ApplicationReview />} />

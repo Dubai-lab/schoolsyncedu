@@ -44,6 +44,16 @@ export interface School {
   updated_at: Timestamp;
 }
 
+/** Transcript visual & signature configuration */
+export interface TranscriptConfig {
+  header_bg_color: string;     // hex, default #b91c1c
+  header_text_color: string;   // hex, default #ffffff
+  table_header_bg: string;     // hex, default #f1f5f9
+  principal_name: string;
+  registrar_name: string;
+  show_motto_footer: boolean;
+}
+
 /** Flexible site design configuration stored as JSONB */
 export interface SiteConfig {
   hero_image_url?: string;
@@ -70,6 +80,8 @@ export interface SiteConfig {
   fee_schedule?: FeeScheduleConfig;
   /** School-branded auth / login page */
   auth_page?: AuthPageConfig;
+  /** Transcript visual & signing configuration */
+  transcript_config?: TranscriptConfig;
 }
 
 /** Customisable school-branded login page */
