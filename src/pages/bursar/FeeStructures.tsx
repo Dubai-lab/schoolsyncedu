@@ -25,6 +25,7 @@ import {
   CalendarDays,
   PlusCircle,
   MinusCircle,
+  Copy,
 } from 'lucide-react';
 
 // ==================== OPTIONS ====================
@@ -88,6 +89,7 @@ export default function FeeStructures() {
   const [form, setForm] = useState<FeeForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
 
   // ── Split-by-term dialog state ──
   const [splitFee, setSplitFee] = useState<FeeStructure | null>(null);
@@ -207,6 +209,34 @@ export default function FeeStructures() {
       dueDate:     fee.due_date || '',
     });
     setShowForm(true);
+  };
+
+  const handleCopyToNextYear = async () => {
+    if (!currentAcademicYear || !nextAcademicYear) return;
+    if (!confirm(
+      `Copy all ${currentAcademicYear} fee structures to ${nextAcademicYear}?\n\n` +
+      `This will create the same fees for next year (skipping any that already exist). ` +
+      `You can edit amounts afterwards.`
+    )) return;
+    setCopying(true);
+    try {
+      const count = await bursarService.copyFeesToNextYear(
+        schoolId,
+        currentAcademicYear as string,
+        nextAcademicYear as string,
+      );
+      if (count === 0) {
+        alert('All fee structures are already set up for next year — nothing to copy.');
+      } else {
+        alert(`${count} fee structure${count !== 1 ? 's' : ''} copied to ${nextAcademicYear}.`);
+      }
+      refetch();
+    } catch (err) {
+      console.error('Copy failed:', err);
+      alert('Failed to copy fee structures. Please try again.');
+    } finally {
+      setCopying(false);
+    }
   };
 
   // ── Open term-split dialog ──
@@ -353,11 +383,27 @@ export default function FeeStructures() {
               {academicYear}
             </span>
           ) : null}
+          {/* Copy to Next Year — only show when current year fees exist and next year is configured */}
+          {currentAcademicYear && nextAcademicYear && !showForm && (
+            <Button
+              size="sm"
+              variant="outline"
+              icon={<Copy className="h-4 w-4" />}
+              onClick={() => void handleCopyToNextYear()}
+              loading={copying}
+              title={`Copy all ${currentAcademicYear} fees to ${nextAcademicYear}`}
+            >
+              Copy to Next Year
+            </Button>
+          )}
           <Button
             size="sm"
             icon={<Plus className="h-4 w-4" />}
-            onClick={() => { setEditingFee(null); setForm(emptyForm); setShowForm(!showForm); }}
-            disabled={!academicYear}
+            onClick={() => {
+              setEditingFee(null);
+              setForm({ ...emptyForm, feeYear: (currentAcademicYear as string) ?? '' });
+              setShowForm(!showForm);
+            }}
           >
             {showForm ? 'Cancel' : 'Add Fee'}
           </Button>
@@ -373,10 +419,17 @@ export default function FeeStructures() {
           </p>
         </div>
       )}
-      {!academicYear && (
-        <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+      {/* Warning: next year selected but no fees exist yet */}
+      {selectedYear === nextAcademicYear && nextAcademicYear && !isLoading && (feeStructures ?? []).length === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <p>Academic year is not set. Ask the IT Admin to configure it in School Settings.</p>
+          <div>
+            <p className="font-medium">No fee structures for {nextAcademicYear} yet</p>
+            <p className="mt-0.5 text-amber-700">
+              Without next year&apos;s fee structures, promoted students will be marked as paid automatically.
+              Click <strong>Copy to Next Year</strong> to clone your current fee structures — then edit amounts if they changed.
+            </p>
+          </div>
         </div>
       )}
 

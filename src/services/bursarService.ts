@@ -144,6 +144,49 @@ export const bursarService = {
     if (error) throw error;
   },
 
+  /**
+   * Copy all fee structures from fromYear to toYear, skipping any
+   * (class_id, fee_type) pair that already exists in toYear.
+   * Does NOT auto-assign to students — next year's students aren't
+   * enrolled yet; assignment happens during the promotion flow.
+   * Returns the count of structures copied.
+   */
+  async copyFeesToNextYear(schoolId: string, fromYear: string, toYear: string): Promise<number> {
+    // Fetch source year fee structures
+    const { data: source, error: fetchErr } = await supabase
+      .from('fee_structures')
+      .select('*')
+      .eq('school_id', schoolId)
+      .eq('academic_year', fromYear);
+    if (fetchErr) throw fetchErr;
+    if (!source || source.length === 0) return 0;
+
+    // Fetch already-existing next year structures to avoid duplicates
+    const { data: existing } = await supabase
+      .from('fee_structures')
+      .select('class_id, fee_type, grade_level')
+      .eq('school_id', schoolId)
+      .eq('academic_year', toYear);
+
+    const existingKeys = new Set(
+      (existing ?? []).map((e) => `${e.class_id ?? '__null__'}|${e.fee_type}|${e.grade_level}`)
+    );
+
+    const toInsert = source
+      .filter((s) => !existingKeys.has(`${s.class_id ?? '__null__'}|${s.fee_type}|${s.grade_level}`))
+      .map(({ id: _id, created_at: _c, updated_at: _u, has_installments: _h, ...rest }) => ({
+        ...rest,
+        academic_year: toYear,
+      }));
+
+    if (toInsert.length === 0) return 0;
+
+    const { error: insertErr } = await supabase.from('fee_structures').insert(toInsert);
+    if (insertErr) throw insertErr;
+
+    return toInsert.length;
+  },
+
   // ==================== STUDENT FEES ====================
 
   async listStudentFees(
