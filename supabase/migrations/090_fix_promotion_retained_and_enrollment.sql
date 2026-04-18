@@ -179,6 +179,9 @@ GRANT EXECUTE ON FUNCTION process_year_end_promotion(UUID, TEXT, TEXT, JSONB, UU
 
 -- ════════════════════════════════════════════════════════════════
 -- PART 2: list_promoted_pending_assignment (fixed)
+-- Must DROP first because we added a new OUT column (outcome).
+-- CREATE OR REPLACE cannot change return type.
+DROP FUNCTION IF EXISTS list_promoted_pending_assignment(uuid);
 --
 -- Now returns BOTH promoted and retained students whose next-year
 -- enrollment is pending_payment (Registrar hasn't confirmed yet).
