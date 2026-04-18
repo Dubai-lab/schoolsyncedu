@@ -380,7 +380,6 @@ export const gradeService = {
       .from('grades')
       .update({ status: 'submitted', updated_at: new Date().toISOString() })
       .in('id', gradeIds)
-      .eq('status', 'draft')
       .select();
     if (error) throw error;
     return data as Grade[];
