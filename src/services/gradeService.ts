@@ -376,13 +376,11 @@ export const gradeService = {
 
   /** Submit grades for principal approval (teacher action) */
   async submitGradesForApproval(gradeIds: UUID[]) {
-    const { data, error } = await supabase
-      .from('grades')
-      .update({ status: 'submitted', updated_at: new Date().toISOString() })
-      .in('id', gradeIds)
-      .select();
+    const { data, error } = await supabase.rpc('submit_grades_for_approval', {
+      p_grade_ids: gradeIds,
+    });
     if (error) throw error;
-    return data as Grade[];
+    return data;
   },
 
   /** List grades pending approval (principal view) */
@@ -418,35 +416,22 @@ export const gradeService = {
 
   /** Approve grades (principal action) */
   async approveGrades(gradeIds: UUID[], approvedBy: UUID) {
-    const { data, error } = await supabase
-      .from('grades')
-      .update({
-        status: 'approved',
-        approved_by: approvedBy,
-        approved_at: new Date().toISOString(),
-        rejection_reason: null,
-        updated_at: new Date().toISOString(),
-      })
-      .in('id', gradeIds)
-      .select();
+    const { data, error } = await supabase.rpc('approve_grades', {
+      p_grade_ids:   gradeIds,
+      p_approved_by: approvedBy,
+    });
     if (error) throw error;
-    return data as Grade[];
+    return data;
   },
 
   /** Reject grades with reason (principal action) */
   async rejectGrades(gradeIds: UUID[], approvedBy: UUID, reason: string) {
-    const { data, error } = await supabase
-      .from('grades')
-      .update({
-        status: 'rejected',
-        approved_by: approvedBy,
-        approved_at: new Date().toISOString(),
-        rejection_reason: reason,
-        updated_at: new Date().toISOString(),
-      })
-      .in('id', gradeIds)
-      .select();
+    const { data, error } = await supabase.rpc('reject_grades', {
+      p_grade_ids:   gradeIds,
+      p_approved_by: approvedBy,
+      p_reason:      reason,
+    });
     if (error) throw error;
-    return data as Grade[];
+    return data;
   },
 };
