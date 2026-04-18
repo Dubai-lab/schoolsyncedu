@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { createElement, type ReactNode } from 'react';
 import { USER_ROLES, type UserRole } from '@/utils/constants';
 import { getPersistedSchoolSlug } from '@/store/auth.store';
+import { useDomainContext } from '@/context/DomainContext';
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -27,6 +28,7 @@ export function getHomePath(role: string): string {
 
 export function RequireAuth({ children }: RequireAuthProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { isCustomDomain, schoolSlug: domainSlug } = useDomainContext();
   const location = useLocation();
 
   if (isLoading) {
@@ -38,13 +40,15 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }
 
   if (!isAuthenticated) {
-    const slug = getPersistedSchoolSlug();
-    // School staff cannot use /auth/login — that's platform-admin only.
-    // If we know the school slug (stored on sign-in), send them to their
-    // school login page and preserve the intended destination.
-    // If no slug is known (fresh browser / different device), send them
-    // to the home page where they can find their school.
-    const loginPath = slug ? `/school/${slug}/login` : '/';
+    // On a custom domain the login page is just /login (no slug in URL).
+    // Otherwise use the persisted slug so staff sharing internal links land
+    // on their school's login. Fall back to / if no slug is known.
+    const loginPath = isCustomDomain
+      ? '/login'
+      : domainSlug
+        ? `/school/${domainSlug}/login`
+        : (() => { const slug = getPersistedSchoolSlug(); return slug ? `/school/${slug}/login` : '/'; })();
+
     return createElement(Navigate, {
       to: loginPath,
       state: { from: location },

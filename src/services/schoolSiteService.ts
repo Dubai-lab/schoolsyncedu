@@ -36,4 +36,15 @@ export const schoolSiteService = {
     if (error) throw error;
     return data;
   },
+
+  /** Fetch a school by its custom domain (for custom-domain hosting) */
+  async getByCustomDomain(hostname: string) {
+    const { data, error } = await getPublicClient()
+      .from('schools')
+      .select('*')
+      .eq('custom_domain', hostname)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
 };

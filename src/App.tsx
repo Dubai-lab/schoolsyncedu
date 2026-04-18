@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useDomainContext } from '@/context/DomainContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { RequireAuth, RequireRole } from '@/middleware/requireAuth';
 import { USER_ROLES } from '@/utils/constants';
@@ -218,10 +220,57 @@ import MyLibrary from '@/pages/student/MyLibrary';
 import StudentProfile from '@/pages/student/StudentProfile';
 import StudentDashboard from '@/pages/student/StudentDashboard';
 
+// ── Custom domain gateway ──────────────────────────────────────────────────────
+// When a school uses their own domain (e.g. portal.sdahs.edu.lr), we detect
+// it in DomainContext and redirect root + /login → /school/:slug equivalents
+// so all existing SchoolSite / SchoolLogin pages work without modification.
+function CustomDomainGateway() {
+  const { isCustomDomain, schoolSlug, isLoading, notFound } = useDomainContext();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isCustomDomain || isLoading || !schoolSlug) return;
+    const path = window.location.pathname;
+    if (path === '/' || path === '') {
+      navigate(`/school/${schoolSlug}`, { replace: true });
+    } else if (path === '/login') {
+      navigate(`/school/${schoolSlug}/login`, { replace: true });
+    } else if (path === '/apply') {
+      navigate(`/school/${schoolSlug}/apply`, { replace: true });
+    } else if (path === '/status') {
+      navigate(`/school/${schoolSlug}/status`, { replace: true });
+    } else if (path === '/fees') {
+      navigate(`/school/${schoolSlug}/fees`, { replace: true });
+    }
+  }, [isCustomDomain, schoolSlug, isLoading, navigate]);
+
+  if (isCustomDomain && isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (isCustomDomain && notFound) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-slate-50">
+        <p className="text-lg font-semibold text-slate-700">School not found</p>
+        <p className="text-sm text-slate-400">
+          This domain is not linked to any school on SchoolSync.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <ScrollToTop />
+      <CustomDomainGateway />
       <Routes>
         {/* Public — Marketing pages */}
         <Route element={<PublicLayout />}>

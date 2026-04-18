@@ -31,6 +31,10 @@ import {
   LayoutGrid,
   BookOpen,
   MessageSquare,
+  Link2,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
 } from 'lucide-react';
 
 // ==================== ICON MAP FOR STATS & PROGRAMS ====================
@@ -53,6 +57,8 @@ export default function SiteManagement() {
 
   const [form, setForm] = useState<Partial<School>>({});
   const [configForm, setConfigForm] = useState<Partial<SiteConfig>>({});
+  const [domainVerifying, setDomainVerifying] = useState(false);
+  const [domainStatus, setDomainStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
   const [logoUploading, setLogoUploading] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
   const [buildingUploading, setBuildingUploading] = useState(false);
@@ -199,6 +205,107 @@ export default function SiteManagement() {
           </div>
         </Card>
       )}
+
+      {/* ==================== CUSTOM DOMAIN ==================== */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Link2 className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-slate-900">Custom Domain</h2>
+        </div>
+        <p className="text-sm text-slate-500 mb-5">
+          Use your own domain (e.g. <span className="font-mono text-slate-700">portal.sdahs.edu.lr</span>) instead of the default SchoolSync URL.
+          Visitors will see your school's website and staff portal under your domain.
+        </p>
+
+        {/* Current domain input */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-slate-700 mb-1">Your Custom Domain</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={merged?.custom_domain ?? ''}
+              onChange={(e) => { set('custom_domain', e.target.value.toLowerCase().trim()); setDomainStatus('idle'); }}
+              placeholder="portal.yourschool.edu.lr"
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-mono"
+            />
+            <button
+              type="button"
+              disabled={domainVerifying || !merged?.custom_domain}
+              onClick={async () => {
+                setDomainVerifying(true);
+                setDomainStatus('idle');
+                try {
+                  // Lightweight check: fetch the domain and see if it resolves to this app.
+                  // In production Vercel handles SSL/CNAME — we just check if the domain is reachable.
+                  const res = await fetch(`https://${merged?.custom_domain}`, { method: 'HEAD', mode: 'no-cors', signal: AbortSignal.timeout(6000) });
+                  setDomainStatus(res.type === 'opaque' || res.ok ? 'ok' : 'fail');
+                } catch {
+                  setDomainStatus('fail');
+                } finally {
+                  setDomainVerifying(false);
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {domainVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+              {domainVerifying ? 'Checking…' : 'Verify'}
+            </button>
+          </div>
+          {domainStatus === 'ok' && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Domain is reachable. Save changes to activate it.
+            </p>
+          )}
+          {domainStatus === 'fail' && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+              <AlertCircle className="h-3.5 w-3.5" /> Domain not reachable yet — DNS may still be propagating (can take up to 48 hours).
+            </p>
+          )}
+        </div>
+
+        {/* DNS Setup Instructions */}
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">DNS Setup Instructions</p>
+          <p className="text-xs text-slate-500">
+            At your domain registrar (e.g. GoDaddy, Namecheap, Cloudflare), add this DNS record:
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="pr-6 py-1 font-semibold">Type</th>
+                  <th className="pr-6 py-1 font-semibold">Name / Host</th>
+                  <th className="pr-6 py-1 font-semibold">Value / Points To</th>
+                  <th className="py-1 font-semibold">TTL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="text-slate-800">
+                  <td className="pr-6 py-1">CNAME</td>
+                  <td className="pr-6 py-1">{merged?.custom_domain ? merged.custom_domain.split('.').slice(0, -2).join('.') || '@' : 'portal'}</td>
+                  <td className="pr-6 py-1 flex items-center gap-1">
+                    cname.vercel-dns.com
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText('cname.vercel-dns.com').then(() => notify.success('Copied!'))}
+                      className="ml-1 text-blue-500 hover:text-blue-700"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  </td>
+                  <td className="py-1">3600</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="border-t border-slate-200 pt-3 space-y-1.5 text-xs text-slate-500">
+            <p>1. Add the CNAME record above at your domain registrar.</p>
+            <p>2. Enter your domain in the field above and click <strong>Save Changes</strong>.</p>
+            <p>3. Send an email to <a href="mailto:support@schoolsyncedu.com" className="text-blue-600 hover:underline">support@schoolsyncedu.com</a> with your domain so we can add it to the platform. SSL is automatic.</p>
+            <p className="text-slate-400">DNS changes can take up to 48 hours to propagate worldwide.</p>
+          </div>
+        </div>
+      </Card>
 
       {/* ==================== SECTION VISIBILITY ==================== */}
       <Card className="p-6">
