@@ -165,7 +165,7 @@ export default function TranscriptDesigner() {
           transcript_config: cfg,
         },
       }),
-    ['school-info', schoolId],
+    [['school-info', schoolId]],
     {
       onSuccess: () => {
         notify.success('Transcript design saved');
