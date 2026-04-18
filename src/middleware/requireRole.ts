@@ -23,7 +23,7 @@ export function RequireRole({ children, roles }: RequireRoleProps) {
 
   if (!isAuthenticated) {
     const slug = getPersistedSchoolSlug();
-    const loginPath = slug ? `/school/${slug}/login` : '/auth/login';
+    const loginPath = slug ? `/school/${slug}/login` : '/';
     return createElement(Navigate, { to: loginPath, state: { from: location }, replace: true });
   }
 

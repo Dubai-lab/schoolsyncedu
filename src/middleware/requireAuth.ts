@@ -39,9 +39,12 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
   if (!isAuthenticated) {
     const slug = getPersistedSchoolSlug();
-    const loginPath = slug
-      ? `/school/${slug}/login`
-      : '/auth/login';
+    // School staff cannot use /auth/login — that's platform-admin only.
+    // If we know the school slug (stored on sign-in), send them to their
+    // school login page and preserve the intended destination.
+    // If no slug is known (fresh browser / different device), send them
+    // to the home page where they can find their school.
+    const loginPath = slug ? `/school/${slug}/login` : '/';
     return createElement(Navigate, {
       to: loginPath,
       state: { from: location },
