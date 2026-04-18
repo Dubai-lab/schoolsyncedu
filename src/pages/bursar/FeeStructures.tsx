@@ -129,16 +129,12 @@ export default function FeeStructures() {
   );
   const classes = classesResult?.data ?? [];
 
-  // "school-wide" sentinel value means class_id = NULL (school-wide registration fee)
   const SCHOOL_WIDE = '__school_wide__';
 
-  const classOptions = [
-    { label: 'School-wide (Registration fee — no specific class)', value: SCHOOL_WIDE },
-    ...classes.map((c) => ({
-      label: `${c.name}${c.grade_level ? ` (${c.grade_level})` : ''}`,
-      value: c.id,
-    })),
-  ];
+  const classOptions = classes.map((c) => ({
+    label: `${c.name}${c.grade_level ? ` (${c.grade_level})` : ''}`,
+    value: c.id,
+  }));
 
   // Fee structures for this academic year
   const { data: feeStructures, isLoading, refetch } = useFetch(
