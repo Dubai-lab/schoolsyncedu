@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { schoolSiteService } from '@/services/schoolSiteService';
@@ -21,6 +21,8 @@ export default function SchoolLogin() {
   const { slug } = useParams<{ slug: string }>();
   const { signIn, signOut, error, isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? null;
 
   const [school, setSchool] = useState<School | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -67,7 +69,7 @@ export default function SchoolLogin() {
         });
         return;
       }
-      navigate(getHomePath(user.role ?? ''), { replace: true });
+      navigate(fromPath ?? getHomePath(user.role ?? ''), { replace: true });
     }
   }, [isAuthenticated, user, navigate, justSignedIn, signOut]);
 
@@ -341,7 +343,7 @@ export default function SchoolLogin() {
               <div className="mt-3 flex gap-3">
                 <button
                   onClick={() => {
-                      navigate(getHomePath(user.role ?? ''));
+                      navigate(fromPath ?? getHomePath(user.role ?? ''));
                   }}
                   className="rounded-md px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
                   style={{ backgroundColor: accentColor }}

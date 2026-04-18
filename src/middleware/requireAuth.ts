@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useLocation } from 'react-router-dom';
 import { createElement, type ReactNode } from 'react';
 import { USER_ROLES, type UserRole } from '@/utils/constants';
+import { getPersistedSchoolSlug } from '@/store/auth.store';
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -37,8 +38,12 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }
 
   if (!isAuthenticated) {
+    const slug = getPersistedSchoolSlug();
+    const loginPath = slug
+      ? `/school/${slug}/login`
+      : '/auth/login';
     return createElement(Navigate, {
-      to: '/auth/login',
+      to: loginPath,
       state: { from: location },
       replace: true,
     });

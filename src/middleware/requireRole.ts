@@ -1,7 +1,8 @@
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { createElement, type ReactNode } from 'react';
 import type { UserRole } from '@/utils/constants';
+import { getPersistedSchoolSlug } from '@/store/auth.store';
 
 interface RequireRoleProps {
   children: ReactNode;
@@ -10,6 +11,7 @@ interface RequireRoleProps {
 
 export function RequireRole({ children, roles }: RequireRoleProps) {
   const { hasRole, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return createElement('div', {
@@ -20,7 +22,9 @@ export function RequireRole({ children, roles }: RequireRoleProps) {
   }
 
   if (!isAuthenticated) {
-    return createElement(Navigate, { to: '/auth/login', replace: true });
+    const slug = getPersistedSchoolSlug();
+    const loginPath = slug ? `/school/${slug}/login` : '/auth/login';
+    return createElement(Navigate, { to: loginPath, state: { from: location }, replace: true });
   }
 
   if (!hasRole(...roles)) {
