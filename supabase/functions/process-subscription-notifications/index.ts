@@ -231,7 +231,7 @@ serve(async (req) => {
     const loginUrl = `${appUrl}/auth/login`;
     const year = new Date().getFullYear();
 
-    // ── SMTP setup ────────────────────────────────────────────────
+    // ── SMTP setup (support) ──────────────────────────────────────
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
@@ -248,6 +248,19 @@ serve(async (req) => {
       port: Number(Deno.env.get('SMTP_PORT') || 587),
       secure: Deno.env.get('SMTP_SECURE') === 'true',
       auth: { user: smtpUser, pass: smtpPass },
+    });
+
+    // ── SMTP setup (billing) ──────────────────────────────────────
+    const billingHost = Deno.env.get('SMTP_BILLING_HOST') || smtpHost;
+    const billingUser = Deno.env.get('SMTP_BILLING_USER') || smtpUser;
+    const billingPass = Deno.env.get('SMTP_BILLING_PASS') || smtpPass;
+    const billingFrom = Deno.env.get('SMTP_BILLING_FROM') || 'billing@schoolsyncedu.com';
+
+    const billingTransporter = nodemailer.createTransport({
+      host: billingHost,
+      port: Number(Deno.env.get('SMTP_BILLING_PORT') || 587),
+      secure: Deno.env.get('SMTP_BILLING_SECURE') === 'true',
+      auth: { user: billingUser, pass: billingPass },
     });
 
     // ── Direct trigger mode (payment_confirmed, reactivated, etc.) ────────────
@@ -274,8 +287,7 @@ serve(async (req) => {
         ? new Date(expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'N/A';
 
-      const billingFrom = Deno.env.get('SMTP_BILLING_FROM') || 'billing@schoolsyncedu.com';
-      await transporter.sendMail({
+      await billingTransporter.sendMail({
         from: `"SchoolSync Billing" <${billingFrom}>`,
         to: owner_email,
         subject: `Payment Confirmed — ${school_name} subscription is active`,
