@@ -28,6 +28,7 @@ export function useMutate<TData, TVariables>(
 ) {
   const qc = useQueryClient();
   return useMutation<TData, Error, TVariables>({
+    ...options,
     mutationFn,
     onSuccess: (...args) => {
       // Invalidate and immediately refetch all related queries
@@ -39,6 +40,5 @@ export function useMutate<TData, TVariables>(
     onError: (...args) => {
       options?.onError?.(...args);
     },
-    ...options,
   });
 }
