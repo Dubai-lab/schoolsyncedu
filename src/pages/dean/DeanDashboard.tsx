@@ -46,7 +46,7 @@ export default function DeanDashboard() {
     { label: 'Active Suspensions', value: stats?.active_suspensions ?? 0, icon: ShieldOff, color: 'bg-rose-600', to: '/dean/suspensions' },
     { label: 'Upcoming Meetings', value: stats?.upcoming_meetings ?? 0, icon: Calendar, color: 'bg-blue-500', to: '/dean/meetings' },
     { label: 'Welfare Flags', value: stats?.welfare_flags ?? 0, icon: Heart, color: 'bg-purple-500', to: '/dean/welfare' },
-    { label: 'Counselor Referrals', value: stats?.pending_counselor_referrals ?? 0, icon: BookOpen, color: 'bg-teal-500', to: '/dean/counselor-referrals' },
+    { label: 'Counselor Referrals', value: stats?.pending_counselor_referrals ?? 0, icon: BookOpen, color: 'bg-teal-500', to: '/dean/referrals' },
   ];
 
   const quickActions = [

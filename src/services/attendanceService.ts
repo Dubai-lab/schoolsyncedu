@@ -52,7 +52,7 @@ export const attendanceService = {
       .select('*, students(id, first_name, last_name, registration_number)')
       .eq('class_id', classId)
       .eq('attendance_date', date)
-      .order('students(last_name)');
+      .order('last_name', { referencedTable: 'students' });
     if (error) throw error;
     return data as (AttendanceRecord & {
       students: { id: string; first_name: string; last_name: string; registration_number: string };
@@ -65,10 +65,14 @@ export const attendanceService = {
       .from('class_assignments')
       .select('student_id, students(id, first_name, last_name, registration_number, photo_url)')
       .eq('class_id', classId)
-      .is('removed_at', null)
-      .order('students(last_name)');
+      .is('removed_at', null);
     if (error) throw error;
-    return (data ?? []).map((d) => (d as Record<string, unknown>).students) as {
+    const sorted = (data ?? []).sort((a, b) => {
+      const sa = (a as Record<string, unknown>).students as { last_name?: string } | null;
+      const sb = (b as Record<string, unknown>).students as { last_name?: string } | null;
+      return (sa?.last_name ?? '').localeCompare(sb?.last_name ?? '');
+    });
+    return sorted.map((d) => (d as Record<string, unknown>).students) as {
       id: string; first_name: string; last_name: string; registration_number: string; photo_url: string | null;
     }[];
   },

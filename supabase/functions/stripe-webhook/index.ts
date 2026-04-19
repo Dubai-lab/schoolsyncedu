@@ -54,9 +54,8 @@ serve(async (req) => {
         return new Response('Webhook signature verification failed', { status: 400 });
       }
     } else {
-      // No webhook secret set — accept all (development only)
-      console.warn('STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
-      event = JSON.parse(body) as Stripe.Event;
+      console.error('STRIPE_WEBHOOK_SECRET not configured — rejecting all webhooks');
+      return new Response('Server configuration error', { status: 500 });
     }
 
     console.log('Stripe webhook received:', event.type, event.id);

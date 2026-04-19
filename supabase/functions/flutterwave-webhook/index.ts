@@ -31,14 +31,16 @@ serve(async (req) => {
   }
 
   try {
-    // ── 1. Verify Flutterwave webhook signature ────────────────
+    // ── 1. Verify Flutterwave webhook signature (mandatory) ───────
     const webhookSecret = Deno.env.get('FLUTTERWAVE_WEBHOOK_SECRET');
-    if (webhookSecret) {
-      const signature = req.headers.get('verif-hash');
-      if (!signature || signature !== webhookSecret) {
-        console.warn('Webhook signature mismatch');
-        return new Response('Unauthorized', { status: 401 });
-      }
+    if (!webhookSecret) {
+      console.error('FLUTTERWAVE_WEBHOOK_SECRET not configured — rejecting all webhooks');
+      return new Response('Server configuration error', { status: 500 });
+    }
+    const signature = req.headers.get('verif-hash');
+    if (!signature || signature !== webhookSecret) {
+      console.warn('Webhook signature mismatch — possible spoofed request');
+      return new Response('Unauthorized', { status: 401 });
     }
 
     const body = await req.json();

@@ -421,19 +421,19 @@ export default function App() {
           <Route path="/it-admin/email" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><EmailSettings /></RequireRole>} />
           <Route path="/it-admin/transcript" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><TranscriptDesigner /></RequireRole>} />
           {/* Registrar module */}
-          <Route path="/registrar" element={<RegistrarDashboard />} />
-          <Route path="/registrar/applications" element={<ApplicationReview />} />
-          <Route path="/registrar/applications/:id" element={<ApplicationDetail />} />
-          <Route path="/registrar/promotion" element={<StudentPromotion />} />
-          <Route path="/registrar/promoted" element={<PromotedStudents />} />
-          <Route path="/registrar/import" element={<BulkStudentImport />} />
+          <Route path="/registrar" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><RegistrarDashboard /></RequireRole>} />
+          <Route path="/registrar/applications" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><ApplicationReview /></RequireRole>} />
+          <Route path="/registrar/applications/:id" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><ApplicationDetail /></RequireRole>} />
+          <Route path="/registrar/promotion" element={<RequireRole roles={[USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><StudentPromotion /></RequireRole>} />
+          <Route path="/registrar/promoted" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><PromotedStudents /></RequireRole>} />
+          <Route path="/registrar/import" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BulkStudentImport /></RequireRole>} />
           {/* Bursar / Finance module */}
-          <Route path="/bursar" element={<BursarDashboard />} />
-          <Route path="/bursar/fee-structures" element={<FeeStructures />} />
-          <Route path="/bursar/application-fees" element={<ApplicationFeePayments />} />
-          <Route path="/bursar/bank-transfers" element={<BankTransferVerification />} />
-          <Route path="/bursar/reg-fee-confirmation" element={<RegFeeConfirmation />} />
-          <Route path="/bursar/fee-correction" element={<FeeCorrection />} />
+          <Route path="/bursar" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BursarDashboard /></RequireRole>} />
+          <Route path="/bursar/fee-structures" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><FeeStructures /></RequireRole>} />
+          <Route path="/bursar/application-fees" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><ApplicationFeePayments /></RequireRole>} />
+          <Route path="/bursar/bank-transfers" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BankTransferVerification /></RequireRole>} />
+          <Route path="/bursar/reg-fee-confirmation" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><RegFeeConfirmation /></RequireRole>} />
+          <Route path="/bursar/fee-correction" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><FeeCorrection /></RequireRole>} />
           {/* Admin module — Super Admin only */}
           <Route path="/admin" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDashboard /></RequireRole>} />
           <Route path="/admin/schools" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SchoolManagement /></RequireRole>} />
@@ -466,23 +466,23 @@ export default function App() {
           <Route path="/dean/reports" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanReports /></RequireRole>} />
 
           {/* Teacher portal */}
-          <Route path="/teacher" element={<TeacherDashboard />} />
-          <Route path="/teacher/classes" element={<TeacherClasses />} />
-          <Route path="/teacher/schedule" element={<TeacherSchedule />} />
-          <Route path="/teacher/attendance" element={<TeacherAttendance />} />
-          <Route path="/teacher/nfc-attendance" element={<NfcAttendance />} />
-          <Route path="/teacher/grades" element={<TeacherGradeEntry />} />
+          <Route path="/teacher" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherDashboard /></RequireRole>} />
+          <Route path="/teacher/classes" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherClasses /></RequireRole>} />
+          <Route path="/teacher/schedule" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherSchedule /></RequireRole>} />
+          <Route path="/teacher/attendance" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherAttendance /></RequireRole>} />
+          <Route path="/teacher/nfc-attendance" element={<RequireRole roles={[USER_ROLES.TEACHER]}><NfcAttendance /></RequireRole>} />
+          <Route path="/teacher/grades" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherGradeEntry /></RequireRole>} />
 
           {/* Student portal */}
-          <Route path="/student/dashboard" element={<StudentDashboard />} />
+          <Route path="/student/dashboard" element={<RequireRole roles={[USER_ROLES.STUDENT]}><StudentDashboard /></RequireRole>} />
           <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="/student/grades" element={<MyGrades />} />
-          <Route path="/student/attendance" element={<MyAttendance />} />
-          <Route path="/student/fees" element={<MyFees />} />
-          <Route path="/student/timetable" element={<MyTimetable />} />
-          <Route path="/student/id-card" element={<MyIDCard />} />
-          <Route path="/student/library" element={<MyLibrary />} />
-          <Route path="/student/profile" element={<StudentProfile />} />
+          <Route path="/student/grades" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyGrades /></RequireRole>} />
+          <Route path="/student/attendance" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyAttendance /></RequireRole>} />
+          <Route path="/student/fees" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyFees /></RequireRole>} />
+          <Route path="/student/timetable" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyTimetable /></RequireRole>} />
+          <Route path="/student/id-card" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyIDCard /></RequireRole>} />
+          <Route path="/student/library" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyLibrary /></RequireRole>} />
+          <Route path="/student/profile" element={<RequireRole roles={[USER_ROLES.STUDENT]}><StudentProfile /></RequireRole>} />
         </Route>
 
         {/* Error pages */}

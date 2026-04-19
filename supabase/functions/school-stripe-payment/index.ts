@@ -34,6 +34,26 @@ serve(async (req) => {
   }
 
   try {
+    // ── Verify caller is authenticated ────────────────────────────────────────
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser(jwt);
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const {
       school_id,
       student_id,
@@ -64,12 +84,7 @@ serve(async (req) => {
     }
 
     // ── Fetch the school's Stripe secret key (service role bypasses RLS) ──────
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    const { data: config, error: configError } = await supabase
+    const { data: config, error: configError } = await supabaseAuth
       .from('school_payment_configs')
       .select('stripe_secret_key, stripe_enabled, stripe_currency')
       .eq('school_id', school_id)
