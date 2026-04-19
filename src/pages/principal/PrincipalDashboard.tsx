@@ -9,8 +9,6 @@ import {
   GraduationCap,
   Users,
   BookOpen,
-  CalendarCheck,
-  ClipboardCheck,
   Mail,
   BarChart3,
   Settings,
@@ -116,28 +114,6 @@ export default function PrincipalDashboard() {
       to: '/classes',
     },
     {
-      label: 'Present Today',
-      value: stats?.presentToday ?? 0,
-      icon: CalendarCheck,
-      color: 'bg-teal-500',
-      to: '/attendance',
-    },
-    {
-      label: 'Absent Today',
-      value: stats?.absentToday ?? 0,
-      icon: CalendarCheck,
-      color: 'bg-rose-500',
-      to: '/attendance',
-    },
-    {
-      label: 'Grades Pending Approval',
-      value: stats?.pendingGradeApprovals ?? 0,
-      icon: ClipboardCheck,
-      color: 'bg-amber-500',
-      to: '/grades/approval',
-      urgent: true,
-    },
-    {
       label: 'Letters Pending Approval',
       value: stats?.pendingLetterApprovals ?? 0,
       icon: Mail,
@@ -149,25 +125,11 @@ export default function PrincipalDashboard() {
 
   const quickActions = [
     {
-      label: 'Grade Approval',
-      desc: 'Review & approve submitted grades',
-      to: '/grades/approval',
-      icon: ClipboardCheck,
-      color: 'text-amber-700 bg-amber-50 border-amber-200',
-    },
-    {
       label: 'Letter Approvals',
       desc: 'Approve outgoing letters',
       to: '/letters/approvals',
       icon: Mail,
       color: 'text-orange-700 bg-orange-50 border-orange-200',
-    },
-    {
-      label: 'Attendance',
-      desc: 'View school-wide attendance',
-      to: '/attendance',
-      icon: CalendarCheck,
-      color: 'text-teal-700 bg-teal-50 border-teal-200',
     },
     {
       label: 'Students',
@@ -252,39 +214,24 @@ export default function PrincipalDashboard() {
       </div>
 
       {/* Urgent alerts */}
-      {!isLoading && (stats?.pendingGradeApprovals ?? 0) + (stats?.pendingLetterApprovals ?? 0) > 0 && (
+      {!isLoading && (stats?.pendingLetterApprovals ?? 0) > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-800 flex-1">
             You have{' '}
-            {(stats?.pendingGradeApprovals ?? 0) > 0 && (
-              <strong>{stats!.pendingGradeApprovals} grade{stats!.pendingGradeApprovals !== 1 ? 's' : ''}</strong>
-            )}
-            {(stats?.pendingGradeApprovals ?? 0) > 0 && (stats?.pendingLetterApprovals ?? 0) > 0 && ' and '}
-            {(stats?.pendingLetterApprovals ?? 0) > 0 && (
-              <strong>{stats!.pendingLetterApprovals} letter{stats!.pendingLetterApprovals !== 1 ? 's' : ''}</strong>
-            )}{' '}
+            <strong>{stats!.pendingLetterApprovals} letter{stats!.pendingLetterApprovals !== 1 ? 's' : ''}</strong>{' '}
             awaiting your approval.
           </p>
-          <div className="flex gap-2 shrink-0">
-            {(stats?.pendingGradeApprovals ?? 0) > 0 && (
-              <Link to="/grades/approval" className="text-xs font-medium text-amber-700 underline">
-                Grades
-              </Link>
-            )}
-            {(stats?.pendingLetterApprovals ?? 0) > 0 && (
-              <Link to="/letters/approvals" className="text-xs font-medium text-amber-700 underline">
-                Letters
-              </Link>
-            )}
-          </div>
+          <Link to="/letters/approvals" className="text-xs font-medium text-amber-700 underline shrink-0">
+            Letters
+          </Link>
         </div>
       )}
 
       {/* Stats */}
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 7 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-xl bg-slate-100 animate-pulse" />
           ))}
         </div>
@@ -320,9 +267,6 @@ export default function PrincipalDashboard() {
             { label: 'Classes', path: '/classes', icon: BookOpen },
             { label: 'Subjects', path: '/subjects', icon: BookOpen },
             { label: 'Terms', path: '/classes/terms', icon: Calendar },
-            { label: 'Grades', path: '/grades', icon: FileText },
-            { label: 'Report Cards', path: '/grades/reports', icon: ClipboardList },
-            { label: 'Transcripts', path: '/grades/transcript', icon: FileText },
             { label: 'Letters', path: '/letters', icon: Mail },
             { label: 'Users', path: '/staff', icon: Users },
           ].map((item) => (
