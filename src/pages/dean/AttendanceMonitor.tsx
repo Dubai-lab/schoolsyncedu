@@ -38,9 +38,8 @@ async function fetchAttendanceSummary(schoolId: string): Promise<AttendanceRecor
   // Get attendance records for all students
   const studentIds = students.map((s) => s.id);
   const { data: attendance, error: aErr } = await supabase
-    .from('attendance')
+    .from('attendance_records')
     .select('student_id, status')
-    .eq('school_id', schoolId)
     .in('student_id', studentIds);
   if (aErr) throw aErr;
 
