@@ -29,6 +29,25 @@ serve(async (req) => {
   }
 
   try {
+    // Verify caller is authenticated
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const authCheckClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await authCheckClient.auth.getUser(jwt);
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const {
       school_id,
       to,

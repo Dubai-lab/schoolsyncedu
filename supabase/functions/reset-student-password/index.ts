@@ -78,9 +78,9 @@ serve(async (req) => {
     // Get school's default student password from settings
     const { data: settings } = await adminClient
       .from('school_settings')
-      .select('value')
+      .select('setting_value')
       .eq('school_id', school_id)
-      .eq('key', 'default_student_password')
+      .eq('setting_key', 'default_student_password')
       .maybeSingle();
 
     // Get the student's user record (for auth_id and registration number as fallback)
@@ -97,7 +97,7 @@ serve(async (req) => {
       });
     }
 
-    const defaultPassword = settings?.value?.trim() || studentRecord.registration_number || 'school123';
+    const defaultPassword = settings?.setting_value?.trim() || studentRecord.registration_number || 'school123';
 
     // Use Admin API to set password directly — no email sent
     const authId = (studentRecord.users as { auth_id: string }).auth_id;

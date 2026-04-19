@@ -15,6 +15,25 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    // Verify caller is authenticated
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await supabaseClient.auth.getUser(jwt);
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
     if (!stripeKey) {
       return new Response(JSON.stringify({ error: 'Payment service not configured' }), {

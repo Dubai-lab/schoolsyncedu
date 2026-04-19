@@ -22,9 +22,26 @@ serve(async (req) => {
   }
 
   try {
-    const stripeKey  = Deno.env.get('STRIPE_SECRET_KEY')!;
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Verify caller is authenticated
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const adminClient = createClient(supabaseUrl, serviceKey);
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await adminClient.auth.getUser(jwt);
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')!;
 
     const { payment_intent_id, setup_intent_id, school_id } = await req.json() as {
       payment_intent_id?: string;
@@ -38,8 +55,7 @@ serve(async (req) => {
       });
     }
 
-    const stripe      = new Stripe(stripeKey, { apiVersion: '2024-06-20' });
-    const adminClient = createClient(supabaseUrl, serviceKey);
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' });
 
     // Retrieve the PaymentMethod from either a PaymentIntent or SetupIntent
     let pm: Stripe.PaymentMethod | null = null;
