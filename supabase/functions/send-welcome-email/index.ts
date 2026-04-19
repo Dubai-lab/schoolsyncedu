@@ -95,6 +95,25 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    // Verify caller is authenticated
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const authClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await authClient.auth.getUser(jwt);
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { owner_name, owner_email, school_name, plan_name, trial_days, school_id } =
       await req.json() as {
         owner_name: string;
@@ -112,12 +131,8 @@ serve(async (req) => {
     }
 
     // Log to DB
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
     if (school_id) {
-      await supabase.from('notification_logs').insert({
+      await authClient.from('notification_logs').insert({
         school_id,
         event_type: 'welcome',
         recipient_email: owner_email,

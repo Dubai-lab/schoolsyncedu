@@ -15,6 +15,14 @@ export const principalService = {
   async getStats(schoolId: UUID): Promise<PrincipalStats> {
     const today = new Date().toISOString().split('T')[0];
 
+    // Fetch student IDs first — attendance_records has no school_id column
+    const { data: schoolStudents } = await supabase
+      .from('students')
+      .select('id')
+      .eq('school_id', schoolId)
+      .eq('status', 'enrolled');
+    const studentIds = (schoolStudents ?? []).map((s) => s.id);
+
     const [
       studentsRes,
       staffRes,
@@ -49,11 +57,13 @@ export const principalService = {
 
       supabase.rpc('list_pending_approval_letters', { p_school_id: schoolId }),
 
-      supabase
-        .from('attendance_records')
-        .select('status')
-        .eq('school_id', schoolId)
-        .eq('date', today),
+      studentIds.length > 0
+        ? supabase
+            .from('attendance_records')
+            .select('status')
+            .in('student_id', studentIds)
+            .eq('attendance_date', today)
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     const attendance = (attendanceRes.data ?? []) as { status: string }[];
