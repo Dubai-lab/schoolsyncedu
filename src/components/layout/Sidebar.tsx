@@ -167,6 +167,8 @@ const navGroups: NavGroup[] = [
       { label: 'Subjects', path: '/subjects', icon: BookOpen, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Semesters & Periods', path: '/classes/terms', icon: Calendar, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Timetable', path: '/timetable', icon: Calendar, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Grade Approval', path: '/grades/approval', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Report Cards', path: '/grades/reports', icon: FileText, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'WAEC Exams', path: '/waec', icon: ClipboardList, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Letters', path: '/letters', icon: Mail, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Upload Letter', path: '/letters/custom-upload', icon: Upload, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },

@@ -273,7 +273,7 @@ export const academicCalendarService = {
     return data as AcademicCalendar[];
   },
 
-  /** Get only marking periods (p1–p6) for a given year — used by grade entry */
+  /** Get only marking periods (p1–p6) that the Principal has configured with dates */
   async listPeriods(schoolId: UUID, academicYear: string) {
     const { data, error } = await supabase
       .from('academic_calendar')
@@ -281,6 +281,8 @@ export const academicCalendarService = {
       .eq('school_id', schoolId)
       .eq('academic_year', academicYear)
       .eq('period_type', 'marking_period')
+      .not('start_date', 'is', null)
+      .not('end_date', 'is', null)
       .order('period_number');
     if (error) throw error;
     return data as AcademicCalendar[];
