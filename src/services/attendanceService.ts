@@ -70,7 +70,7 @@ export const attendanceService = {
   async getClassStudents(classId: UUID) {
     const { data, error } = await supabase
       .from('class_assignments')
-      .select('student_id, students(id, first_name, last_name, registration_number, photo_url)')
+      .select('student_id, students!inner(id, first_name, last_name, registration_number, photo_url)')
       .eq('class_id', classId)
       .is('removed_at', null);
     if (error) throw error;
@@ -79,9 +79,11 @@ export const attendanceService = {
       const sb = (b as Record<string, unknown>).students as { last_name?: string } | null;
       return (sa?.last_name ?? '').localeCompare(sb?.last_name ?? '');
     });
-    return sorted.map((d) => (d as Record<string, unknown>).students) as {
-      id: string; first_name: string; last_name: string; registration_number: string; photo_url: string | null;
-    }[];
+    return sorted
+      .map((d) => (d as Record<string, unknown>).students)
+      .filter(Boolean) as {
+        id: string; first_name: string; last_name: string; registration_number: string; photo_url: string | null;
+      }[];
   },
 
   /** Get list of classes for a school (for class picker) */

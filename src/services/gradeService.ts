@@ -120,14 +120,16 @@ export const gradeService = {
   async getClassStudents(classId: UUID) {
     const { data, error } = await supabase
       .from('class_assignments')
-      .select('student_id, students(id, first_name, last_name, registration_number)')
+      .select('student_id, students!inner(id, first_name, last_name, registration_number)')
       .eq('class_id', classId)
       .is('removed_at', null);
     if (error) throw error;
-    return (data ?? []).map((d: Record<string, unknown>) => ({
-      student_id: d.student_id as string,
-      students: (Array.isArray(d.students) ? d.students[0] : d.students) as { id: string; first_name: string; last_name: string; registration_number: string | null },
-    }));
+    return (data ?? [])
+      .map((d: Record<string, unknown>) => ({
+        student_id: d.student_id as string,
+        students: (Array.isArray(d.students) ? d.students[0] : d.students) as { id: string; first_name: string; last_name: string; registration_number: string | null },
+      }))
+      .filter((r) => r.students != null);
   },
 
   /** Search students for transcript lookup (all enrolled students) */
