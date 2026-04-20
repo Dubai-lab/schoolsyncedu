@@ -91,7 +91,7 @@ export default function GradeEntry() {
   const [rows,            setRows]            = useState<StudentGradeRow[]>([]);
 
   const { data: classes } = useFetch(
-    ['classes', schoolId],
+    ['grade-entry-classes', schoolId],
     () => gradeService.getClasses(schoolId),
     { enabled: !!schoolId },
   );

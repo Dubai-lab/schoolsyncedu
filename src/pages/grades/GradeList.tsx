@@ -53,13 +53,13 @@ export default function GradeList() {
   });
 
   const { data: classes } = useFetch(
-    ['classes', schoolId],
+    ['grade-list-classes', schoolId],
     () => gradeService.getClasses(schoolId),
     { enabled: !!schoolId },
   );
 
   const { data: subjects } = useFetch(
-    ['subjects', schoolId],
+    ['grade-list-subjects', schoolId],
     () => gradeService.getSubjects(schoolId),
     { enabled: !!schoolId },
   );

@@ -450,7 +450,7 @@ export default function TranscriptPage() {
 
   // Subjects
   const { data: subjects } = useFetch(
-    ['subjects', schoolId],
+    ['transcript-subjects', schoolId],
     () => gradeService.getSubjects(schoolId),
     { enabled: !!schoolId },
   );

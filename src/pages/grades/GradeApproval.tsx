@@ -31,15 +31,15 @@ export default function GradeApproval() {
     { enabled: !!schoolId },
   );
 
-  // Fetch classes & subjects
+  // Fetch classes & subjects (distinct keys to avoid collision with list-page cache)
   const { data: classes } = useFetch(
-    ['classes', schoolId],
+    ['grade-approval-classes', schoolId],
     () => gradeService.getClasses(schoolId),
     { enabled: !!schoolId },
   );
 
   const { data: subjects } = useFetch(
-    ['subjects', schoolId],
+    ['grade-approval-subjects', schoolId],
     () => gradeService.getSubjects(schoolId),
     { enabled: !!schoolId },
   );
