@@ -280,7 +280,7 @@ export const academicCalendarService = {
       .select('*')
       .eq('school_id', schoolId)
       .eq('academic_year', academicYear)
-      .eq('period_type', 'marking_period')
+      .in('term_name', ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'])
       .not('start_date', 'is', null)
       .not('end_date', 'is', null)
       .order('period_number');
