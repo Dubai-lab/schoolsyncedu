@@ -4,7 +4,7 @@ import { kioskService } from '@/services/kioskService';
 import type { KioskSchool, KioskClass, ClearanceResult, ScanRecord } from '@/services/kioskService';
 import {
   Wifi, WifiOff, CheckCircle2, XCircle, Download, LogOut,
-  Lock, Loader2, Users, ChevronDown, AlertCircle,
+  Lock, Loader2, Users, ChevronDown, AlertCircle, RefreshCw,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -15,6 +15,25 @@ function fmt(n: number) { return n.toFixed(2); }
 
 // ── Result Card ────────────────────────────────────────────────────────────
 function ResultCard({ result, onDismiss }: { result: ClearanceResult; onDismiss: () => void }) {
+  if (result.wrong_class) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6 bg-amber-950" onClick={onDismiss}>
+        <div className="w-full max-w-sm rounded-3xl p-8 text-center shadow-2xl bg-amber-900 border-2 border-amber-400">
+          <AlertCircle className="h-24 w-24 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-4xl font-black mb-2 text-amber-300">WRONG CLASS</h2>
+          <p className="text-white text-xl font-bold mb-1">{result.student_name}</p>
+          <p className="text-slate-400 text-sm font-mono mb-4">{result.registration_number}</p>
+          <div className="rounded-xl bg-black/30 p-4 mb-4">
+            <p className="text-amber-300 text-sm">
+              This student is not enrolled in <span className="font-bold">{result.expected_class}</span>
+            </p>
+          </div>
+          <p className="text-slate-400 text-xs">Tap anywhere to continue</p>
+        </div>
+      </div>
+    );
+  }
+
   const cleared = result.is_cleared;
   return (
     <div
@@ -160,24 +179,27 @@ export default function KioskScanner() {
   const [lastResult,   setLastResult]   = useState<ClearanceResult | null>(null);
   const [scanError,    setScanError]    = useState('');
 
-  const [showLogoutPin, setShowLogoutPin]   = useState(false);
-  const [showEndPin,    setShowEndPin]      = useState(false);
-  const [setupDone,     setSetupDone]       = useState(false);
-  const [setupLoading,  setSetupLoading]    = useState(false);
+  const [showLogoutPin,      setShowLogoutPin]      = useState(false);
+  const [showEndPin,         setShowEndPin]         = useState(false);
+  const [showChangeClassPin, setShowChangeClassPin] = useState(false);
+  const [setupDone,          setSetupDone]          = useState(false);
+  const [setupLoading,       setSetupLoading]       = useState(false);
 
   const nfcAbortRef = useRef<AbortController | null>(null);
   const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Refs so NFC callbacks always read the latest values (avoids stale closure)
-  const sessionIdRef = useRef<string | null>(null);
-  const semesterRef  = useRef<string>(semester);
-  const schoolRef    = useRef<KioskSchool | null>(school);
+  const sessionIdRef      = useRef<string | null>(null);
+  const semesterRef       = useRef<string>(semester);
+  const schoolRef         = useRef<KioskSchool | null>(school);
+  const selectedClassRef  = useRef<KioskClass | null>(null);
 
   const nfcSupported = 'NDEFReader' in window;
 
   // Keep refs in sync with state so NFC callbacks always have the latest values
-  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
-  useEffect(() => { semesterRef.current  = semester;  }, [semester]);
-  useEffect(() => { schoolRef.current    = school;    }, [school]);
+  useEffect(() => { sessionIdRef.current     = sessionId;     }, [sessionId]);
+  useEffect(() => { semesterRef.current      = semester;      }, [semester]);
+  useEffect(() => { schoolRef.current        = school;        }, [school]);
+  useEffect(() => { selectedClassRef.current = selectedClass; }, [selectedClass]);
 
   // Redirect if no school in session
   useEffect(() => {
@@ -212,14 +234,18 @@ export default function KioskScanner() {
     const currentSchool     = schoolRef.current;
     const currentSessionId  = sessionIdRef.current;
     const currentSemester   = semesterRef.current;
+    const currentClass      = selectedClassRef.current;
     if (!currentSchool || !currentSessionId) return;
     setScanState('scanning');
     try {
-      const result = await kioskService.checkClearance(currentSchool.school_id, chipId, currentSemester);
-      await kioskService.saveScan(currentSessionId, currentSchool.school_id, result);
+      const result = await kioskService.checkClearance(
+        currentSchool.school_id, chipId, currentSemester, currentClass?.id,
+      );
       setLastResult(result);
       setScanState('result');
-      // Add to local records list
+      // Don't save wrong-class scans to the records list
+      if (result.wrong_class) return;
+      await kioskService.saveScan(currentSessionId, currentSchool.school_id, result);
       setRecords((prev) => {
         const filtered = prev.filter((r) => r.registration_number !== result.registration_number);
         return [{
@@ -238,7 +264,7 @@ export default function KioskScanner() {
       setScanState('error');
       setTimeout(() => { setScanState('idle'); setScanError(''); }, 3000);
     }
-  }, [school, sessionId, semester]);
+  }, []);
 
   async function startNfc() {
     if (!('NDEFReader' in window)) {
@@ -275,13 +301,20 @@ export default function KioskScanner() {
     if (!school || !selectedClass) return;
     setSetupLoading(true);
     try {
-      const id = await kioskService.startSession(
+      const { session_id, is_new } = await kioskService.findOrCreateSession(
         school.school_id, semester,
         selectedClass.id, selectedClass.name,
         school.academic_year,
       );
-      sessionIdRef.current = id;  // set ref immediately — no waiting for React state
-      setSessionId(id);
+      sessionIdRef.current = session_id;  // set ref immediately — no waiting for React state
+      setSessionId(session_id);
+      // If resuming today's session, load existing records
+      if (!is_new) {
+        const existing = await kioskService.getSessionRecords(session_id);
+        setRecords(existing);
+      } else {
+        setRecords([]);
+      }
       setSetupDone(true);
       await startNfc();
     } catch (err) {
@@ -330,9 +363,18 @@ export default function KioskScanner() {
               <WifiOff className="h-3.5 w-3.5" /> NFC Off
             </span>
           )}
+          {setupDone && (
+            <button
+              onClick={() => setShowChangeClassPin(true)}
+              className="ml-1 p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition"
+              title="Change Class"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={() => setShowLogoutPin(true)}
-            className="ml-2 p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition"
+            className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition"
             title="Exit Kiosk"
           >
             <LogOut className="h-4 w-4" />
@@ -579,6 +621,25 @@ export default function KioskScanner() {
             setScanState('idle');
           }}
           onCancel={() => setShowEndPin(false)}
+        />
+      )}
+
+      {/* ── Change Class PIN Dialog ── */}
+      {showChangeClassPin && (
+        <PinDialog
+          title="Change Class"
+          storedPin={kioskPin}
+          onConfirm={() => {
+            setShowChangeClassPin(false);
+            stopNfc();
+            setSetupDone(false);
+            setSessionId(null);
+            sessionIdRef.current = null;
+            setRecords([]);
+            setScanState('idle');
+            setSelectedClass(null);
+          }}
+          onCancel={() => setShowChangeClassPin(false)}
         />
       )}
     </div>

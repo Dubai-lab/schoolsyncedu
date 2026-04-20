@@ -24,6 +24,8 @@ export interface ClearanceResult {
   registration_number: string;
   class_name: string;
   card_number: string;
+  wrong_class?: boolean;
+  expected_class?: string;
   is_cleared: boolean;
   total_balance_usd: number;
   fee_details: FeeDetail[];
@@ -71,25 +73,31 @@ export const kioskService = {
   },
 
   /** Check student clearance by scanning their NFC chip */
-  async checkClearance(schoolId: string, nfcChipId: string, semester: string): Promise<ClearanceResult> {
+  async checkClearance(
+    schoolId: string,
+    nfcChipId: string,
+    semester: string,
+    classId?: string,
+  ): Promise<ClearanceResult> {
     const { data, error } = await supabase.rpc('kiosk_check_clearance', {
       p_school_id:   schoolId,
       p_nfc_chip_id: nfcChipId,
       p_semester:    semester,
+      p_class_id:    classId ?? null,
     });
     if (error) throw new Error(error.message);
     return data as ClearanceResult;
   },
 
-  /** Start a new kiosk session */
-  async startSession(
+  /** Find today's existing session for the same class+semester, or create a new one */
+  async findOrCreateSession(
     schoolId: string,
     semester: string,
     classId: string,
     className: string,
     academicYear: string,
-  ): Promise<string> {
-    const { data, error } = await supabase.rpc('kiosk_start_session', {
+  ): Promise<{ session_id: string; is_new: boolean }> {
+    const { data, error } = await supabase.rpc('kiosk_find_or_create_session', {
       p_school_id:    schoolId,
       p_semester:     semester,
       p_class_id:     classId,
@@ -97,7 +105,7 @@ export const kioskService = {
       p_academic_year: academicYear,
     });
     if (error) throw new Error(error.message);
-    return data as string;
+    return data as { session_id: string; is_new: boolean };
   },
 
   /** Save a scan record */
