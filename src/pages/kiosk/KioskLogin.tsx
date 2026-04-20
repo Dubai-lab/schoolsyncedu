@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { kioskService } from '@/services/kioskService';
 import type { KioskSchool } from '@/services/kioskService';
@@ -9,6 +9,22 @@ const PAD = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
 export default function KioskLogin() {
   const navigate = useNavigate();
+
+  // Force kiosk PWA manifest so "Add to Home Screen" installs the kiosk,
+  // not the school public site (SchoolSite.tsx swaps the manifest dynamically)
+  useEffect(() => {
+    let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+    }
+    link.href = '/kiosk.webmanifest';
+
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      ?? (() => { const m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); return m; })();
+    meta.content = '#10b981';
+  }, []);
 
   const [schoolCode, setSchoolCode] = useState('');
   const [pin,        setPin]        = useState('');
