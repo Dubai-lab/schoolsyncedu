@@ -180,6 +180,11 @@ import ApplicationFeePayments from '@/pages/bursar/ApplicationFeePayments';
 import BankTransferVerification from '@/pages/bursar/BankTransferVerification';
 import RegFeeConfirmation from '@/pages/bursar/RegFeeConfirmation';
 import FeeCorrection from '@/pages/bursar/FeeCorrection';
+import KioskSettings from '@/pages/bursar/KioskSettings';
+
+// Kiosk — standalone PWA (no auth required)
+import KioskLogin from '@/pages/kiosk/KioskLogin';
+import KioskScanner from '@/pages/kiosk/KioskScanner';
 
 // IT Admin school settings
 import SchoolSettingsITAdmin from '@/pages/it-admin/SchoolSettings';
@@ -287,6 +292,10 @@ export default function App() {
 
         {/* Payment page — standalone (no PublicLayout nav) */}
         <Route path="/payment" element={<SubscriptionPayment />} />
+
+        {/* Exam Clearance Kiosk — standalone PWA, no auth required */}
+        <Route path="/kiosk" element={<KioskLogin />} />
+        <Route path="/kiosk/scanner" element={<KioskScanner />} />
 
         {/* School public site — accessed via /school/:slug */}
         <Route path="/school/:slug" element={<SchoolSite />} />
@@ -434,6 +443,7 @@ export default function App() {
           <Route path="/bursar/bank-transfers" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BankTransferVerification /></RequireRole>} />
           <Route path="/bursar/reg-fee-confirmation" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><RegFeeConfirmation /></RequireRole>} />
           <Route path="/bursar/fee-correction" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><FeeCorrection /></RequireRole>} />
+          <Route path="/bursar/kiosk-settings" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><KioskSettings /></RequireRole>} />
           {/* Admin module — Super Admin only */}
           <Route path="/admin" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDashboard /></RequireRole>} />
           <Route path="/admin/schools" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SchoolManagement /></RequireRole>} />

@@ -1,0 +1,25 @@
+{
+  "name": "SchoolSync Exam Kiosk",
+  "short_name": "Kiosk",
+  "description": "NFC exam fee clearance kiosk for SchoolSync schools",
+  "start_url": "/kiosk",
+  "scope": "/kiosk",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
