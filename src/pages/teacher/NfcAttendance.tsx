@@ -36,8 +36,9 @@ export default function NfcAttendance() {
   const schoolId = user?.school_id ?? '';
   const teacherId = user?.id ?? '';
 
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedClass,   setSelectedClass]   = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedDate,    setSelectedDate]    = useState(new Date().toISOString().split('T')[0]);
   const [scanning, setScanning] = useState(false);
   const [scannedStudents, setScannedStudents] = useState<ScannedStudent[]>(new Set() as unknown as ScannedStudent[]);
   const [manualInput, setManualInput] = useState('');
@@ -58,16 +59,27 @@ export default function NfcAttendance() {
     { enabled: !!selectedClass },
   );
 
+  // Fetch subjects the teacher teaches in the selected class
+  const { data: mySubjects } = useFetch(
+    ['teacher-subjects', schoolId, teacherId],
+    () => teacherService.getMySubjects(schoolId, teacherId),
+    { enabled: !!schoolId && !!teacherId },
+  );
+
   const classOptions = (myClasses ?? []).map((c) => ({
     label: `${c.name} — ${c.grade_level || ''}${c.section ? ` (${c.section})` : ''}`,
     value: c.id,
   }));
 
-  // Reset scanned list when class changes
+  const subjectOptions = (mySubjects ?? [])
+    .filter((s) => s.class_id === selectedClass)
+    .map((s) => ({ label: s.subject_name, value: s.subject_id }));
+
+  // Reset scanned list when class or subject changes
   useEffect(() => {
     setScannedStudents([]);
     setSaved(false);
-  }, [selectedClass]);
+  }, [selectedClass, selectedSubject]);
 
   // Web NFC API listener (supported on Android Chrome)
   useEffect(() => {
@@ -221,7 +233,7 @@ export default function NfcAttendance() {
 
   // Save: scanned = present, rest = absent
   const handleSave = async () => {
-    if (!selectedClass || !students) return;
+    if (!selectedClass || !selectedSubject || !students) return;
     const scannedIds = new Set(scannedStudents.map((s) => s.studentId));
     const entries: AttendanceEntry[] = students.map((s) => ({
       studentId: s.id,
@@ -229,7 +241,7 @@ export default function NfcAttendance() {
     }));
 
     try {
-      await attendanceService.markAttendance(selectedClass, selectedDate, entries, teacherId);
+      await attendanceService.markAttendance(selectedClass, selectedDate, entries, teacherId, selectedSubject);
       notify.success(`Attendance saved: ${scannedStudents.length} present, ${students.length - scannedStudents.length} absent`);
       setSaved(true);
     } catch {
@@ -255,15 +267,24 @@ export default function NfcAttendance() {
         </p>
       </div>
 
-      {/* Class & Date */}
-      <div className="flex flex-col gap-3 sm:flex-row">
+      {/* Class, Subject & Date */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Select
           label="My Class"
           options={classOptions}
           value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
+          onChange={(e) => { setSelectedClass(e.target.value); setSelectedSubject(''); }}
           placeholder="Select your class"
-          className="sm:w-72"
+          className="sm:w-64"
+        />
+        <Select
+          label="My Subject"
+          options={subjectOptions}
+          value={selectedSubject}
+          onChange={(e) => setSelectedSubject(e.target.value)}
+          placeholder={selectedClass ? 'Select subject' : 'Select class first'}
+          className="sm:w-52"
+          disabled={!selectedClass || subjectOptions.length === 0}
         />
         <Input
           label="Date"
@@ -274,11 +295,13 @@ export default function NfcAttendance() {
         />
       </div>
 
-      {!selectedClass ? (
+      {!selectedClass || !selectedSubject ? (
         <Card>
           <CardContent className="flex flex-col items-center py-16 text-center">
             <Nfc className="h-10 w-10 text-slate-300 mb-3" />
-            <p className="text-sm text-slate-400">Select a class to begin NFC attendance.</p>
+            <p className="text-sm text-slate-400">
+              {!selectedClass ? 'Select a class to begin NFC attendance.' : 'Select the subject you are teaching.'}
+            </p>
           </CardContent>
         </Card>
       ) : (

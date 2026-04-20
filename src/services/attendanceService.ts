@@ -109,14 +109,9 @@ export const attendanceService = {
       notes:           e.notes || null,
     }));
 
-    // Use the correct unique index depending on whether subject is set
-    const conflict = subjectId
-      ? 'student_id,attendance_date,subject_id'
-      : 'student_id,attendance_date';
-
     const { error } = await supabase
       .from('attendance_records')
-      .upsert(records, { onConflict: conflict });
+      .upsert(records, { onConflict: 'student_id,attendance_date,subject_id' });
     if (error) throw error;
   },
 
