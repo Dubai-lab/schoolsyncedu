@@ -167,8 +167,17 @@ export default function KioskScanner() {
 
   const nfcAbortRef = useRef<AbortController | null>(null);
   const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refs so NFC callbacks always read the latest values (avoids stale closure)
+  const sessionIdRef = useRef<string | null>(null);
+  const semesterRef  = useRef<string>(semester);
+  const schoolRef    = useRef<KioskSchool | null>(school);
 
   const nfcSupported = 'NDEFReader' in window;
+
+  // Keep refs in sync with state so NFC callbacks always have the latest values
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+  useEffect(() => { semesterRef.current  = semester;  }, [semester]);
+  useEffect(() => { schoolRef.current    = school;    }, [school]);
 
   // Redirect if no school in session
   useEffect(() => {
@@ -200,11 +209,14 @@ export default function KioskScanner() {
   }, []);
 
   const processChip = useCallback(async (chipId: string) => {
-    if (!school || !sessionId) return;
+    const currentSchool     = schoolRef.current;
+    const currentSessionId  = sessionIdRef.current;
+    const currentSemester   = semesterRef.current;
+    if (!currentSchool || !currentSessionId) return;
     setScanState('scanning');
     try {
-      const result = await kioskService.checkClearance(school.school_id, chipId, semester);
-      await kioskService.saveScan(sessionId, school.school_id, result);
+      const result = await kioskService.checkClearance(currentSchool.school_id, chipId, currentSemester);
+      await kioskService.saveScan(currentSessionId, currentSchool.school_id, result);
       setLastResult(result);
       setScanState('result');
       // Add to local records list
@@ -268,6 +280,7 @@ export default function KioskScanner() {
         selectedClass.id, selectedClass.name,
         school.academic_year,
       );
+      sessionIdRef.current = id;  // set ref immediately — no waiting for React state
       setSessionId(id);
       setSetupDone(true);
       await startNfc();
