@@ -26,7 +26,90 @@ import {
   Smartphone,
   Building2,
   Wallet,
+  Printer,
 } from 'lucide-react';
+import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
+
+const PRINT_STYLES = `
+@media print {
+  body * { visibility: hidden !important; }
+  #fee-receipt-printable, #fee-receipt-printable * { visibility: visible !important; }
+  #fee-receipt-printable {
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 80mm;
+    padding: 8mm;
+    font-size: 11px;
+    background: white;
+  }
+}
+`;
+
+interface ReceiptData {
+  studentName: string;
+  feeType: string;
+  gradeLevel: string;
+  amountPaid: string;
+  currency: string;
+  method: string;
+  receiptNumber: string;
+  payerName: string;
+}
+
+function PaymentReceiptModal({ data, onClose }: { data: ReceiptData; onClose: () => void }) {
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return (
+    <>
+      <style>{PRINT_STYLES}</style>
+      <Dialog open onClose={onClose}>
+        <DialogHeader><DialogTitle>Payment Receipt</DialogTitle></DialogHeader>
+        <DialogBody>
+          <div id="fee-receipt-printable" className="p-3 space-y-3 text-sm">
+            <div className="text-center border-b border-slate-200 pb-3">
+              <div className="flex h-9 w-9 mx-auto items-center justify-center rounded-full bg-emerald-100 mb-1.5">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Payment Receipt</h2>
+              <p className="text-xs text-slate-400">{date}</p>
+            </div>
+            <div className="space-y-1.5">
+              {[
+                { label: 'Receipt #',   value: data.receiptNumber, mono: true },
+                { label: 'Student',     value: data.studentName },
+                { label: 'Fee Type',    value: data.feeType },
+                { label: 'Grade',       value: data.gradeLevel },
+                { label: 'Method',      value: data.method },
+                ...(data.payerName ? [{ label: 'Paid By', value: data.payerName }] : []),
+              ].map(({ label, value, mono }) => (
+                <div key={label} className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">{label}</span>
+                  <span className={`text-slate-800 font-medium ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+                </div>
+              ))}
+              <div className="flex justify-between py-1.5 border-t border-slate-300 mt-1">
+                <span className="font-semibold text-slate-700">Amount Paid</span>
+                <span className="font-bold text-emerald-700">
+                  {data.currency === 'LRD' ? 'L$' : '$'}{data.amountPaid} {data.currency}
+                </span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500">Status</span>
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">PAID</span>
+              </div>
+            </div>
+            <p className="text-center text-xs text-slate-500 border-t border-slate-100 pt-2">
+              Keep this receipt as proof of payment.
+            </p>
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <Button size="sm" onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>Print</Button>
+        </DialogFooter>
+      </Dialog>
+    </>
+  );
+}
 
 const currencyOptions = Object.entries(CURRENCY).map(([, v]) => ({
   label: v,
@@ -142,6 +225,7 @@ export default function FeePayment() {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   // ── Fetch school payment config ─────────────────────────────
   const [paymentCfg, setPaymentCfg] = useState<PaymentConfigPublic | null>(null);
@@ -235,9 +319,18 @@ export default function FeePayment() {
       onSuccess: (data) => {
         notify.success('Payment recorded! Student balance has been updated.');
         setPaymentSuccess(true);
-        // The RPC returns a Payment object — id is at the top level
         const p = data as unknown as Record<string, string> | null;
         setLastPaymentId(p?.id ?? null);
+        setReceiptData({
+          studentName: `${selectedStudent?.first_name ?? ''} ${selectedStudent?.last_name ?? ''}`.trim(),
+          feeType: selectedStructure?.fee_type ?? '—',
+          gradeLevel: selectedStructure?.grade_level ?? '—',
+          amountPaid: Number(amount).toFixed(2),
+          currency,
+          method: paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'bank' ? 'Bank Deposit' : paymentMethod.toUpperCase(),
+          receiptNumber: gatewayRef || '—',
+          payerName: payerName,
+        });
         resetForm();
       },
     },
@@ -344,12 +437,15 @@ export default function FeePayment() {
                 <p className="text-lg font-semibold text-slate-900">Payment Recorded!</p>
                 <p className="mt-1 text-sm text-slate-400">The student's balance has been updated.</p>
                 <div className="mt-4 flex justify-center gap-3">
+                  <Button onClick={() => setReceiptData(receiptData)}>
+                    <Printer className="mr-1 h-4 w-4" /> Print Receipt
+                  </Button>
                   {lastPaymentId && (
                     <Button variant="outline" onClick={() => navigate(`/fees/receipt/${lastPaymentId}`)}>
-                      <Receipt className="mr-1 h-4 w-4" /> View Receipt
+                      <Receipt className="mr-1 h-4 w-4" /> Full Receipt
                     </Button>
                   )}
-                  <Button variant="outline" onClick={() => { setPaymentSuccess(false); setLastPaymentId(null); }}>
+                  <Button variant="outline" onClick={() => { setPaymentSuccess(false); setLastPaymentId(null); setReceiptData(null); }}>
                     Record Another
                   </Button>
                 </div>
@@ -602,6 +698,10 @@ export default function FeePayment() {
           </CardContent>
         </Card>
       </div>
+
+      {receiptData && (
+        <PaymentReceiptModal data={receiptData} onClose={() => setReceiptData(null)} />
+      )}
     </div>
   );
 }
