@@ -32,8 +32,9 @@ export default function AttendanceMarking() {
   const schoolId = user?.school_id ?? '';
   const userId = user?.id ?? '';
 
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedClass,   setSelectedClass]   = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedDate,    setSelectedDate]    = useState(new Date().toISOString().split('T')[0]);
   const [entries, setEntries] = useState<Map<string, AttendanceEntry>>(new Map());
 
   // Fetch classes
@@ -43,6 +44,13 @@ export default function AttendanceMarking() {
     { enabled: !!schoolId },
   );
 
+  // Fetch subjects for selected class
+  const { data: classSubjects = [] } = useFetch(
+    ['class-subjects-attendance', selectedClass],
+    () => attendanceService.getClassSubjects(selectedClass),
+    { enabled: !!selectedClass },
+  );
+
   // Fetch students in selected class
   const { data: students, isLoading: studentsLoading } = useFetch(
     ['class-students', selectedClass],
@@ -50,11 +58,11 @@ export default function AttendanceMarking() {
     { enabled: !!selectedClass },
   );
 
-  // Fetch existing records for this class + date
+  // Fetch existing records for this class + subject + date
   const { data: existing } = useFetch(
-    ['attendance', selectedClass, selectedDate],
-    () => attendanceService.getByClassDate(selectedClass, selectedDate),
-    { enabled: !!selectedClass && !!selectedDate },
+    ['attendance', selectedClass, selectedSubject, selectedDate],
+    () => attendanceService.getByClassDate(selectedClass, selectedDate, selectedSubject || undefined),
+    { enabled: !!selectedClass && !!selectedSubject && !!selectedDate },
   );
 
   // Pre-fill entries from existing records
@@ -105,8 +113,9 @@ export default function AttendanceMarking() {
       selectedDate,
       Array.from(entries.values()),
       userId,
+      selectedSubject || undefined,
     ),
-    [['attendance', selectedClass, selectedDate]],
+    [['attendance', selectedClass, selectedSubject, selectedDate]],
     {
       onSuccess: () => notify.success('Attendance saved successfully'),
       onError: () => notify.error('Failed to save attendance'),
@@ -116,6 +125,11 @@ export default function AttendanceMarking() {
   const classOptions = (classes ?? []).map((c) => ({
     label: `${c.name} — ${c.grade_level || ''}${c.section ? ` (${c.section})` : ''}`,
     value: c.id,
+  }));
+
+  const subjectOptions = (classSubjects as { subjectId: string; name: string; code: string | null }[]).map((s) => ({
+    label: s.name + (s.code ? ` (${s.code})` : ''),
+    value: s.subjectId,
   }));
 
   // Stats
@@ -137,15 +151,24 @@ export default function AttendanceMarking() {
 
       <h1 className="text-xl font-bold text-slate-900">Mark Attendance</h1>
 
-      {/* Class & Date selectors */}
-      <div className="flex flex-col gap-3 sm:flex-row">
+      {/* Class, Subject & Date selectors */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Select
           label="Class"
           options={classOptions}
           value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
+          onChange={(e) => { setSelectedClass(e.target.value); setSelectedSubject(''); }}
           placeholder="Select a class"
           className="sm:w-72"
+        />
+        <Select
+          label="Subject"
+          options={subjectOptions}
+          value={selectedSubject}
+          onChange={(e) => setSelectedSubject(e.target.value)}
+          placeholder={selectedClass ? 'Select subject' : 'Select class first'}
+          className="sm:w-56"
+          disabled={!selectedClass || subjectOptions.length === 0}
         />
         <Input
           label="Date"
@@ -156,11 +179,13 @@ export default function AttendanceMarking() {
         />
       </div>
 
-      {!selectedClass ? (
+      {!selectedClass || !selectedSubject ? (
         <Card>
           <CardContent className="flex flex-col items-center py-16 text-center">
             <Users className="h-10 w-10 text-slate-300 mb-3" />
-            <p className="text-sm text-slate-400">Select a class to begin marking attendance.</p>
+            <p className="text-sm text-slate-400">
+              {!selectedClass ? 'Select a class to begin.' : 'Select the subject you are teaching.'}
+            </p>
           </CardContent>
         </Card>
       ) : studentsLoading ? (
@@ -198,7 +223,12 @@ export default function AttendanceMarking() {
           {/* Student list */}
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>{total} Students</CardTitle>
+              <div>
+                <CardTitle>{total} Students</CardTitle>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {subjectOptions.find((s) => s.value === selectedSubject)?.label ?? ''} — {selectedDate}
+                </p>
+              </div>
               <Button
                 size="sm"
                 icon={<Save className="h-4 w-4" />}

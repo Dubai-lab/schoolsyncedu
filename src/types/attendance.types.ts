@@ -11,6 +11,7 @@ export interface AttendanceRecord {
   id: UUID;
   student_id: UUID;
   class_id: UUID;
+  subject_id: UUID | null;
   attendance_date: ISODate;
   status: AttendanceStatus;
   marked_by: UUID;
@@ -61,6 +62,7 @@ export interface AttendanceEntry {
 
 export interface AttendanceFilterParams {
   classId?: UUID;
+  subjectId?: UUID;
   studentId?: UUID;
   dateFrom?: ISODate;
   dateTo?: ISODate;

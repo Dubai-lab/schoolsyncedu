@@ -13,11 +13,14 @@ export interface Grade extends SchoolScopedEntity {
   semester: string;
   /** Liberian marking period p1–p6. NULL for pre-migration grades. */
   marking_period: string | null;
-  // Component scores (Liberian grading: Assignment/20 + Quiz/20 + Test/20 + Exam/40 = 100)
+  // Component scores
+  // Regular periods (P1/P2/P4/P5): Assignment/20 + Quiz/20 + Test/50 + Attendance/10 = 100
+  // Exam periods   (P3/P6):         Exam/100 only
   assignment_score: number | null;
   quiz_score:       number | null;
   test_score:       number | null;
   exam_score:       number | null;
+  attendance_score: number | null;
   // Final computed total (sum of components, out of 100)
   score: number;
   letter_grade: string;

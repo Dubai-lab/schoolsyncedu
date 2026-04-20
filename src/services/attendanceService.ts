@@ -13,14 +13,14 @@ export const attendanceService = {
     schoolId: UUID,
     params: AttendanceFilterParams & { page?: number; pageSize?: number } = {},
   ) {
-    const { classId, studentId, dateFrom, dateTo, status, page = 1, pageSize = 50 } = params;
+    const { classId, subjectId, studentId, dateFrom, dateTo, status, page = 1, pageSize = 50 } = params;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
     let query = supabase
       .from('attendance_records')
       .select(
-        '*, students!inner(id, first_name, last_name, registration_number, school_id), classes!inner(id, name)',
+        '*, students!inner(id, first_name, last_name, registration_number, school_id), classes!inner(id, name), subjects(id, name)',
         { count: 'exact' },
       )
       .eq('students.school_id', schoolId)
@@ -28,6 +28,7 @@ export const attendanceService = {
       .range(from, to);
 
     if (classId) query = query.eq('class_id', classId);
+    if (subjectId) query = query.eq('subject_id', subjectId);
     if (studentId) query = query.eq('student_id', studentId);
     if (dateFrom) query = query.gte('attendance_date', dateFrom);
     if (dateTo) query = query.lte('attendance_date', dateTo);
@@ -45,14 +46,20 @@ export const attendanceService = {
     };
   },
 
-  /** Get attendance for a specific class on a specific date */
-  async getByClassDate(classId: UUID, date: ISODate) {
-    const { data, error } = await supabase
+  /** Get attendance for a specific class + subject on a specific date */
+  async getByClassDate(classId: UUID, date: ISODate, subjectId?: UUID) {
+    let query = supabase
       .from('attendance_records')
       .select('*, students(id, first_name, last_name, registration_number)')
       .eq('class_id', classId)
       .eq('attendance_date', date)
       .order('last_name', { referencedTable: 'students' });
+    if (subjectId) {
+      query = query.eq('subject_id', subjectId);
+    } else {
+      query = query.is('subject_id', null);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return data as (AttendanceRecord & {
       students: { id: string; first_name: string; last_name: string; registration_number: string };
@@ -89,22 +96,41 @@ export const attendanceService = {
     return data as { id: string; name: string; grade_level: string; section: string }[];
   },
 
-  /** Mark attendance — upsert records for a class + date */
-  async markAttendance(classId: UUID, date: ISODate, entries: AttendanceEntry[], markedBy: UUID) {
+  /** Mark attendance — upsert records for a class + subject + date */
+  async markAttendance(classId: UUID, date: ISODate, entries: AttendanceEntry[], markedBy: UUID, subjectId?: UUID) {
     const records = entries.map((e) => ({
-      student_id: e.studentId,
-      class_id: classId,
+      student_id:      e.studentId,
+      class_id:        classId,
+      subject_id:      subjectId ?? null,
       attendance_date: date,
-      status: e.status,
-      marked_by: markedBy,
-      marked_at: new Date().toISOString(),
-      notes: e.notes || null,
+      status:          e.status,
+      marked_by:       markedBy,
+      marked_at:       new Date().toISOString(),
+      notes:           e.notes || null,
     }));
+
+    // Use the correct unique index depending on whether subject is set
+    const conflict = subjectId
+      ? 'student_id,attendance_date,subject_id'
+      : 'student_id,attendance_date';
 
     const { error } = await supabase
       .from('attendance_records')
-      .upsert(records, { onConflict: 'student_id,attendance_date' });
+      .upsert(records, { onConflict: conflict });
     if (error) throw error;
+  },
+
+  /** Get subjects assigned to a class (for the subject picker in AttendanceMarking) */
+  async getClassSubjects(classId: UUID) {
+    const { data, error } = await supabase
+      .from('class_subjects')
+      .select('subject_id, subjects(id, name, code)')
+      .eq('class_id', classId);
+    if (error) throw error;
+    return (data ?? []).map((d) => {
+      const s = (Array.isArray(d.subjects) ? d.subjects[0] : d.subjects) as { id: string; name: string; code: string | null } | null;
+      return { subjectId: d.subject_id as string, name: s?.name ?? '', code: s?.code ?? null };
+    });
   },
 
   /** Get attendance summary for a student */

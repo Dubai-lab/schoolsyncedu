@@ -215,26 +215,27 @@ export const gradeService = {
       quizScore: number | null;
       testScore: number | null;
       examScore: number | null;
+      attendanceScore: number | null;
     }[],
     enteredBy: UUID,
   ) {
+    const EXAM_PERIODS = new Set(['p3', 'p6']);
+    const isExam = EXAM_PERIODS.has(semester);
+
     const rows = grades
       .filter((g) => {
-        // Only save rows that have at least one component filled in
+        if (isExam) return g.examScore !== null;
         return (
           g.assignmentScore !== null ||
           g.quizScore !== null ||
           g.testScore !== null ||
-          g.examScore !== null
+          g.attendanceScore !== null
         );
       })
       .map((g) => {
-        // Total = sum of whatever components are filled; null components count as 0
-        const total =
-          (g.assignmentScore ?? 0) +
-          (g.quizScore ?? 0) +
-          (g.testScore ?? 0) +
-          (g.examScore ?? 0);
+        const total = isExam
+          ? (g.examScore ?? 0)
+          : (g.assignmentScore ?? 0) + (g.quizScore ?? 0) + (g.testScore ?? 0) + (g.attendanceScore ?? 0);
         const { letter_grade, gpa_points } = deriveGrade(total);
         return {
           school_id:        schoolId,
@@ -242,10 +243,11 @@ export const gradeService = {
           subject_id:       subjectId,
           academic_year:    academicYear,
           semester:         semester,
-          assignment_score: g.assignmentScore,
-          quiz_score:       g.quizScore,
-          test_score:       g.testScore,
-          exam_score:       g.examScore,
+          assignment_score: isExam ? null : g.assignmentScore,
+          quiz_score:       isExam ? null : g.quizScore,
+          test_score:       isExam ? null : g.testScore,
+          exam_score:       isExam ? g.examScore : null,
+          attendance_score: isExam ? null : g.attendanceScore,
           score:            total,
           letter_grade,
           gpa_points,
@@ -279,13 +281,13 @@ export const gradeService = {
 
     const { data, error } = await supabase
       .from('grades')
-      .select('id, student_id, score, assignment_score, quiz_score, test_score, exam_score, status')
+      .select('id, student_id, score, assignment_score, quiz_score, test_score, exam_score, attendance_score, status')
       .eq('subject_id', subjectId)
       .eq('academic_year', academicYear)
       .eq('semester', semester)
       .in('student_id', studentIds);
     if (error) throw error;
-    return data as Pick<Grade, 'id' | 'student_id' | 'score' | 'assignment_score' | 'quiz_score' | 'test_score' | 'exam_score' | 'status'>[];
+    return data as Pick<Grade, 'id' | 'student_id' | 'score' | 'assignment_score' | 'quiz_score' | 'test_score' | 'exam_score' | 'attendance_score' | 'status'>[];
   },
 
   /** Get grade report summary view */
@@ -301,6 +303,36 @@ export const gradeService = {
     const { data, error } = await query;
     if (error) throw error;
     return data as GradeReportSummary[];
+  },
+
+  /**
+   * Compute attendance score /10 for each student in a class over a date range.
+   * present/late/excused/medical_leave = counted present; absent/unexcused = penalised.
+   * Returns map of studentId → score (null if no records exist for that student).
+   */
+  async getClassAttendanceScores(classId: UUID, subjectId: UUID, dateFrom: string, dateTo: string): Promise<Record<string, number | null>> {
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select('student_id, status')
+      .eq('class_id', classId)
+      .eq('subject_id', subjectId)
+      .gte('attendance_date', dateFrom)
+      .lte('attendance_date', dateTo);
+    if (error) throw error;
+
+    const map = new Map<string, { present: number; total: number }>();
+    for (const rec of (data ?? [])) {
+      if (!map.has(rec.student_id)) map.set(rec.student_id, { present: 0, total: 0 });
+      const s = map.get(rec.student_id)!;
+      s.total++;
+      if (['present', 'late', 'excused', 'medical_leave'].includes(rec.status)) s.present++;
+    }
+
+    const scores: Record<string, number | null> = {};
+    for (const [studentId, { present, total }] of map) {
+      scores[studentId] = total > 0 ? Math.round((present / total) * 10 * 10) / 10 : null;
+    }
+    return scores;
   },
 
   /** Get student's grades for all subjects in a term (for report card) */

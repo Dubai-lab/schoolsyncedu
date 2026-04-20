@@ -17,23 +17,25 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { Save, BookOpen, SendHorizontal, Info } from 'lucide-react';
 
 // ── Period structure ───────────────────────────────────────────────────
-// P1/P2/P4/P5: Assignment/20 + Quiz/20 + Test/20 = 60 (no Exam)
-// P3/P6 (Semester Exam): Assignment/20 + Quiz/20 + Test/20 + Exam/40 = 100
+// P1/P2/P4/P5 (regular):      Assignment/20 + Quiz/20 + Test/50 + Attendance/10 = 100
+// P3/P6 (Semester Exam):      Exam/100 only
 const EXAM_PERIODS = new Set(['p3', 'p6']);
 
 const COMPONENT_MAX = {
   assignment: 20,
   quiz:       20,
-  test:       20,
-  exam:       40,
+  test:       50,
+  attendance: 10,
+  exam:       100,
 } as const;
 
 type ComponentKey = keyof typeof COMPONENT_MAX;
 
-function maxTotal(period: string) { return EXAM_PERIODS.has(period) ? 100 : 60; }
+function maxTotal(_period: string) { return 100; }
+// 'attendance' is NOT in this list — it's auto-computed and shown in its own read-only column
 function activeComponents(period: string): ComponentKey[] {
   return EXAM_PERIODS.has(period)
-    ? ['assignment', 'quiz', 'test', 'exam']
+    ? ['exam']
     : ['assignment', 'quiz', 'test'];
 }
 
@@ -48,18 +50,21 @@ interface StudentGradeRow {
   quizScore:       string;
   testScore:       string;
   examScore:       string;
+  // attendanceScore is computed from attendance records — not editable
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function computeTotal(row: StudentGradeRow, period: string): number | null {
+function computeTotal(row: StudentGradeRow, period: string, attendanceScore: number | null): number | null {
+  if (EXAM_PERIODS.has(period)) {
+    if (row.examScore === '') return null;
+    return Number(row.examScore);
+  }
   const a = row.assignmentScore !== '' ? Number(row.assignmentScore) : null;
   const q = row.quizScore       !== '' ? Number(row.quizScore)       : null;
   const t = row.testScore       !== '' ? Number(row.testScore)       : null;
-  const e = EXAM_PERIODS.has(period) && row.examScore !== '' ? Number(row.examScore) : null;
-  const parts = EXAM_PERIODS.has(period) ? [a, q, t, e] : [a, q, t];
-  if (parts.every((v) => v === null)) return null;
-  return parts.reduce<number>((s, v) => s + (v ?? 0), 0);
+  if ([a, q, t].every((v) => v === null)) return null;
+  return (a ?? 0) + (q ?? 0) + (t ?? 0) + (attendanceScore ?? 0);
 }
 
 // Letter grade is based on percentage of period max
@@ -95,12 +100,14 @@ export default function TeacherGradeEntry() {
   const schoolId = user?.school_id ?? '';
   const teacherId = user?.id ?? '';
 
-  const [selectedClass,   setSelectedClass]   = useState((location.state as { classId?: string })?.classId ?? '');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [academicYear,    setAcademicYear]    = useState('');
-  const [semester,        setSemester]        = useState('');
-  const [rows,            setRows]            = useState<StudentGradeRow[]>([]);
-  const [savedGradeIds,   setSavedGradeIds]   = useState<string[]>([]);
+  const [selectedClass,    setSelectedClass]    = useState((location.state as { classId?: string })?.classId ?? '');
+  const [selectedSubject,  setSelectedSubject]  = useState('');
+  const [academicYear,     setAcademicYear]     = useState('');
+  const [semester,         setSemester]         = useState('');
+  const [rows,             setRows]             = useState<StudentGradeRow[]>([]);
+  const [savedGradeIds,    setSavedGradeIds]    = useState<string[]>([]);
+  // Computed attendance scores: studentId → score /10 (null = no records)
+  const [attendanceScores, setAttendanceScores] = useState<Record<string, number | null>>({});
 
   // Fetch school's current academic year
   const { data: schoolYear } = useFetch(
@@ -120,12 +127,33 @@ export default function TeacherGradeEntry() {
     { enabled: !!schoolId && !!academicYear },
   );
 
-  const termOptions = (dbPeriods as unknown as AcademicCalendar[])
-    .sort((a, b) => (a.period_number ?? 0) - (b.period_number ?? 0))
-    .map((t) => ({
-      label: MARKING_PERIOD_LABELS[t.term_name] ?? t.term_name.toUpperCase(),
-      value: t.term_name,
-    }));
+  const periods = (dbPeriods as unknown as AcademicCalendar[])
+    .sort((a, b) => (a.period_number ?? 0) - (b.period_number ?? 0));
+
+  const termOptions = periods.map((t) => ({
+    label: MARKING_PERIOD_LABELS[t.term_name] ?? t.term_name.toUpperCase(),
+    value: t.term_name,
+  }));
+
+  // Dates for the currently selected period (needed to fetch attendance)
+  const activePeriod = periods.find((p) => p.term_name === semester);
+  const periodDateFrom = activePeriod?.start_date ?? null;
+  const periodDateTo   = activePeriod?.end_date   ?? null;
+
+  // Auto-fetch attendance scores for this class + subject + period (regular periods only)
+  const { data: fetchedAttendance } = useFetch(
+    ['attendance-scores', selectedClass, selectedSubject, periodDateFrom, periodDateTo],
+    () => gradeService.getClassAttendanceScores(selectedClass, selectedSubject, periodDateFrom!, periodDateTo!),
+    { enabled: !!selectedClass && !!selectedSubject && !!periodDateFrom && !!periodDateTo && !EXAM_PERIODS.has(semester) },
+  );
+
+  useEffect(() => {
+    if (fetchedAttendance) {
+      setAttendanceScores(fetchedAttendance as Record<string, number | null>);
+    } else if (EXAM_PERIODS.has(semester)) {
+      setAttendanceScores({});
+    }
+  }, [fetchedAttendance, semester]);
 
   const { data: myClasses } = useFetch(
     ['teacher-classes', schoolId, teacherId],
@@ -199,6 +227,7 @@ export default function TeacherGradeEntry() {
       quiz_score: number | null;
       test_score: number | null;
       exam_score: number | null;
+      attendance_score: number | null;
     };
     const gradeMap = new Map(
       (existingGrades as GradeRow[]).map((g) => [g.student_id, g]),
@@ -207,12 +236,13 @@ export default function TeacherGradeEntry() {
       prev.map((r) => {
         const g = gradeMap.get(r.studentId);
         if (!g) return r;
+        const str = (v: number | null | undefined) => (v !== null && v !== undefined ? String(v) : '');
         return {
           ...r,
-          assignmentScore: g.assignment_score !== null && g.assignment_score !== undefined ? String(g.assignment_score) : '',
-          quizScore:       g.quiz_score       !== null && g.quiz_score       !== undefined ? String(g.quiz_score)       : '',
-          testScore:       g.test_score       !== null && g.test_score       !== undefined ? String(g.test_score)       : '',
-          examScore:       g.exam_score       !== null && g.exam_score       !== undefined ? String(g.exam_score)       : '',
+          assignmentScore: str(g.assignment_score),
+          quizScore:       str(g.quiz_score),
+          testScore:       str(g.test_score),
+          examScore:       str(g.exam_score),
         };
       }),
     );
@@ -243,13 +273,14 @@ export default function TeacherGradeEntry() {
   const saveMutation = useMutate(
     async () => {
       const grades = rows
-        .filter((r) => computeTotal(r) !== null)
+        .filter((r) => computeTotal(r, semester, attendanceScores[r.studentId] ?? null) !== null)
         .map((r) => ({
           studentId:       r.studentId,
           assignmentScore: r.assignmentScore !== '' ? Number(r.assignmentScore) : null,
           quizScore:       r.quizScore       !== '' ? Number(r.quizScore)       : null,
           testScore:       r.testScore       !== '' ? Number(r.testScore)       : null,
           examScore:       r.examScore       !== '' ? Number(r.examScore)       : null,
+          attendanceScore: attendanceScores[r.studentId] ?? null,
         }));
       if (grades.length === 0) throw new Error('No grades to save');
       return gradeService.bulkUpsertGrades(
@@ -286,8 +317,8 @@ export default function TeacherGradeEntry() {
   const periodMax    = maxTotal(semester);
   const components   = activeComponents(semester);
 
-  const filledRows = rows.filter((r) => computeTotal(r, semester) !== null);
-  const totals     = filledRows.map((r) => computeTotal(r, semester)!);
+  const filledRows = rows.filter((r) => computeTotal(r, semester, attendanceScores[r.studentId] ?? null) !== null);
+  const totals     = filledRows.map((r) => computeTotal(r, semester, attendanceScores[r.studentId] ?? null)!);
   const avgRaw     = totals.length > 0 ? totals.reduce((s, n) => s + n, 0) / totals.length : 0;
   const avgPct     = periodMax > 0 ? (avgRaw / periodMax) * 100 : 0;
   const canSave    = !!(selectedClass && selectedSubject && academicYear && semester && filledRows.length > 0);
@@ -336,8 +367,8 @@ export default function TeacherGradeEntry() {
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <span>
             {isExamPeriod
-              ? <><strong>Semester Exam Period</strong> — Assignment /20 + Quiz /20 + Test /20 + Exam /40 = <strong>100</strong></>
-              : <>Assignment /20 + Quiz /20 + Test /20 = <strong>/60</strong> (no Exam this period)</>
+              ? <><strong>Semester Exam Period</strong> — Exam /100 only</>
+              : <>Assignment /20 + Quiz /20 + Test /50 + Attendance /10 = <strong>100</strong></>
             }
           </span>
         </div>
@@ -399,6 +430,12 @@ export default function TeacherGradeEntry() {
                           <div className="text-[10px] text-slate-400 font-normal">/{COMPONENT_MAX[c]}</div>
                         </th>
                       ))}
+                      {!isExamPeriod && (
+                        <th className="py-3 px-2 text-center font-medium">
+                          <div className="text-xs">Attendance</div>
+                          <div className="text-[10px] text-slate-400 font-normal">/10 (auto)</div>
+                        </th>
+                      )}
                       <th className="py-3 px-3 text-center font-medium">
                         <div className="text-xs">Total</div>
                         <div className="text-[10px] text-slate-400 font-normal">/{periodMax}</div>
@@ -408,9 +445,10 @@ export default function TeacherGradeEntry() {
                   </thead>
                   <tbody>
                     {rows.map((row, idx) => {
-                      const total  = computeTotal(row, semester);
-                      const pct    = total !== null ? (total / periodMax) * 100 : null;
-                      const letter = total !== null ? letterFromScore(total, semester) : '';
+                      const attScore = attendanceScores[row.studentId] ?? null;
+                      const total    = computeTotal(row, semester, attScore);
+                      const pct      = total !== null ? (total / periodMax) * 100 : null;
+                      const letter   = total !== null ? letterFromScore(total, semester) : '';
                       return (
                         <tr key={row.studentId} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition-colors">
                           <td className="py-2.5 pl-4 pr-2 text-slate-400 text-xs">{idx + 1}</td>
@@ -436,6 +474,18 @@ export default function TeacherGradeEntry() {
                               </td>
                             );
                           })}
+
+                          {!isExamPeriod && (
+                            <td className="py-2.5 px-2 text-center">
+                              {attScore !== null ? (
+                                <span className={`text-sm font-medium ${attScore >= 8 ? 'text-emerald-600' : attScore >= 5 ? 'text-amber-600' : 'text-red-600'}`}>
+                                  {attScore % 1 === 0 ? attScore : attScore.toFixed(1)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300 text-xs" title="No attendance records for this period">—</span>
+                              )}
+                            </td>
+                          )}
 
                           <td className="py-2.5 px-3 text-center">
                             {total !== null ? (
