@@ -24,6 +24,21 @@ import {
 
 // ==================== RECEIPT COMPONENT ====================
 
+const PRINT_STYLES = `
+@media print {
+  body * { visibility: hidden !important; }
+  #receipt-printable, #receipt-printable * { visibility: visible !important; }
+  #receipt-printable {
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 80mm;
+    padding: 8mm;
+    font-size: 11px;
+    background: white;
+  }
+}
+`;
+
 function ReceiptModal({
   application,
   onClose,
@@ -32,70 +47,66 @@ function ReceiptModal({
   onClose: () => void;
 }) {
   const handlePrint = () => window.print();
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
-    <Dialog open onClose={onClose}>
-      <DialogHeader>
-        <DialogTitle>Payment Receipt</DialogTitle>
-      </DialogHeader>
-      <DialogBody>
-        <div id="receipt-content" className="p-4 space-y-5">
-          {/* Receipt Header */}
-          <div className="text-center border-b border-slate-200 pb-4">
-            <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-emerald-100 mb-2">
-              <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+    <>
+      <style>{PRINT_STYLES}</style>
+      <Dialog open onClose={onClose}>
+        <DialogHeader>
+          <DialogTitle>Payment Receipt</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <div id="receipt-printable" className="p-3 space-y-3 text-sm">
+            {/* Header */}
+            <div className="text-center border-b border-slate-200 pb-3">
+              <div className="flex h-9 w-9 mx-auto items-center justify-center rounded-full bg-emerald-100 mb-1.5">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Payment Receipt</h2>
+              <p className="text-xs text-slate-500">Application Fee — Cash</p>
+              <p className="text-xs text-slate-400">{date}</p>
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Payment Receipt</h2>
-            <p className="text-sm text-slate-500 mt-1">Application Fee — Cash Payment</p>
-            <p className="text-xs text-slate-400 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
 
-          {/* Receipt Details */}
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-              <span className="text-slate-500">Application #</span>
-              <span className="font-mono font-semibold text-slate-800">{application.application_number}</span>
+            {/* Details */}
+            <div className="space-y-1.5">
+              {[
+                { label: 'Application #', value: application.application_number, mono: true },
+                { label: 'Student',       value: `${application.first_name} ${application.last_name}` },
+                { label: 'Grade',         value: application.grade_level_applied },
+                { label: 'Guardian',      value: application.guardian_full_name },
+                { label: 'Method',        value: 'Cash' },
+              ].map(({ label, value, mono }) => (
+                <div key={label} className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">{label}</span>
+                  <span className={`text-slate-800 font-medium ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+                </div>
+              ))}
+              <div className="flex justify-between py-1.5 border-t border-slate-300 mt-1">
+                <span className="font-semibold text-slate-700">Amount Paid</span>
+                <span className="font-bold text-emerald-700">
+                  ${Number(application.application_fee_amount ?? 0).toFixed(2)} USD
+                </span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500">Status</span>
+                <Badge variant="success" size="sm">PAID</Badge>
+              </div>
             </div>
-            <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-              <span className="text-slate-500">Student Name</span>
-              <span className="font-semibold text-slate-800">{application.first_name} {application.last_name}</span>
-            </div>
-            <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-              <span className="text-slate-500">Grade Applied For</span>
-              <span className="text-slate-700">{application.grade_level_applied}</span>
-            </div>
-            <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-              <span className="text-slate-500">Guardian Name</span>
-              <span className="text-slate-700">{application.guardian_full_name}</span>
-            </div>
-            <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-              <span className="text-slate-500">Payment Method</span>
-              <span className="text-slate-700 capitalize">Cash</span>
-            </div>
-            <div className="flex justify-between text-sm py-2 border-b border-slate-200">
-              <span className="font-semibold text-slate-700">Amount Paid</span>
-              <span className="font-bold text-emerald-700 text-base">
-                ${Number(application.application_fee_amount ?? 0).toFixed(2)} USD
-              </span>
-            </div>
-            <div className="flex justify-between text-sm py-2">
-              <span className="text-slate-500">Payment Status</span>
-              <Badge variant="success" size="sm">PAID</Badge>
-            </div>
-          </div>
 
-          <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-center text-xs text-blue-700">
-            Please present this receipt to the Registrar's Office to proceed with your application review.
+            <p className="text-center text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded p-2">
+              Present to the Registrar's Office to proceed with application review.
+            </p>
           </div>
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Close</Button>
-        <Button onClick={handlePrint} icon={<Printer className="h-4 w-4" />}>
-          Print Receipt
-        </Button>
-      </DialogFooter>
-    </Dialog>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <Button size="sm" onClick={handlePrint} icon={<Printer className="h-4 w-4" />}>
+            Print
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    </>
   );
 }
 
