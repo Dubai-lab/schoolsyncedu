@@ -188,6 +188,7 @@ export default function GradeEntry() {
           quizScore:       r.quizScore       !== '' ? Number(r.quizScore)       : null,
           testScore:       r.testScore       !== '' ? Number(r.testScore)       : null,
           examScore:       r.examScore       !== '' ? Number(r.examScore)       : null,
+          attendanceScore: null,
         }));
       if (grades.length === 0) throw new Error('No valid grades to save');
       return gradeService.bulkUpsertGrades(schoolId, selectedClass, selectedSubject, academicYear, semester, grades, userId);

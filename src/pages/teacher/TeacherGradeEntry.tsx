@@ -137,8 +137,8 @@ export default function TeacherGradeEntry() {
 
   // Dates for the currently selected period (needed to fetch attendance)
   const activePeriod = periods.find((p) => p.term_name === semester);
-  const periodDateFrom = activePeriod?.start_date ?? null;
-  const periodDateTo   = activePeriod?.end_date   ?? null;
+  const periodDateFrom = activePeriod?.start_date ?? '';
+  const periodDateTo   = activePeriod?.end_date   ?? '';
 
   // Auto-fetch attendance scores for this class + subject + period (regular periods only)
   const { data: fetchedAttendance } = useFetch(
