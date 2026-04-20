@@ -219,35 +219,41 @@ export const gradeService = {
     }[],
     enteredBy: UUID,
   ) {
+    // P3/P6: Assignment/20 + Quiz/20 + Test/50 + Attendance/10 + Exam/100 = 200 max
+    // P1/P2/P4/P5: Assignment/20 + Quiz/20 + Test/50 + Attendance/10 = 100 max
     const EXAM_PERIODS = new Set(['p3', 'p6']);
     const isExam = EXAM_PERIODS.has(semester);
+    const maxScore = isExam ? 200 : 100;
 
     const rows = grades
-      .filter((g) => {
-        if (isExam) return g.examScore !== null;
-        return (
-          g.assignmentScore !== null ||
-          g.quizScore !== null ||
-          g.testScore !== null ||
-          g.attendanceScore !== null
-        );
-      })
+      .filter((g) =>
+        g.assignmentScore !== null ||
+        g.quizScore !== null ||
+        g.testScore !== null ||
+        g.attendanceScore !== null ||
+        (isExam && g.examScore !== null),
+      )
       .map((g) => {
-        const total = isExam
-          ? (g.examScore ?? 0)
-          : (g.assignmentScore ?? 0) + (g.quizScore ?? 0) + (g.testScore ?? 0) + (g.attendanceScore ?? 0);
-        const { letter_grade, gpa_points } = deriveGrade(total);
+        const total =
+          (g.assignmentScore ?? 0) +
+          (g.quizScore ?? 0) +
+          (g.testScore ?? 0) +
+          (g.attendanceScore ?? 0) +
+          (isExam ? (g.examScore ?? 0) : 0);
+        // Letter grade based on percentage of the period maximum
+        const pct = maxScore > 0 ? (total / maxScore) * 100 : 0;
+        const { letter_grade, gpa_points } = deriveGrade(pct);
         return {
           school_id:        schoolId,
           student_id:       g.studentId,
           subject_id:       subjectId,
           academic_year:    academicYear,
           semester:         semester,
-          assignment_score: isExam ? null : g.assignmentScore,
-          quiz_score:       isExam ? null : g.quizScore,
-          test_score:       isExam ? null : g.testScore,
+          assignment_score: g.assignmentScore,
+          quiz_score:       g.quizScore,
+          test_score:       g.testScore,
           exam_score:       isExam ? g.examScore : null,
-          attendance_score: isExam ? null : g.attendanceScore,
+          attendance_score: g.attendanceScore,
           score:            total,
           letter_grade,
           gpa_points,

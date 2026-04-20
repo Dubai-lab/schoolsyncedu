@@ -17,8 +17,9 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { Save, BookOpen, SendHorizontal, Info } from 'lucide-react';
 
 // ── Period structure ───────────────────────────────────────────────────
-// P1/P2/P4/P5 (regular):      Assignment/20 + Quiz/20 + Test/50 + Attendance/10 = 100
-// P3/P6 (Semester Exam):      Exam/100 only
+// P1/P2/P4/P5 (regular):  Assignment/20 + Quiz/20 + Test/50 + Attendance/10 = 100
+// P3/P6 (Exam periods):   Assignment/20 + Quiz/20 + Test/50 + Attendance/10 + Exam/100 = 200
+//                         Letter grade derived from (total / 200) * 100
 const EXAM_PERIODS = new Set(['p3', 'p6']);
 
 const COMPONENT_MAX = {
@@ -31,11 +32,11 @@ const COMPONENT_MAX = {
 
 type ComponentKey = keyof typeof COMPONENT_MAX;
 
-function maxTotal(_period: string) { return 100; }
+function maxTotal(period: string) { return EXAM_PERIODS.has(period) ? 200 : 100; }
 // 'attendance' is NOT in this list — it's auto-computed and shown in its own read-only column
 function activeComponents(period: string): ComponentKey[] {
   return EXAM_PERIODS.has(period)
-    ? ['exam']
+    ? ['assignment', 'quiz', 'test', 'exam']
     : ['assignment', 'quiz', 'test'];
 }
 
@@ -56,14 +57,17 @@ interface StudentGradeRow {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function computeTotal(row: StudentGradeRow, period: string, attendanceScore: number | null): number | null {
-  if (EXAM_PERIODS.has(period)) {
-    if (row.examScore === '') return null;
-    return Number(row.examScore);
-  }
   const a = row.assignmentScore !== '' ? Number(row.assignmentScore) : null;
   const q = row.quizScore       !== '' ? Number(row.quizScore)       : null;
   const t = row.testScore       !== '' ? Number(row.testScore)       : null;
-  if ([a, q, t].every((v) => v === null)) return null;
+  const e = EXAM_PERIODS.has(period) && row.examScore !== '' ? Number(row.examScore) : null;
+  const base = [a, q, t];
+  if (EXAM_PERIODS.has(period)) {
+    // All components required; at least one must be filled
+    if ([...base, e].every((v) => v === null)) return null;
+    return (a ?? 0) + (q ?? 0) + (t ?? 0) + (attendanceScore ?? 0) + (e ?? 0);
+  }
+  if (base.every((v) => v === null)) return null;
   return (a ?? 0) + (q ?? 0) + (t ?? 0) + (attendanceScore ?? 0);
 }
 
@@ -367,7 +371,7 @@ export default function TeacherGradeEntry() {
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <span>
             {isExamPeriod
-              ? <><strong>Semester Exam Period</strong> — Exam /100 only</>
+              ? <>Assignment /20 + Quiz /20 + Test /50 + Attendance /10 + <strong>Exam /100</strong> = <strong>200</strong></>
               : <>Assignment /20 + Quiz /20 + Test /50 + Attendance /10 = <strong>100</strong></>
             }
           </span>
@@ -414,7 +418,7 @@ export default function TeacherGradeEntry() {
           <Card>
             <CardHeader>
               <CardTitle>
-                Student Grades — {isExamPeriod ? 'Semester Exam Period' : 'Component Entry'}
+                Student Grades — {isExamPeriod ? 'Semester Exam Period (All Components + Exam)' : 'Component Entry'}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
