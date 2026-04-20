@@ -16,6 +16,7 @@ import {
   Layers,
   Users,
   Mail,
+  Wifi,
 } from 'lucide-react';
 
 // ==================== STAT CARD ====================
@@ -155,6 +156,7 @@ export default function BursarDashboard() {
             { label: 'Student Fees', desc: 'View all student fees', icon: DollarSign, path: '/fees' },
             { label: 'Payment History', desc: 'All transactions', icon: FileText, path: '/fees/history' },
             { label: 'Fee Letters', desc: 'Reminders & receipts', icon: Mail, path: '/letters' },
+            { label: 'Kiosk Settings', desc: 'Set PIN for exam clearance kiosk', icon: Wifi, path: '/bursar/kiosk-settings' },
           ].map((action) => (
             <button
               key={action.label}
