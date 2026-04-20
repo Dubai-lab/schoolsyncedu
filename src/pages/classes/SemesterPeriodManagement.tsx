@@ -4,7 +4,6 @@ import { useFetch } from '@/hooks/useFetch';
 import { academicCalendarService } from '@/services/classService';
 import { registrarService } from '@/services/registrarService';
 import { Card } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
