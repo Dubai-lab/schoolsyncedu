@@ -36,8 +36,8 @@ export default function KioskLogin() {
     setError('');
     try {
       const school: KioskSchool = await kioskService.verifyAccess(schoolCode, pin);
-      // Store school info in sessionStorage for the scanner page
-      sessionStorage.setItem('kiosk_school', JSON.stringify(school));
+      // Store school info + PIN in sessionStorage for the scanner page
+      sessionStorage.setItem('kiosk_school', JSON.stringify({ ...school, pin }));
       navigate('/kiosk/scanner');
     } catch (err) {
       setError((err as Error).message ?? 'Access denied. Check your school code and PIN.');

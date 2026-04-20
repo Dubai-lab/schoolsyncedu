@@ -139,11 +139,15 @@ function PinDialog({
 export default function KioskScanner() {
   const navigate = useNavigate();
 
-  // Load school from sessionStorage (set during login)
+  // Load school + PIN from sessionStorage (set during login)
   const [school] = useState<KioskSchool | null>(() => {
     try { return JSON.parse(sessionStorage.getItem('kiosk_school') ?? 'null'); }
     catch { return null; }
   });
+  const kioskPin = (() => {
+    try { return JSON.parse(sessionStorage.getItem('kiosk_school') ?? '{}')?.pin ?? ''; }
+    catch { return ''; }
+  })();
 
   const [classes,       setClasses]       = useState<KioskClass[]>([]);
   const [selectedClass, setSelectedClass] = useState<KioskClass | null>(null);
@@ -542,7 +546,7 @@ export default function KioskScanner() {
       {showLogoutPin && (
         <PinDialog
           title="Exit Kiosk"
-          storedPin={school ? JSON.parse(sessionStorage.getItem('kiosk_school') ?? '{}')?.pin ?? '' : ''}
+          storedPin={kioskPin}
           onConfirm={() => { setShowLogoutPin(false); handleLogout(); }}
           onCancel={() => setShowLogoutPin(false)}
         />
@@ -552,7 +556,7 @@ export default function KioskScanner() {
       {showEndPin && (
         <PinDialog
           title="End Session"
-          storedPin={school ? JSON.parse(sessionStorage.getItem('kiosk_school') ?? '{}')?.pin ?? '' : ''}
+          storedPin={kioskPin}
           onConfirm={() => {
             setShowEndPin(false);
             stopNfc();
