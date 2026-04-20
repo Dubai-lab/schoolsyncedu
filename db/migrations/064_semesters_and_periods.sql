@@ -15,10 +15,22 @@
 -- ============================================================
 
 -- ── 1. Extend academic_calendar ──────────────────────────────
+-- Make start_date and end_date nullable so periods can be created without dates yet
+ALTER TABLE academic_calendar
+  ALTER COLUMN start_date DROP NOT NULL,
+  ALTER COLUMN end_date   DROP NOT NULL;
+
 ALTER TABLE academic_calendar
   ADD COLUMN IF NOT EXISTS period_type     TEXT    NOT NULL DEFAULT 'marking_period',
   ADD COLUMN IF NOT EXISTS period_number   INTEGER,
   ADD COLUMN IF NOT EXISTS semester_number INTEGER;
+
+-- Unique constraint required for upsert on conflict
+ALTER TABLE academic_calendar
+  DROP CONSTRAINT IF EXISTS academic_calendar_school_academic_term_unique;
+ALTER TABLE academic_calendar
+  ADD CONSTRAINT academic_calendar_school_academic_term_unique
+  UNIQUE (school_id, academic_year, term_name);
 
 COMMENT ON COLUMN academic_calendar.period_type IS
   'semester | marking_period — distinguishes semester-level from period-level rows';
