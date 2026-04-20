@@ -57,7 +57,7 @@ export default function KioskSettings() {
     }
   }
 
-  const kioskUrl = `${window.location.origin}/kiosk`;
+  const kioskUrl = 'https://www.schoolsyncedu.com/kiosk';
 
   return (
     <div className="space-y-5 max-w-2xl">
