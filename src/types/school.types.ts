@@ -194,10 +194,17 @@ export interface Holiday {
 /** academic_calendar table */
 export interface AcademicCalendar extends SchoolScopedEntity {
   academic_year: string;
+  /** For periods: 'p1'–'p6'. For semesters: 'semester_1' | 'semester_2'. */
   term_name: string;
   start_date: ISODate;
   end_date: ISODate;
   holidays: Holiday[];
+  /** 'semester' | 'marking_period' */
+  period_type: 'semester' | 'marking_period';
+  /** 1–2 for semesters; 1–6 for marking periods */
+  period_number: number | null;
+  /** Which semester (1 or 2) this period belongs to; null for semester rows */
+  semester_number: number | null;
 }
 
 // ==================== VIEW TYPES ====================

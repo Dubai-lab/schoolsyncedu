@@ -73,9 +73,8 @@ interface InstallmentRow {
 }
 
 const DEFAULT_TERMS: InstallmentRow[] = [
-  { term_name: 'First Term',  term_order: 1, amount_usd: '', due_date: '' },
-  { term_name: 'Second Term', term_order: 2, amount_usd: '', due_date: '' },
-  { term_name: 'Third Term',  term_order: 3, amount_usd: '', due_date: '' },
+  { term_name: 'Semester 1', term_order: 1, amount_usd: '', due_date: '' },
+  { term_name: 'Semester 2', term_order: 2, amount_usd: '', due_date: '' },
 ];
 
 // ==================== COMPONENT ====================

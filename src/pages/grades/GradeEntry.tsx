@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { gradeService } from '@/services/gradeService';
-import { GRADE_SCALE, ACADEMIC_YEAR_TERMS } from '@/utils/constants';
+import { GRADE_SCALE, MARKING_PERIOD_LIST } from '@/utils/constants';
 import { notify } from '@/components/shared/Toast';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -67,12 +67,9 @@ function clampedInput(value: string, max: number): string {
   return n > max ? String(max) : value;
 }
 
-// ── Semester / year options ────────────────────────────────────────────
+// ── Period / year options ──────────────────────────────────────────────
 
-const semesterOptions = Object.entries(ACADEMIC_YEAR_TERMS).map(([, v]) => ({
-  label: v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-  value: v,
-}));
+const semesterOptions = MARKING_PERIOD_LIST.map((p) => ({ label: p.label, value: p.value }));
 
 const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: 5 }, (_, i) => {
@@ -218,7 +215,7 @@ export default function GradeEntry() {
         <Select label="Class"         options={classOptions}   value={selectedClass}   onChange={(e) => { setSelectedClass(e.target.value); setSelectedSubject(''); }} placeholder="Select class"    className="w-56" />
         <Select label="Subject"       options={subjectOptions} value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} placeholder="Select subject"  className="w-56" disabled={!selectedClass} />
         <Select label="Academic Year" options={yearOptions}    value={academicYear}    onChange={(e) => setAcademicYear(e.target.value)}    className="w-40" />
-        <Select label="Semester"      options={semesterOptions} value={semester}       onChange={(e) => setSemester(e.target.value)}         placeholder="Select semester" className="w-44" />
+        <Select label="Marking Period" options={semesterOptions} value={semester}       onChange={(e) => setSemester(e.target.value)}         placeholder="Select period"   className="w-52" />
       </div>
 
       {ready && (
@@ -235,7 +232,7 @@ export default function GradeEntry() {
         <Card>
           <CardContent className="py-16 text-center">
             <BookOpen className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-            <p className="text-sm text-slate-400">Select class, subject, and semester to start entering grades.</p>
+            <p className="text-sm text-slate-400">Select class, subject, and marking period to start entering grades.</p>
           </CardContent>
         </Card>
       ) : studentsLoading ? (

@@ -12,7 +12,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { Printer, FileText, Search, User } from 'lucide-react';
 import type { Grade } from '@/types/grade.types';
 import type { School, TranscriptConfig } from '@/types/school.types';
-import { ACADEMIC_YEAR_TERMS } from '@/utils/constants';
+import { MARKING_PERIOD_LABELS, MARKING_PERIOD_LIST } from '@/utils/constants';
 
 const TRANSCRIPT_DEFAULTS: TranscriptConfig = {
   header_bg_color: '#b91c1c',
@@ -23,14 +23,10 @@ const TRANSCRIPT_DEFAULTS: TranscriptConfig = {
   show_motto_footer: true,
 };
 
-// ── Term labels ────────────────────────────────────────────────────────────────
-const TERM_LABELS: Record<string, string> = {
-  [ACADEMIC_YEAR_TERMS.FIRST_SEMESTER]:  'First Term',
-  [ACADEMIC_YEAR_TERMS.SECOND_SEMESTER]: 'Second Term',
-  [ACADEMIC_YEAR_TERMS.THIRD_TERM]:      'Third Term',
-};
+// ── Marking period labels ──────────────────────────────────────────────────────
+const TERM_LABELS: Record<string, string> = MARKING_PERIOD_LABELS;
 
-const TERM_OPTIONS = Object.entries(TERM_LABELS).map(([value, label]) => ({ value, label }));
+const TERM_OPTIONS = MARKING_PERIOD_LIST.map((p) => ({ value: p.value, label: p.label }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

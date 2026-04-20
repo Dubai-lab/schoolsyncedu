@@ -9,7 +9,10 @@ export interface Grade extends SchoolScopedEntity {
   student_id: UUID;
   subject_id: UUID;
   academic_year: string;
+  /** Legacy: first_semester/second_semester/third_term. New entries: p1–p6. */
   semester: string;
+  /** Liberian marking period p1–p6. NULL for pre-migration grades. */
+  marking_period: string | null;
   // Component scores (Liberian grading: Assignment/20 + Quiz/20 + Test/20 + Exam/40 = 100)
   assignment_score: number | null;
   quiz_score:       number | null;

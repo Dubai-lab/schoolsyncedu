@@ -5,7 +5,7 @@ import { gradeService } from '@/services/gradeService';
 import { registrarService } from '@/services/registrarService';
 import { academicCalendarService } from '@/services/classService';
 import type { AcademicCalendar } from '@/types/school.types';
-import { GRADE_SCALE } from '@/utils/constants';
+import { GRADE_SCALE, MARKING_PERIOD_LIST, MARKING_PERIOD_LABELS } from '@/utils/constants';
 import { notify } from '@/components/shared/Toast';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -16,27 +16,8 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { FileText, Printer, Search, User } from 'lucide-react';
 
-// Map academic_calendar.term_name → grades.semester stored value
-// TermManagement creates terms as first_term/second_term/third_term
-// Grades table stores first_semester/second_semester/third_term (from ACADEMIC_YEAR_TERMS)
-const CALENDAR_TERM_TO_SEMESTER: Record<string, string> = {
-  first_term:    'first_semester',
-  second_term:   'second_semester',
-  third_term:    'third_term',
-};
-
-const SEMESTER_LABEL: Record<string, string> = {
-  first_semester:  'First Term',
-  second_semester: 'Second Term',
-  third_term:      'Third Term',
-};
-
-// Static fallback term options (Liberian: 3 terms per year)
-const FALLBACK_TERM_OPTIONS = [
-  { label: 'First Term',  value: 'first_semester' },
-  { label: 'Second Term', value: 'second_semester' },
-  { label: 'Third Term',  value: 'third_term' },
-];
+// Static marking period options (p1–p6)
+const PERIOD_OPTIONS = MARKING_PERIOD_LIST.map((p) => ({ label: p.label, value: p.value }));
 
 function gradeBadgeVariant(letter: string) {
   if (letter === 'A') return 'success' as const;
@@ -77,39 +58,24 @@ export default function ReportCards() {
     }
   }, [settingYear, academicYear]);
 
-  // ── Load academic calendar to auto-detect the current active term ─────────────
-  const { data: calendarTerms = [] } = useFetch(
-    ['academic-calendar', schoolId],
-    () => academicCalendarService.list(schoolId),
-    { enabled: !!schoolId },
+  // ── Auto-detect current active marking period from calendar ──────────────────
+  const { data: calendarPeriods = [] } = useFetch(
+    ['academic-calendar-periods', schoolId, academicYear],
+    () => academicCalendarService.listPeriods(schoolId, academicYear),
+    { enabled: !!schoolId && !!academicYear },
   );
 
   useEffect(() => {
-    if (!semester && academicYear && calendarTerms.length > 0) {
+    if (!semester && academicYear && calendarPeriods.length > 0) {
       const today  = new Date().toISOString().slice(0, 10);
-      const active = (calendarTerms as AcademicCalendar[]).find(
-        (t) =>
-          t.academic_year === academicYear &&
-          t.start_date <= today &&
-          t.end_date >= today,
+      const active = (calendarPeriods as AcademicCalendar[]).find(
+        (t) => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today,
       );
-      if (active) {
-        // Map calendar term_name → grades semester value
-        setSemester(CALENDAR_TERM_TO_SEMESTER[active.term_name] ?? active.term_name);
-      }
+      if (active) setSemester(active.term_name);
     }
-  }, [calendarTerms, academicYear, semester]);
+  }, [calendarPeriods, academicYear, semester]);
 
-  // Build term options from calendar for selected year; fall back to static list
-  const calendarOptions = (calendarTerms as AcademicCalendar[])
-    .filter((t) => t.academic_year === academicYear)
-    .sort((a, b) => a.start_date.localeCompare(b.start_date))
-    .map((t) => ({
-      label: SEMESTER_LABEL[CALENDAR_TERM_TO_SEMESTER[t.term_name] ?? t.term_name] ?? t.term_name,
-      value: CALENDAR_TERM_TO_SEMESTER[t.term_name] ?? t.term_name,
-    }));
-
-  const semesterOptions = calendarOptions.length > 0 ? calendarOptions : FALLBACK_TERM_OPTIONS;
+  const semesterOptions = PERIOD_OPTIONS;
 
   // ── Search ALL enrolled students (not just those with grades) ─────────────────
   const { data: students = [], isLoading: studentsLoading } = useFetch(
@@ -147,7 +113,7 @@ export default function ReportCards() {
   const avgLetter =
     Object.entries(GRADE_SCALE).find(([, r]) => avgScore >= r.min && avgScore <= r.max)?.[0] ?? 'F';
 
-  const termLabel = SEMESTER_LABEL[semester] ?? semester;
+  const termLabel = MARKING_PERIOD_LABELS[semester] ?? semester;
 
   return (
     <div className="space-y-5">
@@ -183,12 +149,12 @@ export default function ReportCards() {
           />
         </div>
         <Select
-          label="Term"
+          label="Marking Period"
           options={semesterOptions}
           value={semester}
           onChange={(e) => setSemester(e.target.value)}
-          placeholder="Select term"
-          className="w-44"
+          placeholder="Select period"
+          className="w-52"
         />
       </div>
 

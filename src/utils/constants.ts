@@ -260,11 +260,53 @@ export const GRADE_SCALE = {
   F: { min: 0, max: 59, gpa: 0.0, description: 'Fail' },
 } as const;
 
+// Kept for backward compat — old grades stored these values in the semester column
 export const ACADEMIC_YEAR_TERMS = {
   FIRST_SEMESTER: 'first_semester',
   SECOND_SEMESTER: 'second_semester',
   THIRD_TERM: 'third_term',
 } as const;
+
+// ── Liberian Academic Structure: 2 Semesters × 3 Periods each ──
+export const SEMESTERS = {
+  SEMESTER_1: 'semester_1',
+  SEMESTER_2: 'semester_2',
+} as const;
+
+export const SEMESTER_LABELS: Record<string, string> = {
+  semester_1: 'Semester 1 (Sept – Feb)',
+  semester_2: 'Semester 2 (Feb – July)',
+};
+
+export const MARKING_PERIODS = {
+  P1: 'p1', P2: 'p2', P3: 'p3',
+  P4: 'p4', P5: 'p5', P6: 'p6',
+} as const;
+
+export const MARKING_PERIOD_LABELS: Record<string, string> = {
+  p1: 'Period 1',
+  p2: 'Period 2',
+  p3: 'Period 3 (Semester 1 Exam)',
+  p4: 'Period 4',
+  p5: 'Period 5',
+  p6: 'Period 6 (Semester 2 Exam)',
+};
+
+// Which semester each marking period belongs to
+export const PERIOD_SEMESTER_MAP: Record<string, string> = {
+  p1: 'semester_1', p2: 'semester_1', p3: 'semester_1',
+  p4: 'semester_2', p5: 'semester_2', p6: 'semester_2',
+};
+
+// Ordered list for UI rendering
+export const MARKING_PERIOD_LIST = [
+  { value: 'p1', label: 'Period 1',                    semester: 'semester_1', periodNumber: 1 },
+  { value: 'p2', label: 'Period 2',                    semester: 'semester_1', periodNumber: 2 },
+  { value: 'p3', label: 'Period 3 (Semester 1 Exam)', semester: 'semester_1', periodNumber: 3 },
+  { value: 'p4', label: 'Period 4',                    semester: 'semester_2', periodNumber: 4 },
+  { value: 'p5', label: 'Period 5',                    semester: 'semester_2', periodNumber: 5 },
+  { value: 'p6', label: 'Period 6 (Semester 2 Exam)', semester: 'semester_2', periodNumber: 6 },
+] as const;
 
 // ==================== STUDENT STATUS ====================
 export const STUDENT_STATUS = {

@@ -7,7 +7,7 @@ import { gradeService } from '@/services/gradeService';
 import { registrarService } from '@/services/registrarService';
 import { academicCalendarService } from '@/services/classService';
 import type { AcademicCalendar } from '@/types/school.types';
-import { GRADE_SCALE } from '@/utils/constants';
+import { GRADE_SCALE, MARKING_PERIOD_LABELS } from '@/utils/constants';
 import { notify } from '@/components/shared/Toast';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -100,24 +100,17 @@ export default function TeacherGradeEntry() {
     if (schoolYear && !academicYear) setAcademicYear(schoolYear as string);
   }, [schoolYear, academicYear]);
 
-  // Terms for this academic year
-  const { data: dbTerms = [] } = useFetch(
-    ['academic-calendar-terms', schoolId, academicYear],
-    () => academicCalendarService.list(schoolId),
+  // Marking periods for this academic year (p1–p6 only)
+  const { data: dbPeriods = [] } = useFetch(
+    ['academic-calendar-periods', schoolId, academicYear],
+    () => academicCalendarService.listPeriods(schoolId, academicYear),
     { enabled: !!schoolId && !!academicYear },
   );
 
-  const TERM_LABEL_MAP: Record<string, string> = {
-    first_term:  'First Term',
-    second_term: 'Second Term',
-    third_term:  'Third Term',
-  };
-
-  const termOptions = (dbTerms as unknown as AcademicCalendar[])
-    .filter((t) => t.academic_year === academicYear)
-    .sort((a, b) => (a.term_name > b.term_name ? 1 : -1))
+  const termOptions = (dbPeriods as unknown as AcademicCalendar[])
+    .sort((a, b) => (a.period_number ?? 0) - (b.period_number ?? 0))
     .map((t) => ({
-      label: TERM_LABEL_MAP[t.term_name] ?? t.term_name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      label: MARKING_PERIOD_LABELS[t.term_name] ?? t.term_name.toUpperCase(),
       value: t.term_name,
     }));
 
@@ -297,12 +290,12 @@ export default function TeacherGradeEntry() {
           disabled={!selectedClass}
         />
         <Select
-          label="Term"
+          label="Marking Period"
           options={termOptions}
           value={semester}
           onChange={(e) => setSemester(e.target.value)}
-          placeholder={termOptions.length === 0 ? 'No terms created yet' : 'Select term'}
-          className="w-44"
+          placeholder={termOptions.length === 0 ? 'No periods set yet' : 'Select period'}
+          className="w-52"
           disabled={termOptions.length === 0}
         />
       </div>
@@ -326,7 +319,7 @@ export default function TeacherGradeEntry() {
             <p className="text-sm text-slate-400">Select class, subject, and term to start entering grades.</p>
             {termOptions.length === 0 && academicYear && (
               <p className="mt-1 text-xs text-amber-500">
-                No terms have been created yet. Ask the Principal to set up terms for {academicYear}.
+                No marking periods have been set up yet. Ask the Principal to configure Semesters &amp; Periods for {academicYear}.
               </p>
             )}
           </CardContent>
