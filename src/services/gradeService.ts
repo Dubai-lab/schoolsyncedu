@@ -255,7 +255,7 @@ export const gradeService = {
           quiz_score:       g.quizScore,
           test_score:       g.testScore,
           exam_score:       isExam ? g.examScore : null,
-          attendance_score: g.attendanceScore,
+          attendance_score: g.attendanceScore, // always saved for all periods
           score:            total,
           letter_grade,
           gpa_points,

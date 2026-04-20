@@ -144,20 +144,18 @@ export default function TeacherGradeEntry() {
   const periodDateFrom = activePeriod?.start_date ?? '';
   const periodDateTo   = activePeriod?.end_date   ?? '';
 
-  // Auto-fetch attendance scores for this class + subject + period (regular periods only)
+  // Auto-fetch attendance scores for this class + subject + period (all periods)
   const { data: fetchedAttendance } = useFetch(
     ['attendance-scores', selectedClass, selectedSubject, periodDateFrom, periodDateTo],
     () => gradeService.getClassAttendanceScores(selectedClass, selectedSubject, periodDateFrom!, periodDateTo!),
-    { enabled: !!selectedClass && !!selectedSubject && !!periodDateFrom && !!periodDateTo && !EXAM_PERIODS.has(semester) },
+    { enabled: !!selectedClass && !!selectedSubject && !!periodDateFrom && !!periodDateTo },
   );
 
   useEffect(() => {
     if (fetchedAttendance) {
       setAttendanceScores(fetchedAttendance as Record<string, number | null>);
-    } else if (EXAM_PERIODS.has(semester)) {
-      setAttendanceScores({});
     }
-  }, [fetchedAttendance, semester]);
+  }, [fetchedAttendance]);
 
   const { data: myClasses } = useFetch(
     ['teacher-classes', schoolId, teacherId],
@@ -434,12 +432,10 @@ export default function TeacherGradeEntry() {
                           <div className="text-[10px] text-slate-400 font-normal">/{COMPONENT_MAX[c]}</div>
                         </th>
                       ))}
-                      {!isExamPeriod && (
-                        <th className="py-3 px-2 text-center font-medium">
-                          <div className="text-xs">Attendance</div>
-                          <div className="text-[10px] text-slate-400 font-normal">/10 (auto)</div>
-                        </th>
-                      )}
+                      <th className="py-3 px-2 text-center font-medium">
+                        <div className="text-xs">Attendance</div>
+                        <div className="text-[10px] text-slate-400 font-normal">/10 (auto)</div>
+                      </th>
                       <th className="py-3 px-3 text-center font-medium">
                         <div className="text-xs">Total</div>
                         <div className="text-[10px] text-slate-400 font-normal">/{periodMax}</div>
@@ -479,17 +475,15 @@ export default function TeacherGradeEntry() {
                             );
                           })}
 
-                          {!isExamPeriod && (
-                            <td className="py-2.5 px-2 text-center">
-                              {attScore !== null ? (
-                                <span className={`text-sm font-medium ${attScore >= 8 ? 'text-emerald-600' : attScore >= 5 ? 'text-amber-600' : 'text-red-600'}`}>
-                                  {attScore % 1 === 0 ? attScore : attScore.toFixed(1)}
-                                </span>
-                              ) : (
-                                <span className="text-slate-300 text-xs" title="No attendance records for this period">—</span>
-                              )}
-                            </td>
-                          )}
+                          <td className="py-2.5 px-2 text-center">
+                            {attScore !== null ? (
+                              <span className={`text-sm font-medium ${attScore >= 8 ? 'text-emerald-600' : attScore >= 5 ? 'text-amber-600' : 'text-red-600'}`}>
+                                {attScore % 1 === 0 ? attScore : attScore.toFixed(1)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 text-xs" title="No attendance records for this period">—</span>
+                            )}
+                          </td>
 
                           <td className="py-2.5 px-3 text-center">
                             {total !== null ? (
