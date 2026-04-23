@@ -1,25 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { supabase } from '@/lib/supabase';
 import {
   proprietorSubscriptionService,
   proprietorBillingService,
-  savedCardsService,
-  type SavedPaymentToken,
 } from '@/services/proprietorService';
-import {
-  createPaymentIntent,
-  recordSubscriptionPayment,
-  upgradeSubscriptionPlan,
-  savePaymentCard,
-  createSetupIntent,
-  saveCardFromSetupIntent,
-  generateTxRef,
-  getStripe,
-} from '@/services/stripeService';
 import type {
   Subscription,
   SubscriptionPlan,
@@ -40,263 +27,12 @@ import {
   ToggleLeft,
   ToggleRight,
   CheckCircle2,
-  Loader2,
   AlertTriangle,
   RefreshCw,
-  Trash2,
-  Star,
-  Shield,
 } from 'lucide-react';
 
 type Tab = 'overview' | 'invoices' | 'history' | 'cards';
 
-// ── Stripe card form (must be inside <Elements>) ───────────────────────────────
-
-interface StripeUpgradeFormProps {
-  schoolId: string;
-  subscriptionId: string;
-  plan: SubscriptionPlan;
-  currentPlanId: string;
-  userEmail: string;
-  userName: string;
-  onSuccess: (invoiceNumber: string, expiresAt: string | null, amountUsd: number) => void;
-  onCancel: () => void;
-}
-
-function StripeUpgradeForm({
-  schoolId, subscriptionId, plan, currentPlanId, userEmail, userName, onSuccess, onCancel,
-}: StripeUpgradeFormProps) {
-  const stripe   = useStripe();
-  const elements = useElements();
-
-  const [processing, setProcessing] = useState(false);
-  const [cardError,  setCardError]  = useState('');
-
-  const handlePay = async () => {
-    if (!stripe || !elements) return;
-    setProcessing(true);
-    setCardError('');
-
-    try {
-      const txRef = generateTxRef(schoolId);
-
-      const { clientSecret, paymentIntentId } = await createPaymentIntent({
-        amountUsd:      plan.price_usd,
-        schoolId,
-        subscriptionId,
-        planName:       plan.name,
-        txRef,
-      });
-
-      const cardEl = elements.getElement(CardElement);
-      if (!cardEl) throw new Error('Card element unavailable');
-
-      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: {
-            card: cardEl,
-            billing_details: { name: userName, email: userEmail },
-          },
-        },
-      );
-
-      if (stripeError) throw new Error(stripeError.message ?? 'Card declined');
-      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment incomplete');
-
-      const isRenewal = plan.id === currentPlanId;
-
-      if (isRenewal) {
-        const result = await recordSubscriptionPayment({
-          schoolId,
-          subscriptionId,
-          amountUsd:  plan.price_usd,
-          gatewayRef: paymentIntentId,
-          txRef,
-        });
-        savePaymentCard({ paymentIntentId, schoolId });
-        onSuccess(result.invoiceNumber, result.expiresAt, plan.price_usd);
-      } else {
-        const result = await upgradeSubscriptionPlan({
-          schoolId,
-          subscriptionId,
-          newPlanId:  plan.id,
-          amountUsd:  plan.price_usd,
-          gatewayRef: paymentIntentId,
-          txRef,
-        });
-        savePaymentCard({ paymentIntentId, schoolId });
-        onSuccess(result.invoiceNumber, result.expiresAt, plan.price_usd);
-      }
-    } catch (err) {
-      setCardError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-4">
-        <p className="text-sm font-semibold text-slate-800">{plan.name} Plan</p>
-        <p className="text-2xl font-bold text-slate-900 mt-1">
-          ${plan.price_usd}
-          <span className="text-sm font-normal text-slate-500">/{plan.billing_cycle}</span>
-        </p>
-        <p className="text-xs text-slate-500 mt-0.5">Up to {plan.student_limit.toLocaleString()} students</p>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1.5">
-          <CreditCard className="inline h-3.5 w-3.5 mr-1" />
-          Card Details
-        </label>
-        <div className="rounded-lg border border-slate-300 px-3 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-400/20 transition-all bg-white">
-          <CardElement
-            options={{
-              hidePostalCode: true,
-              style: {
-                base: {
-                  fontSize: '14px',
-                  color: '#1e293b',
-                  fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-                  '::placeholder': { color: '#94a3b8' },
-                },
-                invalid: { color: '#dc2626' },
-              },
-            }}
-          />
-        </div>
-      </div>
-
-      {cardError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {cardError}
-        </div>
-      )}
-
-      <div className="flex items-center gap-1.5 text-xs text-slate-400">
-        <Shield className="h-3.5 w-3.5 shrink-0" />
-        Encrypted · Powered by Stripe
-      </div>
-
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onCancel} disabled={processing} className="flex-1">
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          onClick={handlePay}
-          disabled={!stripe || processing}
-          loading={processing}
-          icon={processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-          className="flex-1"
-        >
-          {processing ? 'Processing...' : `Pay $${plan.price_usd}`}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Add Card form (inside <Elements>) ─────────────────────────────────────────
-
-interface AddCardFormProps {
-  schoolId: string;
-  userEmail: string;
-  userName: string;
-  onSuccess: () => void;
-  onCancel: () => void;
-}
-
-function AddCardForm({ schoolId, userEmail, userName, onSuccess, onCancel }: AddCardFormProps) {
-  const stripe   = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [cardError,  setCardError]  = useState('');
-
-  const handleSave = async () => {
-    if (!stripe || !elements) return;
-    setProcessing(true);
-    setCardError('');
-    try {
-      const { clientSecret, setupIntentId } = await createSetupIntent(schoolId);
-
-      const cardEl = elements.getElement(CardElement);
-      if (!cardEl) throw new Error('Card element unavailable');
-
-      const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: {
-          card: cardEl,
-          billing_details: { name: userName, email: userEmail },
-        },
-      });
-
-      if (stripeError) throw new Error(stripeError.message ?? 'Card could not be saved');
-
-      await saveCardFromSetupIntent({ setupIntentId, schoolId });
-      onSuccess();
-    } catch (err) {
-      setCardError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1.5">
-          <CreditCard className="inline h-3.5 w-3.5 mr-1" />
-          Card Details
-        </label>
-        <div className="rounded-lg border border-slate-300 px-3 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-400/20 transition-all bg-white">
-          <CardElement
-            options={{
-              hidePostalCode: true,
-              style: {
-                base: {
-                  fontSize: '14px',
-                  color: '#1e293b',
-                  fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-                  '::placeholder': { color: '#94a3b8' },
-                },
-                invalid: { color: '#dc2626' },
-              },
-            }}
-          />
-        </div>
-      </div>
-
-      {cardError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {cardError}
-        </div>
-      )}
-
-      <div className="flex items-center gap-1.5 text-xs text-slate-400">
-        <Shield className="h-3.5 w-3.5 shrink-0" />
-        Card is saved securely via Stripe — no charge will be made
-      </div>
-
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onCancel} disabled={processing} className="flex-1">
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={!stripe || processing}
-          loading={processing}
-          icon={<CreditCard className="w-4 h-4" />}
-          className="flex-1"
-        >
-          {processing ? 'Saving...' : 'Save Card'}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -305,10 +41,9 @@ export default function SubscriptionManagement() {
   const navigate = useNavigate();
   const schoolId = user?.school_id;
   const [tab, setTab] = useState<Tab>('overview');
-  const [changePlanOpen, setChangePlanOpen]     = useState(false);
-  const [selectedPlanId, setSelectedPlanId]     = useState<string | null>(null);
-  const [showCardForm,   setShowCardForm]        = useState(false);
-  const [addCardOpen,    setAddCardOpen]         = useState(false);
+  const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [showCardForm,   setShowCardForm]   = useState(false);
 
   const { data: subscription, isLoading: loadingSub } = useFetch<(Subscription & { plan: SubscriptionPlan }) | null>(
     ['prop-subscription', schoolId!],
@@ -334,25 +69,10 @@ export default function SubscriptionManagement() {
     { enabled: !!subscription?.id }
   );
 
-  const { data: savedCards = [], refetch: refetchCards } = useFetch<SavedPaymentToken[]>(
-    ['prop-saved-cards', schoolId!],
-    () => savedCardsService.list(schoolId!),
-    { enabled: !!schoolId }
-  );
 
   const toggleAutoRenew = useMutate(
     (autoRenew: boolean) => proprietorSubscriptionService.toggleAutoRenew(subscription!.id, autoRenew),
     [['prop-subscription', schoolId!]]
-  );
-
-  const removeCard = useMutate(
-    (id: string) => savedCardsService.remove(id),
-    [['prop-saved-cards', schoolId!]]
-  );
-
-  const setDefaultCard = useMutate(
-    (id: string) => savedCardsService.setDefault(id, schoolId!),
-    [['prop-saved-cards', schoolId!]]
   );
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId)
@@ -440,7 +160,6 @@ export default function SubscriptionManagement() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'overview',  label: 'Overview' },
-    { key: 'cards',     label: `Saved Cards (${savedCards.length})` },
     { key: 'invoices',  label: `Invoices (${invoices.length})` },
     { key: 'history',   label: 'History' },
   ];
@@ -635,86 +354,6 @@ export default function SubscriptionManagement() {
         </div>
       )}
 
-      {/* ===== SAVED CARDS ===== */}
-      {tab === 'cards' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white">Saved Payment Cards</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Cards saved here will be used for subscription renewals.
-              </p>
-            </div>
-            <Button size="sm" icon={<CreditCard className="w-4 h-4" />} onClick={() => setAddCardOpen(true)}>
-              Add Card
-            </Button>
-          </div>
-
-          {savedCards.length === 0 ? (
-            <Card className="p-10 text-center">
-              <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No saved cards yet</p>
-              <p className="text-sm text-gray-400 mt-1 max-w-sm mx-auto">
-                Add a card now or it will be saved automatically after your first payment.
-              </p>
-              <Button size="sm" className="mt-4" onClick={() => setAddCardOpen(true)} icon={<CreditCard className="w-4 h-4" />}>
-                Add Card
-              </Button>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {savedCards.map((card) => (
-                <Card key={card.id} className={`p-4 ${card.is_default ? 'border-primary-300 bg-primary-50/40' : ''}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">💳</div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white capitalize">
-                          {card.card_type ?? 'Card'} •••• {card.card_last4 ?? '****'}
-                          {card.is_default && (
-                            <Badge variant="success" className="ml-2 text-xs">Default</Badge>
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {card.card_name && `${card.card_name} · `}
-                          {card.card_expiry ? `Expires ${card.card_expiry}` : ''}
-                          {card.email && ` · ${card.email}`}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Saved {new Date(card.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {!card.is_default && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDefaultCard.mutate(card.id, {
-                            onSuccess: () => notify.success('Default card updated'),
-                          })}
-                        >
-                          <Star className="w-3.5 h-3.5 mr-1" /> Set Default
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => removeCard.mutate(card.id, {
-                          onSuccess: () => { notify.success('Card removed'); refetchCards(); },
-                        })}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ===== INVOICES ===== */}
       {tab === 'invoices' && (
@@ -800,20 +439,36 @@ export default function SubscriptionManagement() {
             </>
           )}
 
-          {/* Step 2 — Card payment form */}
+          {/* Step 2 — Coming Soon */}
           {showCardForm && selectedPlan && (
-            <Elements stripe={getStripe()}>
-              <StripeUpgradeForm
-                schoolId={schoolId!}
-                subscriptionId={subscription!.id}
-                plan={selectedPlan}
-                currentPlanId={subscription?.plan_id ?? ''}
-                userEmail={user?.email ?? ''}
-                userName={user?.full_name || user?.email || ''}
-                onSuccess={handlePaymentSuccess}
-                onCancel={() => setShowCardForm(false)}
-              />
-            </Elements>
+            <div className="text-center py-6 space-y-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-50">
+                <CreditCard className="h-7 w-7 text-primary-400" />
+              </div>
+              <span className="inline-block rounded-full bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1">
+                Coming Soon
+              </span>
+              <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-4">
+                <p className="text-sm font-semibold text-slate-800">{selectedPlan.name} Plan</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  ${selectedPlan.price_usd}
+                  <span className="text-sm font-normal text-slate-500">/{selectedPlan.billing_cycle}</span>
+                </p>
+              </div>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Online payments are not yet available. Please contact our support team
+                to activate or upgrade your subscription.
+              </p>
+              <a
+                href="mailto:support@schoolsyncedu.com"
+                className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700 transition-all"
+              >
+                Contact Support to Activate
+              </a>
+              <Button variant="outline" size="sm" onClick={() => setShowCardForm(false)} className="w-full">
+                Back to Plans
+              </Button>
+            </div>
           )}
         </DialogBody>
 
@@ -838,30 +493,6 @@ export default function SubscriptionManagement() {
         )}
       </Dialog>
 
-      {/* ===== ADD CARD DIALOG ===== */}
-      <Dialog open={addCardOpen} onClose={() => setAddCardOpen(false)} className="max-w-md">
-        <DialogHeader onClose={() => setAddCardOpen(false)}>
-          <DialogTitle>Add Payment Card</DialogTitle>
-        </DialogHeader>
-        <DialogBody>
-          <p className="text-sm text-gray-500 mb-4">
-            Save a card for future subscription renewals. No charge will be made now.
-          </p>
-          <Elements stripe={getStripe()}>
-            <AddCardForm
-              schoolId={schoolId!}
-              userEmail={user?.email ?? ''}
-              userName={user?.full_name || user?.email || ''}
-              onSuccess={() => {
-                setAddCardOpen(false);
-                refetchCards();
-                notify.success('Card saved successfully');
-              }}
-              onCancel={() => setAddCardOpen(false)}
-            />
-          </Elements>
-        </DialogBody>
-      </Dialog>
     </div>
   );
 }
