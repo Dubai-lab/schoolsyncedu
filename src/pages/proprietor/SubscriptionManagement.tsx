@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
-import { supabase } from '@/lib/supabase';
 import {
   proprietorSubscriptionService,
   proprietorBillingService,
@@ -98,35 +97,6 @@ export default function SubscriptionManagement() {
     setShowCardForm(false);
   };
 
-  const handlePaymentSuccess = (invoiceNumber: string, expiresAt: string | null, amountUsd: number) => {
-    // Capture plan name before closeDialog() clears selectedPlanId
-    const planName = selectedPlan?.name ?? subscription?.plan.name ?? '';
-    closeDialog();
-    notify.success(`Subscription activated! Invoice: ${invoiceNumber}`);
-
-    // Send billing confirmation email (non-blocking)
-    void (async () => {
-      try {
-        const { data: school } = await supabase.from('schools').select('name').eq('id', schoolId!).single();
-        await supabase.functions.invoke('process-subscription-notifications', {
-          body: {
-            trigger:        'payment_confirmed',
-            school_id:      schoolId,
-            school_name:    school?.name ?? '',
-            owner_email:    user?.email ?? '',
-            plan_name:      planName,
-            amount_usd:     amountUsd,
-            invoice_number: invoiceNumber,
-            expires_at:     expiresAt ?? undefined,
-          },
-        });
-      } catch {
-        // non-critical — never block navigation on email failure
-      }
-    })();
-
-    navigate('/proprietor');
-  };
 
   const [now] = useState(() => Date.now());
   const daysRemaining = subscription?.expires_at
