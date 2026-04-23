@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import {
@@ -37,7 +36,6 @@ type Tab = 'overview' | 'invoices' | 'history' | 'cards';
 
 export default function SubscriptionManagement() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const schoolId = user?.school_id;
   const [tab, setTab] = useState<Tab>('overview');
   const [changePlanOpen, setChangePlanOpen] = useState(false);
