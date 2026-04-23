@@ -1,17 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
   fetchPaymentInfo,
-  createPaymentIntent,
-  recordSubscriptionPayment,
-  savePaymentCard,
-  generateTxRef,
-  getStripe,
   type PaymentPageData,
 } from '@/services/stripeService';
 import { discountService } from '@/services/adminService';
-import { supabase } from '@/lib/supabase';
 import type { Discount } from '@/types/report.types';
 import {
   CreditCard,
@@ -23,160 +16,8 @@ import {
   AlertTriangle,
   Tag,
   X,
-  Lock,
 } from 'lucide-react';
 
-// ── Stripe card form (must be inside <Elements>) ───────────────────────────────
-
-interface CardFormProps {
-  paymentData: PaymentPageData;
-  amount: number;
-  appliedDiscount: Discount | null;
-  email: string | null;
-  onSuccess: (invoiceNumber: string) => void;
-}
-
-function StripeCardForm({ paymentData, amount, appliedDiscount, email, onSuccess }: CardFormProps) {
-  const stripe   = useStripe();
-  const elements = useElements();
-
-  const [processing, setProcessing] = useState(false);
-  const [cardError,  setCardError]  = useState('');
-
-  const handlePay = async () => {
-    if (!stripe || !elements) return;
-    setProcessing(true);
-    setCardError('');
-
-    try {
-      const txRef = generateTxRef(paymentData.school.id);
-
-      // 1. Create PaymentIntent server-side (secret key stays in Edge Function)
-      const { clientSecret, paymentIntentId } = await createPaymentIntent({
-        amountUsd:      amount,
-        schoolId:       paymentData.school.id,
-        subscriptionId: paymentData.subscription.id,
-        planName:       paymentData.plan.name,
-        txRef,
-      });
-
-      // 2. Confirm card payment in the browser
-      const cardEl = elements.getElement(CardElement);
-      if (!cardEl) throw new Error('Card element unavailable');
-
-      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: {
-            card: cardEl,
-            billing_details: {
-              name:  paymentData.owner.name,
-              email: paymentData.owner.email,
-            },
-          },
-        },
-      );
-
-      if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
-      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment incomplete');
-
-      // 3. Record payment in database
-      const result = await recordSubscriptionPayment({
-        schoolId:       paymentData.school.id,
-        subscriptionId: paymentData.subscription.id,
-        amountUsd:      amount,
-        gatewayRef:     paymentIntentId,
-        txRef,
-      });
-
-      // 4a. Save card details immediately (non-blocking)
-      savePaymentCard({ paymentIntentId, schoolId: paymentData.school.id });
-
-      // 4. Increment coupon uses if a discount was applied
-      if (appliedDiscount) {
-        discountService.incrementCouponUses(appliedDiscount.id).catch(() => {/* non-critical */});
-      }
-
-      // 5. Send payment confirmed email (non-blocking)
-      supabase.functions.invoke('process-subscription-notifications', {
-        body: {
-          trigger:        'payment_confirmed',
-          school_id:      paymentData.school.id,
-          school_name:    paymentData.school.name,
-          owner_email:    email,
-          plan_name:      paymentData.plan.name,
-          amount_usd:     amount,
-          invoice_number: result.invoiceNumber ?? '',
-          expires_at:     result.expiresAt ?? undefined,
-        },
-      }).catch(() => {/* non-critical */});
-
-      onSuccess(result.invoiceNumber ?? '');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setCardError(msg);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Card input */}
-      <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1.5">
-          <CreditCard className="inline h-3.5 w-3.5 mr-1" />
-          Card Details
-        </label>
-        <div className="rounded-lg border border-slate-300 px-3 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-400/20 transition-all bg-white">
-          <CardElement
-            options={{
-              hidePostalCode: true,
-              style: {
-                base: {
-                  fontSize: '14px',
-                  color: '#1e293b',
-                  fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-                  '::placeholder': { color: '#94a3b8' },
-                },
-                invalid: { color: '#dc2626' },
-              },
-            }}
-          />
-        </div>
-      </div>
-
-      {cardError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {cardError}
-        </div>
-      )}
-
-      <button
-        onClick={handlePay}
-        disabled={!stripe || processing}
-        className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 shadow-lg shadow-primary-200/50 transition-all"
-      >
-        {processing ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
-        ) : (
-          <><Lock className="h-4 w-4" /> Pay ${amount.toFixed(2)} USD</>
-        )}
-      </button>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <Shield className="h-3.5 w-3.5 shrink-0" />
-          256-bit SSL · Powered by Stripe
-        </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <CreditCard className="h-3.5 w-3.5 shrink-0" />
-          Visa, Mastercard, American Express accepted
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Main page component ────────────────────────────────────────────────────────
 
@@ -189,8 +30,8 @@ export default function SubscriptionPayment() {
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState('');
   const [paymentData,     setPaymentData]     = useState<PaymentPageData | null>(null);
-  const [paymentSuccess,  setPaymentSuccess]  = useState(false);
-  const [invoiceNumber,   setInvoiceNumber]   = useState('');
+  const [paymentSuccess]  = useState(false);
+  const [invoiceNumber]   = useState('');
 
   // Coupon / discount
   const [couponInput,      setCouponInput]      = useState('');
