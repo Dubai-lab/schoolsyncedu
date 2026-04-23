@@ -470,31 +470,33 @@ export default function SubscriptionPayment() {
 
           {/* Payment Panel */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Pay with Card</h2>
-              <p className="text-sm text-slate-500 mb-5">
-                Enter your card details below. Your payment is encrypted and processed by Stripe.
+            {/* Coming Soon */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-50">
+                <CreditCard className="h-7 w-7 text-primary-400" />
+              </div>
+              <span className="inline-block rounded-full bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 mb-3">
+                Coming Soon
+              </span>
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">Online Payment</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Online payments are not yet available. Please contact our support team to complete
+                your subscription activation.
               </p>
-
-              <Elements stripe={getStripe()}>
-                <StripeCardForm
-                  paymentData={paymentData}
-                  amount={finalAmount}
-                  appliedDiscount={appliedDiscount}
-                  email={email}
-                  onSuccess={(invoice) => {
-                    setInvoiceNumber(invoice);
-                    setPaymentSuccess(true);
-                  }}
-                />
-              </Elements>
+              <a
+                href="mailto:support@schoolsyncedu.com"
+                className="mt-5 inline-flex items-center justify-center gap-2 w-full rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-primary-700 transition-all"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Contact Support to Activate
+              </a>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
               <p className="text-xs text-slate-500">
-                Need help? Contact us at{' '}
-                <a href="mailto:support@schoolsync.com" className="text-primary-600 hover:underline">
-                  support@schoolsync.com
+                Need help? Email us at{' '}
+                <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline">
+                  support@schoolsyncedu.com
                 </a>
               </p>
             </div>
