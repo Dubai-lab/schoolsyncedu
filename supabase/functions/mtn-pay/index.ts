@@ -115,12 +115,16 @@ serve(async (req) => {
     const referenceId = crypto.randomUUID();
 
     // ── Call MTN requestToPay ─────────────────────────────────────────────
+    const supabaseUrl  = Deno.env.get('SUPABASE_URL') ?? '';
+    const callbackUrl  = `${supabaseUrl}/functions/v1/mtn-callback`;
+
     const mtnRes = await fetch(`${baseUrl}/collection/v1_0/requesttopay`, {
       method: 'POST',
       headers: {
         'Authorization':             `Bearer ${accessToken}`,
         'X-Reference-Id':            referenceId,
         'X-Target-Environment':      targetEnv,
+        'X-Callback-Url':            callbackUrl,
         'Ocp-Apim-Subscription-Key': subscriptionKey,
         'Content-Type':              'application/json',
       },
@@ -147,7 +151,6 @@ serve(async (req) => {
     console.log(`MTN requestToPay accepted. referenceId: ${referenceId}, phone: ${cleanPhone}, amount: ${amount} ${currency}`);
 
     // ── Store request in DB ───────────────────────────────────────────────
-    const supabaseUrl  = Deno.env.get('SUPABASE_URL')!;
     const serviceKey   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const adminClient  = createClient(supabaseUrl, serviceKey);
 
