@@ -458,7 +458,7 @@ export default function TranscriptPage() {
   const grades = (gradesResult?.data ?? []) as unknown as Grade[];
   const yearLevelMap = useMemo(() => {
     const map: Record<string, string | null> = {};
-    for (const y of academicYears ?? []) map[y.academic_year] = y.grade_level;
+    for (const y of academicYears ?? []) map[y.academic_year] = y.class_name ?? y.grade_level;
     return map;
   }, [academicYears]);
 
