@@ -275,6 +275,23 @@ export default function ReportCards() {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
+    <>
+      {/* Print isolation: hide everything except the report card */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #report-card-print, #report-card-print * { visibility: visible; }
+          #report-card-print {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            padding: 12px;
+            font-size: 11px;
+          }
+          @page { margin: 10mm; }
+        }
+      `}</style>
+
     <div className="space-y-5">
       <Breadcrumb items={[{ label: 'Grades', href: '/grades' }, { label: 'Report Cards' }]} />
       <h1 className="text-xl font-bold text-slate-900 print:hidden">Report Cards</h1>
@@ -364,6 +381,7 @@ export default function ReportCards() {
 
               {/* ── PRINTABLE REPORT CARD ──────────────────────────────────── */}
               <div
+                id="report-card-print"
                 className="bg-white border border-slate-300 rounded-lg print:border-0 print:rounded-none"
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}
               >
@@ -569,5 +587,6 @@ export default function ReportCards() {
         </div>
       </div>
     </div>
+    </>
   );
 }
