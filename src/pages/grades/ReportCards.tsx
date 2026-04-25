@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { gradeService } from '@/services/gradeService';
 import { registrarService } from '@/services/registrarService';
+import { itAdminSiteService } from '@/services/itAdminService';
 import { supabase } from '@/lib/supabase';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
@@ -12,10 +13,12 @@ import Select from '@/components/ui/Select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FileText, Printer, Search, User } from 'lucide-react';
 
-// Semester → three marking-period keys
-const SEMESTER_CONFIG = [
-  { value: 'semester_1', label: 'First Semester',  ordinal: '1st', periods: ['p1', 'p2', 'p3'] as const },
-  { value: 'semester_2', label: 'Second Semester', ordinal: '2nd', periods: ['p4', 'p5', 'p6'] as const },
+type ReportMode = 'semester_1' | 'semester_2' | 'full_year';
+
+const REPORT_MODE_OPTIONS: { value: ReportMode; label: string; title: string }[] = [
+  { value: 'semester_1', label: 'First Semester',     title: 'FIRST SEMESTER REPORT' },
+  { value: 'semester_2', label: 'Second Semester',    title: 'SECOND SEMESTER REPORT' },
+  { value: 'full_year',  label: 'Full Academic Year', title: 'FULL ACADEMIC YEAR REPORT' },
 ];
 
 function conductLabel(avg: number): string {
@@ -30,26 +33,62 @@ function fmt(n: number | null | undefined, decimals = 1): string {
   return n != null ? n.toFixed(decimals) : '';
 }
 
-function colAvg(rows: { pd1?: number; pd2?: number; exam?: number }[], key: 'pd1' | 'pd2' | 'exam'): number | null {
-  const vals = rows.map((r) => r[key]).filter((v): v is number => v != null);
-  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+function mean(vals: (number | null | undefined)[]): number | null {
+  const nums = vals.filter((v): v is number => v != null);
+  return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
 }
+
+function buildRankMap(grades: { student_id: string; score: number | null }[]): Map<string, { rank: number; total: number }> {
+  const acc = new Map<string, { sum: number; cnt: number }>();
+  for (const g of grades) {
+    if (g.score == null) continue;
+    const cur = acc.get(g.student_id) ?? { sum: 0, cnt: 0 };
+    acc.set(g.student_id, { sum: cur.sum + g.score, cnt: cur.cnt + 1 });
+  }
+  const sorted = [...acc.entries()]
+    .map(([id, { sum, cnt }]) => ({ id, avg: sum / cnt }))
+    .sort((a, b) => b.avg - a.avg);
+  const total = sorted.length;
+  const out = new Map<string, { rank: number; total: number }>();
+  let curRank = 1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i].avg < sorted[i - 1].avg) curRank = i + 1;
+    out.set(sorted[i].id, { rank: curRank, total });
+  }
+  return out;
+}
+
+function fmtRank(info?: { rank: number; total: number }): string {
+  return info ? `${info.rank}/${info.total}` : '—';
+}
+
+type GradeRow = { score: number | null; subjects: { id: string; name: string } };
+type PKey = 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6';
+type SubjectRow = { id: string; name: string; p1?: number; p2?: number; p3?: number; p4?: number; p5?: number; p6?: number };
+
+const TD = 'border border-black px-1 py-0.5 text-center text-xs';
+const TH = 'border border-black px-1 py-0.5 text-center text-[11px] font-bold';
 
 export default function ReportCards() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
 
-  const [studentSearch,    setStudentSearch]    = useState('');
-  const [debouncedSearch,  setDebouncedSearch]  = useState('');
-  const [selectedId,       setSelectedId]       = useState('');
-  const [selectedName,     setSelectedName]     = useState('');
-  const [academicYear,     setAcademicYear]     = useState('');
-  const [semesterKey,      setSemesterKey]      = useState('semester_1');
+  const [studentSearch,   setStudentSearch]   = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedId,      setSelectedId]      = useState('');
+  const [selectedName,    setSelectedName]    = useState('');
+  const [academicYear,    setAcademicYear]    = useState('');
+  const [reportMode,      setReportMode]      = useState<ReportMode>('semester_1');
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(studentSearch), 350);
     return () => clearTimeout(t);
   }, [studentSearch]);
+
+  const modeConfig = REPORT_MODE_OPTIONS.find((m) => m.value === reportMode)!;
+  const isSem1     = reportMode === 'semester_1';
+  const isSem2     = reportMode === 'semester_2';
+  const isFullYear = reportMode === 'full_year';
 
   // Academic year from settings
   const { data: settingYear } = useFetch(
@@ -59,17 +98,10 @@ export default function ReportCards() {
   );
   useEffect(() => { if (settingYear && !academicYear) setAcademicYear(settingYear as string); }, [settingYear, academicYear]);
 
-  // School info for the letterhead
+  // School info — same service as Transcript
   const { data: school } = useFetch(
     ['school-info', schoolId],
-    async () => {
-      const { data } = await supabase
-        .from('schools')
-        .select('name, address, city, phone, email, logo_url')
-        .eq('id', schoolId)
-        .single();
-      return data as { name: string; address: string | null; city: string | null; phone: string | null; email: string | null; logo_url: string | null } | null;
-    },
+    () => itAdminSiteService.getSchool(schoolId),
     { enabled: !!schoolId },
   );
 
@@ -97,31 +129,24 @@ export default function ReportCards() {
 
   const classId = studentDetail?.current_class_id ?? '';
 
-  // Active semester config
-  const semConfig = SEMESTER_CONFIG.find((s) => s.value === semesterKey) ?? SEMESTER_CONFIG[0];
-  const [pd1Key, pd2Key, examKey] = semConfig.periods;
+  // Enable flags per mode
+  const needSem1 = isSem1 || isFullYear;
+  const needSem2 = isSem2 || isFullYear;
 
-  // Fetch grades for all 3 periods in parallel
-  const { data: pd1Raw, isLoading: l1 } = useFetch(
-    ['grades', selectedId, academicYear, pd1Key],
-    () => gradeService.getStudentTermGrades(selectedId, academicYear, pd1Key),
-    { enabled: !!selectedId && !!academicYear },
-  );
-  const { data: pd2Raw, isLoading: l2 } = useFetch(
-    ['grades', selectedId, academicYear, pd2Key],
-    () => gradeService.getStudentTermGrades(selectedId, academicYear, pd2Key),
-    { enabled: !!selectedId && !!academicYear },
-  );
-  const { data: examRaw, isLoading: l3 } = useFetch(
-    ['grades', selectedId, academicYear, examKey],
-    () => gradeService.getStudentTermGrades(selectedId, academicYear, examKey),
-    { enabled: !!selectedId && !!academicYear },
-  );
+  // Per-student grade fetches for all 6 periods
+  const { data: p1Raw, isLoading: lp1 } = useFetch(['grades', selectedId, academicYear, 'p1'], () => gradeService.getStudentTermGrades(selectedId, academicYear, 'p1'), { enabled: !!selectedId && !!academicYear && needSem1 });
+  const { data: p2Raw, isLoading: lp2 } = useFetch(['grades', selectedId, academicYear, 'p2'], () => gradeService.getStudentTermGrades(selectedId, academicYear, 'p2'), { enabled: !!selectedId && !!academicYear && needSem1 });
+  const { data: p3Raw, isLoading: lp3 } = useFetch(['grades', selectedId, academicYear, 'p3'], () => gradeService.getStudentTermGrades(selectedId, academicYear, 'p3'), { enabled: !!selectedId && !!academicYear && needSem1 });
+  const { data: p4Raw, isLoading: lp4 } = useFetch(['grades', selectedId, academicYear, 'p4'], () => gradeService.getStudentTermGrades(selectedId, academicYear, 'p4'), { enabled: !!selectedId && !!academicYear && needSem2 });
+  const { data: p5Raw, isLoading: lp5 } = useFetch(['grades', selectedId, academicYear, 'p5'], () => gradeService.getStudentTermGrades(selectedId, academicYear, 'p5'), { enabled: !!selectedId && !!academicYear && needSem2 });
+  const { data: p6Raw, isLoading: lp6 } = useFetch(['grades', selectedId, academicYear, 'p6'], () => gradeService.getStudentTermGrades(selectedId, academicYear, 'p6'), { enabled: !!selectedId && !!academicYear && needSem2 });
 
-  const gradesLoading = l1 || l2 || l3;
+  const gradesLoading =
+    (needSem1 && (lp1 || lp2 || lp3)) ||
+    (needSem2 && (lp4 || lp5 || lp6));
 
-  // Fetch all grades for the whole class (needed for rank computation)
-  const fetchClassPeriodGrades = async (cId: string, year: string, sem: string) => {
+  // Class-wide grade fetches for ranking
+  const fetchClassGrades = async (cId: string, year: string, sem: string) => {
     const { data: assignments } = await supabase
       .from('class_assignments')
       .select('student_id')
@@ -138,63 +163,27 @@ export default function ReportCards() {
     return (data ?? []) as { student_id: string; score: number | null }[];
   };
 
-  const { data: classPd1 = [] } = useFetch(
-    ['class-grades', classId, academicYear, pd1Key],
-    () => fetchClassPeriodGrades(classId, academicYear, pd1Key),
-    { enabled: !!classId && !!academicYear },
-  );
-  const { data: classPd2 = [] } = useFetch(
-    ['class-grades', classId, academicYear, pd2Key],
-    () => fetchClassPeriodGrades(classId, academicYear, pd2Key),
-    { enabled: !!classId && !!academicYear },
-  );
-  const { data: classExam = [] } = useFetch(
-    ['class-grades', classId, academicYear, examKey],
-    () => fetchClassPeriodGrades(classId, academicYear, examKey),
-    { enabled: !!classId && !!academicYear },
-  );
+  const { data: cp1 = [] } = useFetch(['class-grades', classId, academicYear, 'p1'], () => fetchClassGrades(classId, academicYear, 'p1'), { enabled: !!classId && !!academicYear && needSem1 });
+  const { data: cp2 = [] } = useFetch(['class-grades', classId, academicYear, 'p2'], () => fetchClassGrades(classId, academicYear, 'p2'), { enabled: !!classId && !!academicYear && needSem1 });
+  const { data: cp3 = [] } = useFetch(['class-grades', classId, academicYear, 'p3'], () => fetchClassGrades(classId, academicYear, 'p3'), { enabled: !!classId && !!academicYear && needSem1 });
+  const { data: cp4 = [] } = useFetch(['class-grades', classId, academicYear, 'p4'], () => fetchClassGrades(classId, academicYear, 'p4'), { enabled: !!classId && !!academicYear && needSem2 });
+  const { data: cp5 = [] } = useFetch(['class-grades', classId, academicYear, 'p5'], () => fetchClassGrades(classId, academicYear, 'p5'), { enabled: !!classId && !!academicYear && needSem2 });
+  const { data: cp6 = [] } = useFetch(['class-grades', classId, academicYear, 'p6'], () => fetchClassGrades(classId, academicYear, 'p6'), { enabled: !!classId && !!academicYear && needSem2 });
 
-  // Build rank map: group scores by student → average → sort desc → assign rank
-  function buildRankMap(grades: { student_id: string; score: number | null }[]): Map<string, { rank: number; total: number }> {
-    const acc = new Map<string, { sum: number; cnt: number }>();
-    for (const g of grades) {
-      if (g.score == null) continue;
-      const cur = acc.get(g.student_id) ?? { sum: 0, cnt: 0 };
-      acc.set(g.student_id, { sum: cur.sum + g.score, cnt: cur.cnt + 1 });
-    }
-    const sorted = [...acc.entries()]
-      .map(([id, { sum, cnt }]) => ({ id, avg: sum / cnt }))
-      .sort((a, b) => b.avg - a.avg);
-    const total = sorted.length;
-    const out = new Map<string, { rank: number; total: number }>();
-    let curRank = 1;
-    for (let i = 0; i < sorted.length; i++) {
-      if (i > 0 && sorted[i].avg < sorted[i - 1].avg) curRank = i + 1;
-      out.set(sorted[i].id, { rank: curRank, total });
-    }
-    return out;
-  }
+  // Rank maps
+  const p1Ranks        = buildRankMap(cp1);
+  const p2Ranks        = buildRankMap(cp2);
+  const p3Ranks        = buildRankMap(cp3);
+  const p4Ranks        = buildRankMap(cp4);
+  const p5Ranks        = buildRankMap(cp5);
+  const p6Ranks        = buildRankMap(cp6);
+  const sem1Ranks      = buildRankMap([...cp1, ...cp2, ...cp3]);
+  const sem2Ranks      = buildRankMap([...cp4, ...cp5, ...cp6]);
+  const fullYearRanks  = buildRankMap([...cp1, ...cp2, ...cp3, ...cp4, ...cp5, ...cp6]);
 
-  const pd1RankMap  = buildRankMap(classPd1);
-  const pd2RankMap  = buildRankMap(classPd2);
-  const examRankMap = buildRankMap(classExam);
-  // Semester rank: combine all 3 periods (same student weighting as colAvg logic)
-  const semRankMap  = buildRankMap([...classPd1, ...classPd2, ...classExam]);
-
-  const pd1RankInfo  = pd1RankMap.get(selectedId);
-  const pd2RankInfo  = pd2RankMap.get(selectedId);
-  const examRankInfo = examRankMap.get(selectedId);
-  const semRankInfo  = semRankMap.get(selectedId);
-
-  function fmtRank(info?: { rank: number; total: number }): string {
-    return info ? `${info.rank}/${info.total}` : '—';
-  }
-
-  // Merge all 3 periods into a subject map
-  type SubjectRow = { id: string; name: string; pd1?: number; pd2?: number; exam?: number };
+  // Merge grades into subject map
   const subjectMap = new Map<string, SubjectRow>();
-
-  const merge = (grades: typeof pd1Raw, col: 'pd1' | 'pd2' | 'exam') => {
+  const mergeGrades = (grades: GradeRow[] | undefined, col: PKey) => {
     grades?.forEach((g) => {
       const name = g.subjects?.name ?? 'Unknown';
       if (!subjectMap.has(name)) subjectMap.set(name, { id: g.subjects.id, name });
@@ -202,24 +191,30 @@ export default function ReportCards() {
       if (g.score != null) entry[col] = g.score;
     });
   };
-  merge(pd1Raw, 'pd1');
-  merge(pd2Raw, 'pd2');
-  merge(examRaw, 'exam');
+  mergeGrades(p1Raw, 'p1');
+  mergeGrades(p2Raw, 'p2');
+  mergeGrades(p3Raw, 'p3');
+  mergeGrades(p4Raw, 'p4');
+  mergeGrades(p5Raw, 'p5');
+  mergeGrades(p6Raw, 'p6');
 
   const rows = Array.from(subjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Per-subject semester average
-  const subjectSemAvgs = rows.map((r) => {
-    const vals = [r.pd1, r.pd2, r.exam].filter((v): v is number => v != null);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  });
+  // Per-subject averages
+  const s1Avgs    = rows.map((r) => mean([r.p1, r.p2, r.p3]));
+  const s2Avgs    = rows.map((r) => mean([r.p4, r.p5, r.p6]));
+  const finalAvgs = rows.map((_, i) => mean([s1Avgs[i], s2Avgs[i]]));
 
   // Column averages (across all subjects)
-  const pd1ColAvg  = colAvg(rows, 'pd1');
-  const pd2ColAvg  = colAvg(rows, 'pd2');
-  const examColAvg = colAvg(rows, 'exam');
-  const validAvgs  = subjectSemAvgs.filter((v): v is number => v != null);
-  const semColAvg  = validAvgs.length ? validAvgs.reduce((a, b) => a + b, 0) / validAvgs.length : null;
+  const colP1   = mean(rows.map((r) => r.p1));
+  const colP2   = mean(rows.map((r) => r.p2));
+  const colP3   = mean(rows.map((r) => r.p3));
+  const colP4   = mean(rows.map((r) => r.p4));
+  const colP5   = mean(rows.map((r) => r.p5));
+  const colP6   = mean(rows.map((r) => r.p6));
+  const colS1   = mean(s1Avgs);
+  const colS2   = mean(s2Avgs);
+  const colFinal = mean(finalAvgs);
 
   const hasGrades = rows.length > 0;
 
@@ -229,18 +224,62 @@ export default function ReportCards() {
     ?? '—';
 
   const schoolName    = school?.name ?? 'School Name';
-  const schoolAddress = [school?.address, school?.city].filter(Boolean).join(', ') || '';
-  const schoolContact = school?.phone ?? school?.email ?? '';
+  const schoolAddress = school?.address ?? '';
+  const schoolContact = school?.phone ?? school?.principal_email ?? '';
   const schoolLogo    = school?.logo_url ?? null;
+
+  // ── LETTERHEAD (shared) ─────────────────────────────────────────────────────
+  const Letterhead = (
+    <div className="border-b-2 border-black px-5 pt-4 pb-3">
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0">
+          {schoolLogo
+            ? <img src={schoolLogo} alt="logo" className="h-16 w-16 object-contain" />
+            : <div className="h-16 w-16 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-center leading-tight p-1 font-bold">SCHOOL<br />LOGO</div>
+          }
+        </div>
+        <div className="flex-1 text-center">
+          <p className="text-lg font-extrabold uppercase tracking-wide leading-snug">{schoolName}</p>
+          {schoolAddress && <p className="text-xs mt-0.5">{schoolAddress}</p>}
+          {schoolContact && <p className="text-xs">Contact: {schoolContact}</p>}
+        </div>
+        <div className="flex-shrink-0">
+          {schoolLogo
+            ? <img src={schoolLogo} alt="logo" className="h-16 w-16 object-contain" />
+            : <div className="h-16 w-16 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-center leading-tight p-1 font-bold">SCHOOL<br />LOGO</div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── STUDENT INFO (shared) ───────────────────────────────────────────────────
+  const StudentInfo = (
+    <div className="px-5 py-2 border-b border-black">
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+        <div className="flex items-baseline gap-2 flex-1 min-w-0">
+          <span className="font-bold whitespace-nowrap">Student's Name:</span>
+          <span className="border-b border-black flex-1 pl-1">{selectedName}</span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="font-bold whitespace-nowrap">Class:</span>
+          <span className="border-b border-black min-w-[90px] pl-1">{className}</span>
+        </div>
+      </div>
+      <div className="mt-1 flex items-baseline gap-2 text-sm">
+        <span className="font-bold whitespace-nowrap">Academic Year:</span>
+        <span className="border-b border-black min-w-[100px] pl-1">{academicYear || '—'}</span>
+      </div>
+    </div>
+  );
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
       <Breadcrumb items={[{ label: 'Grades', href: '/grades' }, { label: 'Report Cards' }]} />
-
       <h1 className="text-xl font-bold text-slate-900 print:hidden">Report Cards</h1>
 
-      {/* Filters — hidden when printing */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end print:hidden">
         <div className="w-64">
           <Input
@@ -262,17 +301,17 @@ export default function ReportCards() {
           />
         </div>
         <Select
-          label="Semester"
-          options={SEMESTER_CONFIG.map((s) => ({ label: s.label, value: s.value }))}
-          value={semesterKey}
-          onChange={(e) => setSemesterKey(e.target.value)}
-          className="w-48"
+          label="Report Type"
+          options={REPORT_MODE_OPTIONS.map((m) => ({ label: m.label, value: m.value }))}
+          value={reportMode}
+          onChange={(e) => setReportMode(e.target.value as ReportMode)}
+          className="w-52"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 print:block">
 
-        {/* Student list — hidden when printing */}
+        {/* Student list */}
         <Card className="lg:col-span-1 print:hidden">
           <CardHeader><CardTitle>Students</CardTitle></CardHeader>
           <CardContent className="max-h-[540px] overflow-y-auto p-0">
@@ -317,169 +356,200 @@ export default function ReportCards() {
             <Card><CardContent><LoadingSpinner label="Loading grades…" fullPage={false} /></CardContent></Card>
           ) : (
             <>
-              {/* Print button */}
               <div className="flex justify-end mb-3 print:hidden">
                 <Button variant="outline" size="sm" onClick={() => window.print()}>
                   <Printer className="h-4 w-4 mr-1.5" /> Print Report Card
                 </Button>
               </div>
 
-              {/* ── PRINTABLE REPORT CARD ───────────────────────────────────── */}
+              {/* ── PRINTABLE REPORT CARD ──────────────────────────────────── */}
               <div
                 className="bg-white border border-slate-300 rounded-lg print:border-0 print:rounded-none"
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}
               >
+                {Letterhead}
 
-                {/* ── LETTERHEAD ─────────────────────────────────────────────── */}
-                <div className="border-b-2 border-black px-5 pt-4 pb-3">
-                  <div className="flex items-center gap-3">
-                    {/* Logo left */}
-                    <div className="flex-shrink-0">
-                      {schoolLogo
-                        ? <img src={schoolLogo} alt="logo" className="h-16 w-16 object-contain" />
-                        : <div className="h-16 w-16 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-center leading-tight p-1 font-bold">SCHOOL<br/>LOGO</div>
-                      }
-                    </div>
-
-                    {/* School info centred */}
-                    <div className="flex-1 text-center">
-                      <p className="text-lg font-extrabold uppercase tracking-wide leading-snug">{schoolName}</p>
-                      {schoolAddress && <p className="text-xs mt-0.5">{schoolAddress}</p>}
-                      {schoolContact && <p className="text-xs">Contact: {schoolContact}</p>}
-                    </div>
-
-                    {/* Logo right */}
-                    <div className="flex-shrink-0">
-                      {schoolLogo
-                        ? <img src={schoolLogo} alt="logo" className="h-16 w-16 object-contain" />
-                        : <div className="h-16 w-16 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-center leading-tight p-1 font-bold">SCHOOL<br/>LOGO</div>
-                      }
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── REPORT TITLE ───────────────────────────────────────────── */}
+                {/* REPORT TITLE */}
                 <div className="text-center py-1.5 border-b border-black">
                   <p className="text-sm font-bold uppercase underline tracking-wide">
-                    {semConfig.label.toUpperCase()} REPORT
+                    {modeConfig.title}
                   </p>
                 </div>
 
-                {/* ── STUDENT INFO ───────────────────────────────────────────── */}
-                <div className="px-5 py-2 border-b border-black">
-                  <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
-                    <div className="flex items-baseline gap-2 flex-1 min-w-0">
-                      <span className="font-bold whitespace-nowrap">Student's Name:</span>
-                      <span className="border-b border-black flex-1 pl-1">{selectedName}</span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-bold whitespace-nowrap">Class:</span>
-                      <span className="border-b border-black min-w-[90px] pl-1">{className}</span>
-                    </div>
-                  </div>
-                  <div className="mt-1 flex items-baseline gap-2 text-sm">
-                    <span className="font-bold whitespace-nowrap">Academic Year:</span>
-                    <span className="border-b border-black min-w-[100px] pl-1">{academicYear || '—'}</span>
-                  </div>
-                </div>
+                {StudentInfo}
 
-                {/* ── GRADE TABLE ────────────────────────────────────────────── */}
+                {/* GRADE TABLE */}
                 <div className="px-1">
                   {!hasGrades ? (
                     <div className="py-10 text-center">
                       <User className="mx-auto h-8 w-8 text-slate-300 mb-2" />
                       <p className="text-sm text-slate-500">
-                        No grades recorded for {semConfig.label}, {academicYear || '—'}.
+                        No grades recorded for {modeConfig.label}, {academicYear || '—'}.
                       </p>
                       <p className="text-xs text-slate-400 mt-1">
                         Teachers enter grades via the Grade Entry page.
                       </p>
                     </div>
-                  ) : (
+                  ) : isFullYear ? (
+
+                    /* ── FULL ACADEMIC YEAR TABLE ── */
                     <table className="w-full border-collapse text-sm">
                       <thead>
                         <tr>
-                          <th
-                            className="border border-black px-3 py-1 text-left font-bold uppercase text-xs align-bottom"
-                            rowSpan={2}
-                            style={{ width: '38%' }}
-                          >
+                          <th className="border border-black px-2 py-0.5 text-left font-bold text-xs" rowSpan={2} style={{ width: '24%' }}>
                             Subjects
                           </th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
-                            1<sup>st</sup>
-                          </th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
-                            2<sup>nd</sup>
-                          </th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
-                            {semConfig.ordinal} Sem
-                          </th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
-                            {semConfig.ordinal} Sem
+                          <th className={`${TH} text-[10px]`} colSpan={4}>1<sup>st</sup> Semester</th>
+                          <th className={`${TH} text-[10px]`} colSpan={4}>2<sup>nd</sup> Semester</th>
+                          <th className={`${TH} text-[10px]`} rowSpan={2} style={{ verticalAlign: 'middle' }}>
+                            Final<br />Ave
                           </th>
                         </tr>
                         <tr>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">PD</th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">PD</th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">Exam</th>
-                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">Ave</th>
+                          <th className={TH}>1st PD</th>
+                          <th className={TH}>2nd PD</th>
+                          <th className={TH}>Exam</th>
+                          <th className={TH}>Ave</th>
+                          <th className={TH}>3rd PD</th>
+                          <th className={TH}>4th PD</th>
+                          <th className={TH}>Exam</th>
+                          <th className={TH}>Ave</th>
                         </tr>
                       </thead>
-
                       <tbody>
                         {rows.map((row, i) => (
                           <tr key={row.id}>
-                            <td className="border border-black px-3 py-0.5 font-medium text-xs">{row.name}</td>
-                            <td className="border border-black px-1 py-0.5 text-center text-sm">{row.pd1 ?? ''}</td>
-                            <td className="border border-black px-1 py-0.5 text-center text-sm">{row.pd2 ?? ''}</td>
-                            <td className="border border-black px-1 py-0.5 text-center text-sm">{row.exam ?? ''}</td>
-                            <td className="border border-black px-1 py-0.5 text-center text-sm font-semibold">
-                              {fmt(subjectSemAvgs[i])}
-                            </td>
+                            <td className="border border-black px-2 py-0.5 font-medium text-xs">{row.name}</td>
+                            <td className={TD}>{row.p1 ?? ''}</td>
+                            <td className={TD}>{row.p2 ?? ''}</td>
+                            <td className={TD}>{row.p3 ?? ''}</td>
+                            <td className={`${TD} font-semibold`}>{fmt(s1Avgs[i])}</td>
+                            <td className={TD}>{row.p4 ?? ''}</td>
+                            <td className={TD}>{row.p5 ?? ''}</td>
+                            <td className={TD}>{row.p6 ?? ''}</td>
+                            <td className={`${TD} font-semibold`}>{fmt(s2Avgs[i])}</td>
+                            <td className={`${TD} font-bold`}>{fmt(finalAvgs[i])}</td>
                           </tr>
                         ))}
 
                         {/* Average row */}
-                        <tr className="bg-gray-50 font-bold">
-                          <td className="border border-black px-3 py-0.5 text-xs font-bold">Average</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(pd1ColAvg)}</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(pd2ColAvg)}</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(examColAvg)}</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(semColAvg)}</td>
+                        <tr className="bg-gray-50">
+                          <td className="border border-black px-2 py-0.5 text-xs font-bold">Average</td>
+                          <td className={TD}>{fmt(colP1)}</td>
+                          <td className={TD}>{fmt(colP2)}</td>
+                          <td className={TD}>{fmt(colP3)}</td>
+                          <td className={`${TD} font-semibold`}>{fmt(colS1)}</td>
+                          <td className={TD}>{fmt(colP4)}</td>
+                          <td className={TD}>{fmt(colP5)}</td>
+                          <td className={TD}>{fmt(colP6)}</td>
+                          <td className={`${TD} font-semibold`}>{fmt(colS2)}</td>
+                          <td className={`${TD} font-bold`}>{fmt(colFinal)}</td>
                         </tr>
 
                         {/* Conduct row */}
                         <tr>
-                          <td className="border border-black px-3 py-0.5 text-xs font-bold">Conduct</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">
-                            {pd1ColAvg != null ? conductLabel(pd1ColAvg) : ''}
-                          </td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">
-                            {pd2ColAvg != null ? conductLabel(pd2ColAvg) : ''}
-                          </td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">
-                            {examColAvg != null ? conductLabel(examColAvg) : ''}
-                          </td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs font-semibold">
-                            {semColAvg != null ? conductLabel(semColAvg) : ''}
-                          </td>
+                          <td className="border border-black px-2 py-0.5 text-xs font-bold">Conduct</td>
+                          <td className={TD}>{colP1  != null ? conductLabel(colP1)  : ''}</td>
+                          <td className={TD}>{colP2  != null ? conductLabel(colP2)  : ''}</td>
+                          <td className={TD}>{colP3  != null ? conductLabel(colP3)  : ''}</td>
+                          <td className={`${TD} font-semibold`}>{colS1  != null ? conductLabel(colS1)  : ''}</td>
+                          <td className={TD}>{colP4  != null ? conductLabel(colP4)  : ''}</td>
+                          <td className={TD}>{colP5  != null ? conductLabel(colP5)  : ''}</td>
+                          <td className={TD}>{colP6  != null ? conductLabel(colP6)  : ''}</td>
+                          <td className={`${TD} font-semibold`}>{colS2  != null ? conductLabel(colS2)  : ''}</td>
+                          <td className={`${TD} font-bold`}>{colFinal != null ? conductLabel(colFinal) : ''}</td>
                         </tr>
 
                         {/* Rank row */}
                         <tr>
-                          <td className="border border-black px-3 py-0.5 text-xs font-bold">Rank</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmtRank(pd1RankInfo)}</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmtRank(pd2RankInfo)}</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmtRank(examRankInfo)}</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs font-semibold">{fmtRank(semRankInfo)}</td>
+                          <td className="border border-black px-2 py-0.5 text-xs font-bold">Rank</td>
+                          <td className={TD}>{fmtRank(p1Ranks.get(selectedId))}</td>
+                          <td className={TD}>{fmtRank(p2Ranks.get(selectedId))}</td>
+                          <td className={TD}>{fmtRank(p3Ranks.get(selectedId))}</td>
+                          <td className={`${TD} font-semibold`}>{fmtRank(sem1Ranks.get(selectedId))}</td>
+                          <td className={TD}>{fmtRank(p4Ranks.get(selectedId))}</td>
+                          <td className={TD}>{fmtRank(p5Ranks.get(selectedId))}</td>
+                          <td className={TD}>{fmtRank(p6Ranks.get(selectedId))}</td>
+                          <td className={`${TD} font-semibold`}>{fmtRank(sem2Ranks.get(selectedId))}</td>
+                          <td className={`${TD} font-bold`}>{fmtRank(fullYearRanks.get(selectedId))}</td>
                         </tr>
                       </tbody>
                     </table>
+
+                  ) : (
+
+                    /* ── SEMESTER TABLE (sem1 or sem2) ── */
+                    (() => {
+                      const pdRows   = isSem1
+                        ? rows.map((r, i) => ({ pd1: r.p1, pd2: r.p2, exam: r.p3, semAve: s1Avgs[i] }))
+                        : rows.map((r, i) => ({ pd1: r.p4, pd2: r.p5, exam: r.p6, semAve: s2Avgs[i] }));
+                      const cPd1  = isSem1 ? colP1 : colP4;
+                      const cPd2  = isSem1 ? colP2 : colP5;
+                      const cExam = isSem1 ? colP3 : colP6;
+                      const cAve  = isSem1 ? colS1 : colS2;
+                      const rPd1  = isSem1 ? p1Ranks  : p4Ranks;
+                      const rPd2  = isSem1 ? p2Ranks  : p5Ranks;
+                      const rExam = isSem1 ? p3Ranks  : p6Ranks;
+                      const rSem  = isSem1 ? sem1Ranks : sem2Ranks;
+                      const ord   = isSem1 ? '1st' : '2nd';
+                      return (
+                        <table className="w-full border-collapse text-sm">
+                          <thead>
+                            <tr>
+                              <th className="border border-black px-3 py-1 text-left font-bold uppercase text-xs align-bottom" rowSpan={2} style={{ width: '38%' }}>
+                                Subjects
+                              </th>
+                              <th className={TH}>1<sup>st</sup></th>
+                              <th className={TH}>2<sup>nd</sup></th>
+                              <th className={TH}>{ord} Sem</th>
+                              <th className={TH}>{ord} Sem</th>
+                            </tr>
+                            <tr>
+                              <th className={TH}>PD</th>
+                              <th className={TH}>PD</th>
+                              <th className={TH}>Exam</th>
+                              <th className={TH}>Ave</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, i) => (
+                              <tr key={row.id}>
+                                <td className="border border-black px-3 py-0.5 font-medium text-xs">{row.name}</td>
+                                <td className={TD}>{pdRows[i].pd1 ?? ''}</td>
+                                <td className={TD}>{pdRows[i].pd2 ?? ''}</td>
+                                <td className={TD}>{pdRows[i].exam ?? ''}</td>
+                                <td className={`${TD} font-semibold`}>{fmt(pdRows[i].semAve)}</td>
+                              </tr>
+                            ))}
+                            <tr className="bg-gray-50">
+                              <td className="border border-black px-3 py-0.5 text-xs font-bold">Average</td>
+                              <td className={TD}>{fmt(cPd1)}</td>
+                              <td className={TD}>{fmt(cPd2)}</td>
+                              <td className={TD}>{fmt(cExam)}</td>
+                              <td className={`${TD} font-semibold`}>{fmt(cAve)}</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-black px-3 py-0.5 text-xs font-bold">Conduct</td>
+                              <td className={TD}>{cPd1  != null ? conductLabel(cPd1)  : ''}</td>
+                              <td className={TD}>{cPd2  != null ? conductLabel(cPd2)  : ''}</td>
+                              <td className={TD}>{cExam != null ? conductLabel(cExam) : ''}</td>
+                              <td className={`${TD} font-semibold`}>{cAve  != null ? conductLabel(cAve)  : ''}</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-black px-3 py-0.5 text-xs font-bold">Rank</td>
+                              <td className={TD}>{fmtRank(rPd1.get(selectedId))}</td>
+                              <td className={TD}>{fmtRank(rPd2.get(selectedId))}</td>
+                              <td className={TD}>{fmtRank(rExam.get(selectedId))}</td>
+                              <td className={`${TD} font-semibold`}>{fmtRank(rSem.get(selectedId))}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      );
+                    })()
                   )}
                 </div>
 
-                {/* ── SIGNATURE SECTION ──────────────────────────────────────── */}
+                {/* SIGNATURE SECTION */}
                 <div className="px-6 py-5 space-y-5 border-t border-black mt-1">
                   <div className="flex items-end gap-3">
                     <span className="text-sm font-bold whitespace-nowrap">Signed:</span>
