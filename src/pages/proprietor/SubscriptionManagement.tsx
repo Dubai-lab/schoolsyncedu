@@ -146,6 +146,7 @@ export default function SubscriptionManagement() {
       const result = await mtnInitiatePayment({
         school_id:       schoolId,
         subscription_id: subscription.id,
+        plan_id:         selectedPlan.id,
         amount:          selectedPlan.price_usd,
         phone:           mtnPhone.trim(),
       });

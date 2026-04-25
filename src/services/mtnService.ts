@@ -5,6 +5,7 @@ const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 export interface MtnPayRequest {
   school_id:       string;
   subscription_id: string;
+  plan_id?:        string;
   amount:          number;
   phone:           string;
 }

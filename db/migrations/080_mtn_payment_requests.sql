@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS mtn_payment_requests (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID        NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   subscription_id UUID        NOT NULL REFERENCES subscriptions(id),
+  plan_id         UUID        REFERENCES subscription_plans(id),
   reference_id    UUID        NOT NULL UNIQUE,  -- X-Reference-Id used with MTN API
   amount          DECIMAL(10,2) NOT NULL,
   currency        TEXT        NOT NULL DEFAULT 'EUR',

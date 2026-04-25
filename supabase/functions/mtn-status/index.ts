@@ -86,7 +86,7 @@ serve(async (req) => {
       const adminSim = createClient(supabaseUrl, serviceKey);
       const { data: payReqSim } = await adminSim
         .from('mtn_payment_requests')
-        .select('id, school_id, subscription_id, amount, activated')
+        .select('id, school_id, subscription_id, plan_id, amount, activated')
         .eq('reference_id', referenceId)
         .maybeSingle();
 
@@ -100,6 +100,7 @@ serve(async (req) => {
           p_gateway_ref:     referenceId,
           p_tx_ref:          referenceId,
           p_payment_method:  'mtn',
+          p_new_plan_id:     payReqSim.plan_id ?? null,
         });
         invoiceNumberSim = (rpcSim as { invoice_number?: string })?.invoice_number ?? null;
         await adminSim.from('mtn_payment_requests')
@@ -153,7 +154,7 @@ serve(async (req) => {
     // ── Look up our DB record ─────────────────────────────────────────────
     const { data: payReq, error: fetchError } = await adminClient
       .from('mtn_payment_requests')
-      .select('id, school_id, subscription_id, amount, currency, activated, status')
+      .select('id, school_id, subscription_id, plan_id, amount, currency, activated, status')
       .eq('reference_id', referenceId)
       .maybeSingle();
 
@@ -184,6 +185,7 @@ serve(async (req) => {
           p_gateway_ref:     referenceId,
           p_tx_ref:          referenceId,
           p_payment_method:  'mtn',
+          p_new_plan_id:     payReq.plan_id ?? null,
         }
       );
 

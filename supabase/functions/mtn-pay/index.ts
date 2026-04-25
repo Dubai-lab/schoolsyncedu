@@ -65,11 +65,13 @@ serve(async (req) => {
     const {
       school_id,
       subscription_id,
+      plan_id,
       amount,
       phone,
     } = await req.json() as {
       school_id:       string;
       subscription_id: string;
+      plan_id?:        string;
       amount:          number;
       phone:           string;
     };
@@ -116,6 +118,7 @@ serve(async (req) => {
         school_id, subscription_id,
         reference_id: referenceId, amount, currency,
         phone_number: cleanPhone, status: 'PENDING',
+        ...(plan_id ? { plan_id } : {}),
       });
       return new Response(
         JSON.stringify({ success: true, reference_id: referenceId, message: '[SANDBOX SIMULATION] Payment request sent.' }),
@@ -181,6 +184,7 @@ serve(async (req) => {
         currency,
         phone_number:  cleanPhone,
         status:        'PENDING',
+        ...(plan_id ? { plan_id } : {}),
       });
 
     if (dbError) {
