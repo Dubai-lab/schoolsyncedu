@@ -1,139 +1,180 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useFetch, useMutate } from '@/hooks/useFetch';
+import { useFetch } from '@/hooks/useFetch';
 import { gradeService } from '@/services/gradeService';
 import { registrarService } from '@/services/registrarService';
-import { academicCalendarService } from '@/services/classService';
-import type { AcademicCalendar } from '@/types/school.types';
-import { GRADE_SCALE, MARKING_PERIOD_LIST, MARKING_PERIOD_LABELS } from '@/utils/constants';
-import { notify } from '@/components/shared/Toast';
-import Button from '@/components/ui/Button';
-import Select from '@/components/ui/Select';
-import Input from '@/components/ui/Input';
-import Badge from '@/components/ui/Badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { supabase } from '@/lib/supabase';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FileText, Printer, Search, User } from 'lucide-react';
 
-// Static marking period options (p1–p6)
-const PERIOD_OPTIONS = MARKING_PERIOD_LIST.map((p) => ({ label: p.label, value: p.value }));
+// Semester → three marking-period keys
+const SEMESTER_CONFIG = [
+  { value: 'semester_1', label: 'First Semester',  ordinal: '1st', periods: ['p1', 'p2', 'p3'] as const },
+  { value: 'semester_2', label: 'Second Semester', ordinal: '2nd', periods: ['p4', 'p5', 'p6'] as const },
+];
 
-function gradeBadgeVariant(letter: string) {
-  if (letter === 'A') return 'success' as const;
-  if (letter === 'B') return 'info' as const;
-  if (letter === 'C') return 'default' as const;
-  if (letter === 'D') return 'warning' as const;
-  return 'danger' as const;
+function conductLabel(avg: number): string {
+  if (avg >= 90) return 'Excellent';
+  if (avg >= 80) return 'V.Good';
+  if (avg >= 70) return 'Good';
+  if (avg >= 60) return 'Fair';
+  return 'Poor';
+}
+
+function fmt(n: number | null | undefined, decimals = 1): string {
+  return n != null ? n.toFixed(decimals) : '';
+}
+
+function colAvg(rows: { pd1?: number; pd2?: number; exam?: number }[], key: 'pd1' | 'pd2' | 'exam'): number | null {
+  const vals = rows.map((r) => r[key]).filter((v): v is number => v != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 
 export default function ReportCards() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
-  const userId   = user?.id ?? '';
 
   const [studentSearch,    setStudentSearch]    = useState('');
   const [debouncedSearch,  setDebouncedSearch]  = useState('');
-  const [selectedStudentId,   setSelectedStudentId]   = useState('');
-  const [selectedStudentName, setSelectedStudentName] = useState('');
-  const [academicYear, setAcademicYear] = useState('');
-  const [semester,     setSemester]     = useState('');
+  const [selectedId,       setSelectedId]       = useState('');
+  const [selectedName,     setSelectedName]     = useState('');
+  const [academicYear,     setAcademicYear]     = useState('');
+  const [semesterKey,      setSemesterKey]      = useState('semester_1');
 
-  // Debounce student search input (350 ms)
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(studentSearch), 350);
     return () => clearTimeout(t);
   }, [studentSearch]);
 
-  // ── Load current academic year from school settings ──────────────────────────
+  // Academic year from settings
   const { data: settingYear } = useFetch(
     ['school-setting-academic-year', schoolId],
     () => registrarService.getSetting(schoolId, 'current_academic_year'),
     { enabled: !!schoolId },
   );
+  useEffect(() => { if (settingYear && !academicYear) setAcademicYear(settingYear as string); }, [settingYear, academicYear]);
 
-  useEffect(() => {
-    if (settingYear && !academicYear) {
-      setAcademicYear(settingYear as string);
-    }
-  }, [settingYear, academicYear]);
-
-  // ── Auto-detect current active marking period from calendar ──────────────────
-  const { data: calendarPeriods = [] } = useFetch(
-    ['academic-calendar-periods', schoolId, academicYear],
-    () => academicCalendarService.listPeriods(schoolId, academicYear),
-    { enabled: !!schoolId && !!academicYear },
+  // School info for the letterhead
+  const { data: school } = useFetch(
+    ['school-info', schoolId],
+    async () => {
+      const { data } = await supabase
+        .from('schools')
+        .select('name, address, city, phone, email, logo_url')
+        .eq('id', schoolId)
+        .single();
+      return data as { name: string; address: string | null; city: string | null; phone: string | null; email: string | null; logo_url: string | null } | null;
+    },
+    { enabled: !!schoolId },
   );
 
-  useEffect(() => {
-    if (!semester && academicYear && calendarPeriods.length > 0) {
-      const today  = new Date().toISOString().slice(0, 10);
-      const active = (calendarPeriods as AcademicCalendar[]).find(
-        (t) => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today,
-      );
-      if (active) setSemester(active.term_name);
-    }
-  }, [calendarPeriods, academicYear, semester]);
-
-  const semesterOptions = PERIOD_OPTIONS;
-
-  // ── Search ALL enrolled students (not just those with grades) ─────────────────
+  // Student list search
   const { data: students = [], isLoading: studentsLoading } = useFetch(
     ['students-search', schoolId, debouncedSearch],
     () => gradeService.searchStudents(schoolId, debouncedSearch),
     { enabled: !!schoolId },
   );
 
-  // ── Load term grades for selected student ─────────────────────────────────────
-  const { data: termGrades, isLoading: gradesLoading } = useFetch(
-    ['student-term-grades', selectedStudentId, academicYear, semester],
-    () => gradeService.getStudentTermGrades(selectedStudentId, academicYear, semester),
-    { enabled: !!selectedStudentId && !!academicYear && !!semester },
+  // Student detail (class name)
+  const { data: studentDetail } = useFetch(
+    ['student-report-detail', selectedId],
+    async () => {
+      if (!selectedId) return null;
+      const { data } = await supabase
+        .from('students')
+        .select('current_grade_level, classes:current_class_id(name, grade_level)')
+        .eq('id', selectedId)
+        .single();
+      return data as { current_grade_level: string | null; classes: { name: string; grade_level: string } | null } | null;
+    },
+    { enabled: !!selectedId },
   );
 
-  // ── Generate report card record ───────────────────────────────────────────────
-  const generateMutation = useMutate(
-    () => gradeService.generateReportCard({
-      student_id:    selectedStudentId,
-      academic_year: academicYear,
-      semester,
-      generated_by:  userId,
-    }),
-    [['report-cards']],
-    { onSuccess: () => notify.success('Report card generated') },
+  // Active semester config
+  const semConfig = SEMESTER_CONFIG.find((s) => s.value === semesterKey) ?? SEMESTER_CONFIG[0];
+  const [pd1Key, pd2Key, examKey] = semConfig.periods;
+
+  // Fetch grades for all 3 periods in parallel
+  const { data: pd1Raw, isLoading: l1 } = useFetch(
+    ['grades', selectedId, academicYear, pd1Key],
+    () => gradeService.getStudentTermGrades(selectedId, academicYear, pd1Key),
+    { enabled: !!selectedId && !!academicYear },
+  );
+  const { data: pd2Raw, isLoading: l2 } = useFetch(
+    ['grades', selectedId, academicYear, pd2Key],
+    () => gradeService.getStudentTermGrades(selectedId, academicYear, pd2Key),
+    { enabled: !!selectedId && !!academicYear },
+  );
+  const { data: examRaw, isLoading: l3 } = useFetch(
+    ['grades', selectedId, academicYear, examKey],
+    () => gradeService.getStudentTermGrades(selectedId, academicYear, examKey),
+    { enabled: !!selectedId && !!academicYear },
   );
 
-  // Totals
-  const avgScore = termGrades && termGrades.length > 0
-    ? termGrades.reduce((s, g) => s + (g.score ?? 0), 0) / termGrades.length
-    : 0;
-  const avgGpa = termGrades && termGrades.length > 0
-    ? termGrades.reduce((s, g) => s + (g.gpa_points ?? 0), 0) / termGrades.length
-    : 0;
-  const avgLetter =
-    Object.entries(GRADE_SCALE).find(([, r]) => avgScore >= r.min && avgScore <= r.max)?.[0] ?? 'F';
+  const gradesLoading = l1 || l2 || l3;
 
-  const termLabel = MARKING_PERIOD_LABELS[semester] ?? semester;
+  // Merge all 3 periods into a subject map
+  type SubjectRow = { id: string; name: string; pd1?: number; pd2?: number; exam?: number };
+  const subjectMap = new Map<string, SubjectRow>();
 
+  const merge = (grades: typeof pd1Raw, col: 'pd1' | 'pd2' | 'exam') => {
+    grades?.forEach((g) => {
+      const name = g.subjects?.name ?? 'Unknown';
+      if (!subjectMap.has(name)) subjectMap.set(name, { id: g.subjects.id, name });
+      const entry = subjectMap.get(name)!;
+      if (g.score != null) entry[col] = g.score;
+    });
+  };
+  merge(pd1Raw, 'pd1');
+  merge(pd2Raw, 'pd2');
+  merge(examRaw, 'exam');
+
+  const rows = Array.from(subjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+  // Per-subject semester average
+  const subjectSemAvgs = rows.map((r) => {
+    const vals = [r.pd1, r.pd2, r.exam].filter((v): v is number => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  });
+
+  // Column averages (across all subjects)
+  const pd1ColAvg  = colAvg(rows, 'pd1');
+  const pd2ColAvg  = colAvg(rows, 'pd2');
+  const examColAvg = colAvg(rows, 'exam');
+  const validAvgs  = subjectSemAvgs.filter((v): v is number => v != null);
+  const semColAvg  = validAvgs.length ? validAvgs.reduce((a, b) => a + b, 0) / validAvgs.length : null;
+
+  const hasGrades = rows.length > 0;
+
+  const className =
+    (studentDetail?.classes as { name?: string } | null)?.name
+    ?? studentDetail?.current_grade_level
+    ?? '—';
+
+  const schoolName    = school?.name ?? 'School Name';
+  const schoolAddress = [school?.address, school?.city].filter(Boolean).join(', ') || '';
+  const schoolContact = school?.phone ?? school?.email ?? '';
+  const schoolLogo    = school?.logo_url ?? null;
+
+  // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
       <Breadcrumb items={[{ label: 'Grades', href: '/grades' }, { label: 'Report Cards' }]} />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Report Cards</h1>
-      </div>
+      <h1 className="text-xl font-bold text-slate-900 print:hidden">Report Cards</h1>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-end">
+      {/* Filters — hidden when printing */}
+      <div className="flex flex-wrap gap-3 items-end print:hidden">
         <div className="w-64">
           <Input
             label="Search Student"
             value={studentSearch}
-            onChange={(e) => {
-              setStudentSearch(e.target.value);
-              setSelectedStudentId('');
-              setSelectedStudentName('');
-            }}
+            onChange={(e) => { setStudentSearch(e.target.value); setSelectedId(''); setSelectedName(''); }}
             placeholder="Name or registration number..."
             icon={<Search className="h-4 w-4" />}
           />
@@ -143,27 +184,26 @@ export default function ReportCards() {
           <input
             type="text"
             value={academicYear}
-            onChange={(e) => { setAcademicYear(e.target.value); setSemester(''); }}
+            onChange={(e) => setAcademicYear(e.target.value)}
             placeholder="e.g. 2025-2026"
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
           />
         </div>
         <Select
-          label="Marking Period"
-          options={semesterOptions}
-          value={semester}
-          onChange={(e) => setSemester(e.target.value)}
-          placeholder="Select period"
-          className="w-52"
+          label="Semester"
+          options={SEMESTER_CONFIG.map((s) => ({ label: s.label, value: s.value }))}
+          value={semesterKey}
+          onChange={(e) => setSemesterKey(e.target.value)}
+          className="w-48"
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 print:block">
 
-        {/* Left: Student list */}
-        <Card className="lg:col-span-1">
+        {/* Student list — hidden when printing */}
+        <Card className="lg:col-span-1 print:hidden">
           <CardHeader><CardTitle>Students</CardTitle></CardHeader>
-          <CardContent className="max-h-[520px] overflow-y-auto p-0">
+          <CardContent className="max-h-[540px] overflow-y-auto p-0">
             {studentsLoading ? (
               <LoadingSpinner label="Searching..." fullPage={false} />
             ) : students.length === 0 ? (
@@ -175,17 +215,12 @@ export default function ReportCards() {
                 {students.map((s) => (
                   <li key={s.id}>
                     <button
-                      onClick={() => {
-                        setSelectedStudentId(s.id);
-                        setSelectedStudentName(`${s.first_name} ${s.last_name}`);
-                      }}
+                      onClick={() => { setSelectedId(s.id); setSelectedName(`${s.first_name} ${s.last_name}`); }}
                       className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors ${
-                        selectedStudentId === s.id ? 'bg-primary-50 border-l-2 border-primary-500' : ''
+                        selectedId === s.id ? 'bg-primary-50 border-l-2 border-primary-500' : ''
                       }`}
                     >
-                      <p className="text-sm font-medium text-slate-900">
-                        {s.first_name} {s.last_name}
-                      </p>
+                      <p className="text-sm font-medium text-slate-900">{s.first_name} {s.last_name}</p>
                       <p className="text-xs text-slate-400 font-mono">{s.registration_number ?? '—'}</p>
                     </button>
                   </li>
@@ -195,123 +230,201 @@ export default function ReportCards() {
           </CardContent>
         </Card>
 
-        {/* Right: Report card */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                {selectedStudentId
-                  ? `${selectedStudentName} — ${termLabel || 'Select Term'}`
-                  : 'Select a Student'}
-              </CardTitle>
-              {selectedStudentId && semester && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => window.print()}>
-                    <Printer className="h-4 w-4 mr-1" /> Print
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => generateMutation.mutate(undefined)}
-                    loading={generateMutation.isPending}
-                  >
-                    <FileText className="h-4 w-4 mr-1" /> Generate
-                  </Button>
+        {/* Report card area */}
+        <div className="lg:col-span-2">
+          {!selectedId ? (
+            <Card className="print:hidden">
+              <CardContent>
+                <div className="py-14 text-center">
+                  <FileText className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+                  <p className="text-sm text-slate-400">Select a student to view their report card.</p>
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!selectedStudentId || !semester ? (
-              <div className="py-12 text-center">
-                <FileText className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-                <p className="text-sm text-slate-400">Select a student and term to view their report card.</p>
+              </CardContent>
+            </Card>
+          ) : gradesLoading ? (
+            <Card><CardContent><LoadingSpinner label="Loading grades…" fullPage={false} /></CardContent></Card>
+          ) : (
+            <>
+              {/* Print button */}
+              <div className="flex justify-end mb-3 print:hidden">
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
+                  <Printer className="h-4 w-4 mr-1.5" /> Print Report Card
+                </Button>
               </div>
-            ) : gradesLoading ? (
-              <LoadingSpinner label="Loading grades..." fullPage={false} />
-            ) : !termGrades || termGrades.length === 0 ? (
-              <div className="py-12 text-center">
-                <User className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-                <p className="text-sm font-medium text-slate-700">{selectedStudentName}</p>
-                <p className="text-sm text-slate-400 mt-1">
-                  No grades recorded for {termLabel}, {academicYear}.
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Teachers enter grades via the Grade Entry page.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Student info row */}
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-xs text-slate-500">
-                  <User className="h-3.5 w-3.5" />
-                  <span className="font-medium text-slate-700">{selectedStudentName}</span>
-                  <span>·</span>
-                  <span>{academicYear}</span>
-                  <span>·</span>
-                  <span>{termLabel}</span>
-                </div>
 
-                {/* Grade table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-slate-500">
-                        <th className="pb-2 pr-4 font-medium">Subject</th>
-                        <th className="pb-2 pr-4 font-medium text-center">Score</th>
-                        <th className="pb-2 pr-4 font-medium text-center">Grade</th>
-                        <th className="pb-2 font-medium text-center">GPA</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {termGrades.map((g) => (
-                        <tr key={g.id} className="border-b last:border-0">
-                          <td className="py-2 pr-4">
-                            <p className="font-medium text-slate-900">{g.subjects.name}</p>
-                            {g.subjects.code && (
-                              <p className="text-xs text-slate-400">{g.subjects.code}</p>
-                            )}
-                          </td>
-                          <td className="py-2 pr-4 text-center font-medium">{g.score}</td>
-                          <td className="py-2 pr-4 text-center">
-                            <Badge variant={gradeBadgeVariant(g.letter_grade)} size="sm">
-                              {g.letter_grade}
-                            </Badge>
-                          </td>
-                          <td className="py-2 text-center text-slate-600">{g.gpa_points}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 font-medium">
-                        <td className="pt-3 pr-4 text-slate-900">Average</td>
-                        <td className="pt-3 pr-4 text-center">{avgScore.toFixed(1)}</td>
-                        <td className="pt-3 pr-4 text-center">
-                          <Badge variant={gradeBadgeVariant(avgLetter)} size="sm">
-                            {avgLetter}
-                          </Badge>
-                        </td>
-                        <td className="pt-3 text-center">{avgGpa.toFixed(2)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+              {/* ── PRINTABLE REPORT CARD ───────────────────────────────────── */}
+              <div
+                className="bg-white border border-slate-300 rounded-lg print:border-0 print:rounded-none"
+                style={{ fontFamily: '"Times New Roman", Times, serif' }}
+              >
 
-                {/* Grade scale legend */}
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs font-medium text-slate-500 mb-2">Grade Scale</p>
-                  <div className="flex flex-wrap gap-3 text-xs">
-                    {Object.entries(GRADE_SCALE).map(([letter, info]) => (
-                      <span key={letter} className="text-slate-500">
-                        <span className="font-semibold text-slate-700">{letter}</span>{' '}
-                        = {info.min}–{info.max} ({info.description})
-                      </span>
-                    ))}
+                {/* ── LETTERHEAD ─────────────────────────────────────────────── */}
+                <div className="border-b-2 border-black px-5 pt-4 pb-3">
+                  <div className="flex items-center gap-3">
+                    {/* Logo left */}
+                    <div className="flex-shrink-0">
+                      {schoolLogo
+                        ? <img src={schoolLogo} alt="logo" className="h-16 w-16 object-contain" />
+                        : <div className="h-16 w-16 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-center leading-tight p-1 font-bold">SCHOOL<br/>LOGO</div>
+                      }
+                    </div>
+
+                    {/* School info centred */}
+                    <div className="flex-1 text-center">
+                      <p className="text-lg font-extrabold uppercase tracking-wide leading-snug">{schoolName}</p>
+                      {schoolAddress && <p className="text-xs mt-0.5">{schoolAddress}</p>}
+                      {schoolContact && <p className="text-xs">Contact: {schoolContact}</p>}
+                    </div>
+
+                    {/* Logo right */}
+                    <div className="flex-shrink-0">
+                      {schoolLogo
+                        ? <img src={schoolLogo} alt="logo" className="h-16 w-16 object-contain" />
+                        : <div className="h-16 w-16 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-center leading-tight p-1 font-bold">SCHOOL<br/>LOGO</div>
+                      }
+                    </div>
                   </div>
                 </div>
+
+                {/* ── REPORT TITLE ───────────────────────────────────────────── */}
+                <div className="text-center py-1.5 border-b border-black">
+                  <p className="text-sm font-bold uppercase underline tracking-wide">
+                    {semConfig.label.toUpperCase()} REPORT
+                  </p>
+                </div>
+
+                {/* ── STUDENT INFO ───────────────────────────────────────────── */}
+                <div className="px-5 py-2 border-b border-black">
+                  <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+                    <div className="flex items-baseline gap-2 flex-1 min-w-0">
+                      <span className="font-bold whitespace-nowrap">Student's Name:</span>
+                      <span className="border-b border-black flex-1 pl-1">{selectedName}</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-bold whitespace-nowrap">Class:</span>
+                      <span className="border-b border-black min-w-[90px] pl-1">{className}</span>
+                    </div>
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2 text-sm">
+                    <span className="font-bold whitespace-nowrap">Academic Year:</span>
+                    <span className="border-b border-black min-w-[100px] pl-1">{academicYear || '—'}</span>
+                  </div>
+                </div>
+
+                {/* ── GRADE TABLE ────────────────────────────────────────────── */}
+                <div className="px-1">
+                  {!hasGrades ? (
+                    <div className="py-10 text-center">
+                      <User className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                      <p className="text-sm text-slate-500">
+                        No grades recorded for {semConfig.label}, {academicYear || '—'}.
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Teachers enter grades via the Grade Entry page.
+                      </p>
+                    </div>
+                  ) : (
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr>
+                          <th
+                            className="border border-black px-3 py-1 text-left font-bold uppercase text-xs align-bottom"
+                            rowSpan={2}
+                            style={{ width: '38%' }}
+                          >
+                            Subjects
+                          </th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
+                            1<sup>st</sup>
+                          </th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
+                            2<sup>nd</sup>
+                          </th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
+                            {semConfig.ordinal} Sem
+                          </th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">
+                            {semConfig.ordinal} Sem
+                          </th>
+                        </tr>
+                        <tr>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">PD</th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">PD</th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">Exam</th>
+                          <th className="border border-black px-1 py-0.5 text-center text-[11px] font-bold">Ave</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {rows.map((row, i) => (
+                          <tr key={row.id}>
+                            <td className="border border-black px-3 py-0.5 font-medium text-xs">{row.name}</td>
+                            <td className="border border-black px-1 py-0.5 text-center text-sm">{row.pd1 ?? ''}</td>
+                            <td className="border border-black px-1 py-0.5 text-center text-sm">{row.pd2 ?? ''}</td>
+                            <td className="border border-black px-1 py-0.5 text-center text-sm">{row.exam ?? ''}</td>
+                            <td className="border border-black px-1 py-0.5 text-center text-sm font-semibold">
+                              {fmt(subjectSemAvgs[i])}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {/* Average row */}
+                        <tr className="bg-gray-50 font-bold">
+                          <td className="border border-black px-3 py-0.5 text-xs font-bold">Average</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(pd1ColAvg)}</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(pd2ColAvg)}</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(examColAvg)}</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmt(semColAvg)}</td>
+                        </tr>
+
+                        {/* Conduct row */}
+                        <tr>
+                          <td className="border border-black px-3 py-0.5 text-xs font-bold">Conduct</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">
+                            {pd1ColAvg != null ? conductLabel(pd1ColAvg) : ''}
+                          </td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">
+                            {pd2ColAvg != null ? conductLabel(pd2ColAvg) : ''}
+                          </td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">
+                            {examColAvg != null ? conductLabel(examColAvg) : ''}
+                          </td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs font-semibold">
+                            {semColAvg != null ? conductLabel(semColAvg) : ''}
+                          </td>
+                        </tr>
+
+                        {/* Rank row */}
+                        <tr>
+                          <td className="border border-black px-3 py-0.5 text-xs font-bold">Rank</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">—</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">—</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs"></td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">—</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* ── SIGNATURE SECTION ──────────────────────────────────────── */}
+                <div className="px-6 py-5 space-y-5 border-t border-black mt-1">
+                  <div className="flex items-end gap-3">
+                    <span className="text-sm font-bold whitespace-nowrap">Signed:</span>
+                    <span className="border-b border-black flex-1 min-w-[160px]" />
+                    <span className="text-sm whitespace-nowrap">Class Sponsor</span>
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <span className="text-sm font-bold whitespace-nowrap">Approved:</span>
+                    <span className="border-b border-black flex-1 min-w-[160px]" />
+                  </div>
+                </div>
+
               </div>
-            )}
-          </CardContent>
-        </Card>
+              {/* /REPORT CARD */}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
