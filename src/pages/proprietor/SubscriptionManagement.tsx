@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import {
@@ -40,6 +41,7 @@ type Tab = 'overview' | 'invoices' | 'history' | 'cards';
 export default function SubscriptionManagement() {
   const { user } = useAuth();
   const schoolId = user?.school_id;
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('overview');
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -119,6 +121,9 @@ export default function SubscriptionManagement() {
           setMtnSuccess(true);
           notify.success('Payment successful! Your subscription has been activated.');
           void subId;
+          void queryClient.invalidateQueries({ queryKey: ['prop-subscription', schoolId!] });
+          void queryClient.invalidateQueries({ queryKey: ['prop-invoices', schoolId!] });
+          void queryClient.invalidateQueries({ queryKey: ['prop-sub-history'] });
         } else if (result.status === 'FAILED') {
           stopMtnPolling();
           const reasonCode = result.reason?.code ?? '';
