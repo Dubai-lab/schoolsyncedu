@@ -46,9 +46,24 @@ export interface School {
 
 /** Transcript visual & signature configuration */
 export interface TranscriptConfig {
-  header_bg_color: string;     // hex, default #b91c1c
-  header_text_color: string;   // hex, default #ffffff
-  table_header_bg: string;     // hex, default #f1f5f9
+  // ── Colors ────────────────────────────────────────────────────────────────
+  header_bg_color: string;       // hex, default #b91c1c
+  header_text_color: string;     // hex, default #ffffff
+  table_header_bg: string;       // hex, default #f1f5f9
+  row_alt_bg: string;            // alternating row color, default #f8fafc
+
+  // ── Header layout ─────────────────────────────────────────────────────────
+  header_layout: 'centered' | 'logo-left' | 'logo-both';
+  show_logo: boolean;            // show school logo (from school.logo_url)
+  seal_url: string;              // optional right-side emblem / seal image URL
+  show_outer_border: boolean;    // border around entire document
+
+  // ── Header text ───────────────────────────────────────────────────────────
+  school_system_name: string;    // optional line above school name e.g. "SDA School System"
+  transcript_title: string;      // e.g. "OFFICIAL TRANSCRIPT FOR SENIOR HIGH"
+  show_contact_info: boolean;    // show address, phone, email in header
+
+  // ── Signatories & footer ──────────────────────────────────────────────────
   principal_name: string;
   registrar_name: string;
   show_motto_footer: boolean;

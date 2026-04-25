@@ -15,12 +15,20 @@ import type { School, TranscriptConfig } from '@/types/school.types';
 import { MARKING_PERIOD_LABELS, MARKING_PERIOD_LIST } from '@/utils/constants';
 
 const TRANSCRIPT_DEFAULTS: TranscriptConfig = {
-  header_bg_color: '#b91c1c',
-  header_text_color: '#ffffff',
-  table_header_bg: '#f1f5f9',
-  principal_name: '',
-  registrar_name: '',
-  show_motto_footer: true,
+  header_bg_color:    '#b91c1c',
+  header_text_color:  '#ffffff',
+  table_header_bg:    '#f1f5f9',
+  row_alt_bg:         '#f8fafc',
+  header_layout:      'centered',
+  show_logo:          false,
+  seal_url:           '',
+  show_outer_border:  true,
+  school_system_name: '',
+  transcript_title:   'OFFICIAL TRANSCRIPT',
+  show_contact_info:  true,
+  principal_name:     '',
+  registrar_name:     '',
+  show_motto_footer:  true,
 };
 
 // ── Marking period labels ──────────────────────────────────────────────────────
@@ -172,27 +180,79 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated, 
   const age = calcAge(student.date_of_birth);
   const cfg = transcriptCfg;
 
+  // ── Header logo / seal elements ────────────────────────────────────────────
+  const logoEl = cfg.show_logo && school.logo_url ? (
+    <img src={school.logo_url} alt="logo" style={{ height: 64, width: 64, objectFit: 'contain', flexShrink: 0 }} />
+  ) : null;
+
+  const sealEl = cfg.seal_url ? (
+    <img src={cfg.seal_url} alt="seal" style={{ height: 64, width: 64, objectFit: 'contain', flexShrink: 0 }} />
+  ) : null;
+
+  const schoolInfoCenter = (
+    <div style={{ textAlign: 'center', flex: 1 }}>
+      {cfg.school_system_name && (
+        <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.85, marginBottom: 2 }}>
+          {cfg.school_system_name}
+        </p>
+      )}
+      <h1 style={{ fontSize: '1.2rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+        {school.name}
+      </h1>
+      {cfg.show_contact_info && (
+        <div style={{ fontSize: '0.65rem', opacity: 0.85, marginTop: 3 }}>
+          {school.address && <p style={{ margin: 0 }}>{school.address}</p>}
+          <p style={{ margin: 0 }}>
+            {[school.phone, school.principal_email].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const headerInner = () => {
+    if (cfg.header_layout === 'logo-left') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px' }}>
+          {logoEl ?? <div style={{ width: 64, flexShrink: 0 }} />}
+          {schoolInfoCenter}
+        </div>
+      );
+    }
+    if (cfg.header_layout === 'logo-both') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px' }}>
+          {logoEl ?? <div style={{ width: 64, flexShrink: 0 }} />}
+          {schoolInfoCenter}
+          {sealEl ?? <div style={{ width: 64, flexShrink: 0 }} />}
+        </div>
+      );
+    }
+    // centered
+    return (
+      <div style={{ textAlign: 'center', padding: '10px 16px' }}>
+        {logoEl && <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{logoEl}</div>}
+        {schoolInfoCenter}
+      </div>
+    );
+  };
+
   return (
     <div
       id="transcript-print"
       className="bg-white font-serif text-sm"
-      style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}
+      style={{
+        width: '100%',
+        maxWidth: '800px',
+        margin: '0 auto',
+        border: cfg.show_outer_border ? '2px solid #1e293b' : 'none',
+      }}
     >
       {/* ── Header ── */}
-      <div className="border-2 border-slate-800 mb-0">
+      <div>
         {/* School header */}
-        <div className="text-center py-2 px-4" style={{ backgroundColor: cfg.header_bg_color, color: cfg.header_text_color }}>
-          {school.motto && (
-            <p className="text-xs uppercase tracking-widest opacity-80">{school.motto}</p>
-          )}
-          <h1 className="text-xl font-bold uppercase tracking-wide">{school.name}</h1>
-          {school.address && (
-            <p className="text-xs mt-0.5">{school.address}</p>
-          )}
-          <div className="flex items-center justify-center gap-4 text-xs mt-0.5 flex-wrap">
-            {school.phone && <span>{school.phone}</span>}
-            {school.principal_email && <span>{school.principal_email}</span>}
-          </div>
+        <div style={{ backgroundColor: cfg.header_bg_color, color: cfg.header_text_color }}>
+          {headerInner()}
         </div>
 
         {/* "Office of the Registrar" + title */}
@@ -201,7 +261,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated, 
         </div>
         <div className="text-center bg-white py-2 border-t border-slate-200">
           <h2 className="text-base font-bold uppercase tracking-wider text-slate-900">
-            Official Transcript
+            {cfg.transcript_title || 'Official Transcript'}
           </h2>
         </div>
 
@@ -316,7 +376,7 @@ function PrintDocument({ student, school, columns, rows, totals, dateGenerated, 
             ) : (
               <>
                 {rows.map((row, idx) => (
-                  <tr key={row.subjectName} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                  <tr key={row.subjectName} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : (cfg.row_alt_bg || '#f8fafc') }}>
                     <td className="border border-slate-300 px-2 py-1 text-slate-800">{row.subjectName}</td>
                     {columns.map((col) => (
                       <td key={col.key} className="border border-slate-300 px-2 py-1 text-center text-slate-900">
