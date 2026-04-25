@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import {
   proprietorSubscriptionService,
   proprietorBillingService,
 } from '@/services/proprietorService';
+import { mtnInitiatePayment, mtnGetStatus } from '@/services/mtnService';
 import type {
   Subscription,
   SubscriptionPlan,
@@ -27,6 +28,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
+  Smartphone,
+  Loader2,
 } from 'lucide-react';
 
 type Tab = 'overview' | 'invoices' | 'history' | 'cards';
@@ -41,6 +44,15 @@ export default function SubscriptionManagement() {
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [showCardForm,   setShowCardForm]   = useState(false);
+
+  // MTN MoMo state
+  const [mtnPhone,       setMtnPhone]       = useState('');
+  const [mtnLoading,     setMtnLoading]     = useState(false);
+  const [mtnError,       setMtnError]       = useState('');
+  const [mtnReferenceId, setMtnReferenceId] = useState('');
+  const [mtnPollStatus,  setMtnPollStatus]  = useState<'PENDING' | 'SUCCESSFUL' | 'FAILED' | ''>('');
+  const [mtnSuccess,     setMtnSuccess]     = useState(false);
+  const mtnPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: subscription, isLoading: loadingSub } = useFetch<(Subscription & { plan: SubscriptionPlan }) | null>(
     ['prop-subscription', schoolId!],
@@ -89,7 +101,70 @@ export default function SubscriptionManagement() {
     setChangePlanOpen(true);
   };
 
+  const stopMtnPolling = () => {
+    if (mtnPollRef.current) { clearInterval(mtnPollRef.current); mtnPollRef.current = null; }
+  };
+
+  const startMtnPolling = (refId: string, subId: string) => {
+    stopMtnPolling();
+    let attempts = 0;
+    mtnPollRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const result = await mtnGetStatus(refId);
+        setMtnPollStatus(result.status);
+        if (result.status === 'SUCCESSFUL') {
+          stopMtnPolling();
+          setMtnSuccess(true);
+          notify.success('Payment successful! Your subscription has been activated.');
+          void subId; // subscription already activated by edge function
+        } else if (result.status === 'FAILED') {
+          stopMtnPolling();
+          setMtnError(result.reason?.message ?? 'Payment declined. Please try again.');
+          setMtnReferenceId('');
+        } else if (attempts >= 60) {
+          stopMtnPolling();
+          setMtnError('Payment timed out. If you approved the request, contact support.');
+          setMtnReferenceId('');
+        }
+      } catch { /* silent */ }
+    }, 5000);
+  };
+
+  const handleMtnPay = async () => {
+    if (!selectedPlan || !mtnPhone.trim() || !schoolId) return;
+    if (!subscription?.id) { setMtnError('No active subscription found.'); return; }
+    setMtnLoading(true);
+    setMtnError('');
+    try {
+      const result = await mtnInitiatePayment({
+        school_id:       schoolId,
+        subscription_id: subscription.id,
+        amount:          selectedPlan.price_usd,
+        phone:           mtnPhone.trim(),
+      });
+      setMtnReferenceId(result.reference_id);
+      setMtnPollStatus('PENDING');
+      startMtnPolling(result.reference_id, subscription.id);
+    } catch (err) {
+      setMtnError(err instanceof Error ? err.message : 'Failed to send payment request');
+    } finally {
+      setMtnLoading(false);
+    }
+  };
+
+  const resetMtnState = () => {
+    stopMtnPolling();
+    setMtnPhone('');
+    setMtnLoading(false);
+    setMtnError('');
+    setMtnReferenceId('');
+    setMtnPollStatus('');
+    setMtnSuccess(false);
+  };
+
   const closeDialog = () => {
+    resetMtnState();
     setChangePlanOpen(false);
     setSelectedPlanId(null);
     setShowCardForm(false);
@@ -407,35 +482,98 @@ export default function SubscriptionManagement() {
             </>
           )}
 
-          {/* Step 2 — Coming Soon */}
+          {/* Step 2 — MTN MoMo Payment */}
           {showCardForm && selectedPlan && (
-            <div className="text-center py-6 space-y-4">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-50">
-                <CreditCard className="h-7 w-7 text-primary-400" />
-              </div>
-              <span className="inline-block rounded-full bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1">
-                Coming Soon
-              </span>
-              <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-4">
-                <p className="text-sm font-semibold text-slate-800">{selectedPlan.name} Plan</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">
+            <div className="space-y-4">
+              {/* Plan summary */}
+              <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{selectedPlan.name} Plan</p>
+                  <p className="text-xs text-slate-500">{selectedPlan.billing_cycle}</p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900">
                   ${selectedPlan.price_usd}
-                  <span className="text-sm font-normal text-slate-500">/{selectedPlan.billing_cycle}</span>
                 </p>
               </div>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                Online payments are not yet available. Please contact our support team
-                to activate or upgrade your subscription.
-              </p>
-              <a
-                href="mailto:support@schoolsyncedu.com"
-                className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700 transition-all"
-              >
-                Contact Support to Activate
-              </a>
-              <Button variant="outline" size="sm" onClick={() => setShowCardForm(false)} className="w-full">
-                Back to Plans
-              </Button>
+
+              {/* Success state */}
+              {mtnSuccess ? (
+                <div className="text-center py-6 space-y-3">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+                    <CheckCircle2 className="h-7 w-7 text-green-600" />
+                  </div>
+                  <p className="font-semibold text-green-800">Payment Successful!</p>
+                  <p className="text-sm text-slate-500">Your subscription has been activated.</p>
+                  <Button size="sm" onClick={closeDialog} className="w-full">Close</Button>
+                </div>
+              ) : mtnReferenceId && mtnPollStatus === 'PENDING' ? (
+                /* Waiting for approval */
+                <div className="text-center py-4 space-y-4">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-yellow-50 border-2 border-yellow-200">
+                    <RefreshCw className="h-6 w-6 text-yellow-600 animate-spin" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-800">Waiting for approval</p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      A prompt has been sent to <strong>{mtnPhone}</strong>. Open your MTN MoMo app to approve.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { stopMtnPolling(); setMtnReferenceId(''); setMtnPollStatus(''); setMtnError(''); }}
+                    className="text-xs text-slate-400 hover:text-slate-600 underline"
+                  >
+                    Cancel — try a different number
+                  </button>
+                </div>
+              ) : (
+                /* MTN phone form */
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-yellow-50 border border-yellow-200">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-400 shrink-0">
+                      <Smartphone className="h-4 w-4 text-yellow-900" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">MTN Mobile Money</p>
+                      <p className="text-xs text-slate-500">Pay securely with your MTN MoMo wallet</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      MTN Mobile Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={mtnPhone}
+                      onChange={(e) => { setMtnPhone(e.target.value); setMtnError(''); }}
+                      placeholder="e.g. 0880123456"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/20"
+                    />
+                  </div>
+
+                  {mtnError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      {mtnError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleMtnPay}
+                    disabled={mtnLoading || !mtnPhone.trim()}
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-yellow-400 px-6 py-3 text-sm font-semibold text-yellow-900 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {mtnLoading
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+                      : <><Smartphone className="h-4 w-4" /> Pay ${selectedPlan.price_usd} with MTN MoMo</>
+                    }
+                  </button>
+
+                  <Button variant="outline" size="sm" onClick={() => { setShowCardForm(false); resetMtnState(); }} className="w-full">
+                    Back to Plans
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogBody>
@@ -453,9 +591,9 @@ export default function SubscriptionManagement() {
                 }
                 setShowCardForm(true);
               }}
-              icon={<CreditCard className="w-4 h-4" />}
+              icon={<Smartphone className="w-4 h-4" />}
             >
-              {selectedPlan ? `Pay $${selectedPlan.price_usd} with Card` : 'Select a Plan'}
+              {selectedPlan ? `Pay $${selectedPlan.price_usd} with MTN MoMo` : 'Select a Plan'}
             </Button>
           </DialogFooter>
         )}

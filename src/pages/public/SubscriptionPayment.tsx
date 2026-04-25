@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   fetchPaymentInfo,
   type PaymentPageData,
 } from '@/services/stripeService';
 import { discountService } from '@/services/adminService';
+import { mtnInitiatePayment, mtnGetStatus } from '@/services/mtnService';
 import type { Discount } from '@/types/report.types';
 import {
   CreditCard,
@@ -16,6 +17,8 @@ import {
   AlertTriangle,
   Tag,
   X,
+  Smartphone,
+  RefreshCw,
 } from 'lucide-react';
 
 
@@ -30,8 +33,16 @@ export default function SubscriptionPayment() {
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState('');
   const [paymentData,     setPaymentData]     = useState<PaymentPageData | null>(null);
-  const [paymentSuccess]  = useState(false);
-  const [invoiceNumber]   = useState('');
+  const [paymentSuccess,  setPaymentSuccess]  = useState(false);
+  const [invoiceNumber,   setInvoiceNumber]   = useState('');
+
+  // MTN MoMo state
+  const [phone,           setPhone]           = useState('');
+  const [mtnLoading,      setMtnLoading]      = useState(false);
+  const [mtnError,        setMtnError]        = useState('');
+  const [referenceId,     setReferenceId]     = useState('');
+  const [pollStatus,      setPollStatus]      = useState<'PENDING' | 'SUCCESSFUL' | 'FAILED' | ''>('');
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Coupon / discount
   const [couponInput,      setCouponInput]      = useState('');
@@ -92,6 +103,70 @@ export default function SubscriptionPayment() {
   };
 
   const finalAmount = paymentData ? discountedPrice(paymentData.plan.price_usd) : 0;
+
+  // ── MTN MoMo handlers ───────────────────────────────────────────────────
+  const stopPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  };
+
+  const startPolling = (refId: string) => {
+    stopPolling();
+    let attempts = 0;
+    const MAX_ATTEMPTS = 60; // 5 min at 5s intervals
+    pollIntervalRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const result = await mtnGetStatus(refId);
+        setPollStatus(result.status);
+        if (result.status === 'SUCCESSFUL') {
+          stopPolling();
+          setInvoiceNumber(result.invoice_number ?? '');
+          setPaymentSuccess(true);
+        } else if (result.status === 'FAILED') {
+          stopPolling();
+          setMtnError(result.reason?.message ?? 'Payment was declined by MTN MoMo. Please try again.');
+          setReferenceId('');
+        } else if (attempts >= MAX_ATTEMPTS) {
+          stopPolling();
+          setMtnError('Payment timed out. If you approved the payment, please contact support.');
+          setReferenceId('');
+        }
+      } catch {
+        // silent — keep polling
+      }
+    }, 5000);
+  };
+
+  const handleMtnPay = async () => {
+    if (!paymentData || !phone.trim()) return;
+    setMtnLoading(true);
+    setMtnError('');
+    try {
+      const result = await mtnInitiatePayment({
+        school_id:       paymentData.school.id,
+        subscription_id: paymentData.subscription.id,
+        amount:          finalAmount,
+        phone:           phone.trim(),
+      });
+      setReferenceId(result.reference_id);
+      setPollStatus('PENDING');
+      startPolling(result.reference_id);
+    } catch (err) {
+      setMtnError(err instanceof Error ? err.message : 'Failed to send payment request');
+    } finally {
+      setMtnLoading(false);
+    }
+  };
+
+  const handleCancelMtn = () => {
+    stopPolling();
+    setReferenceId('');
+    setPollStatus('');
+    setMtnError('');
+  };
 
   // ── SUCCESS ──
   if (paymentSuccess) {
@@ -311,26 +386,92 @@ export default function SubscriptionPayment() {
 
           {/* Payment Panel */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Coming Soon */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-50">
-                <CreditCard className="h-7 w-7 text-primary-400" />
+            {/* MTN MoMo Payment Form */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400">
+                  <Smartphone className="h-5 w-5 text-yellow-900" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">MTN Mobile Money</h2>
+                  <p className="text-xs text-slate-400">Secure mobile payment</p>
+                </div>
               </div>
-              <span className="inline-block rounded-full bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 mb-3">
-                Coming Soon
-              </span>
-              <h2 className="text-lg font-semibold text-slate-900 mb-2">Online Payment</h2>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                Online payments are not yet available. Please contact our support team to complete
-                your subscription activation.
-              </p>
-              <a
-                href="mailto:support@schoolsyncedu.com"
-                className="mt-5 inline-flex items-center justify-center gap-2 w-full rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-primary-700 transition-all"
-              >
-                <ArrowRight className="h-4 w-4" />
-                Contact Support to Activate
-              </a>
+
+              {/* Waiting for approval (polling) */}
+              {referenceId && pollStatus === 'PENDING' && (
+                <div className="text-center py-4 space-y-4">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-yellow-50 border-2 border-yellow-200">
+                    <RefreshCw className="h-6 w-6 text-yellow-600 animate-spin" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-800">Waiting for approval</p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      A payment prompt has been sent to <strong>{phone}</strong>.
+                      Please open your MTN MoMo app and approve the request.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                    Amount: <strong>{finalAmount.toFixed(2)} EUR</strong>
+                  </div>
+                  <button
+                    onClick={handleCancelMtn}
+                    className="text-xs text-slate-400 hover:text-slate-600 underline"
+                  >
+                    Cancel and try a different number
+                  </button>
+                </div>
+              )}
+
+              {/* Payment form */}
+              {!referenceId && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      MTN Mobile Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => { setPhone(e.target.value); setMtnError(''); }}
+                      placeholder="e.g. 0880123456"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/20"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      Enter the MTN number to receive the payment prompt.
+                    </p>
+                  </div>
+
+                  {mtnError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      {mtnError}
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Amount due</span>
+                      <span className="font-bold text-slate-900">{finalAmount.toFixed(2)} EUR</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleMtnPay}
+                    disabled={mtnLoading || !phone.trim()}
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-yellow-400 px-6 py-3.5 text-sm font-semibold text-yellow-900 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                  >
+                    {mtnLoading
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending request...</>
+                      : <><Smartphone className="h-4 w-4" /> Pay with MTN MoMo</>
+                    }
+                  </button>
+
+                  <p className="text-center text-xs text-slate-400">
+                    You will receive a prompt on your phone to approve the payment.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
