@@ -230,7 +230,6 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'IT Dashboard', path: '/it-admin', icon: Monitor, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'User Accounts', path: '/it-admin/users', icon: Users, roles: [USER_ROLES.IT_ADMIN] },
-      { label: 'Import Students', path: '/registrar/import', icon: Upload, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'Card Designer', path: '/it-admin/cards', icon: CreditCard, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'Generate Cards', path: '/it-admin/cards/generate', icon: ClipboardList, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'NFC Assignment', path: '/it-admin/cards/nfc', icon: Nfc, roles: [USER_ROLES.IT_ADMIN] },

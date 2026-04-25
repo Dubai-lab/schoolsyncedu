@@ -360,14 +360,27 @@ export const registrarService = {
 // ============================================================
 
 export interface ImportStudentRow {
+  // Required
   first_name: string;
   last_name: string;
-  date_of_birth: string;   // YYYY-MM-DD or blank
-  gender: string;          // Male / Female / Other or blank
   class_name: string;
   guardian_name: string;
   guardian_phone: string;
-  guardian_email: string;  // optional
+  // Optional — student
+  date_of_birth: string;
+  gender: string;
+  blood_type: string;
+  phone: string;
+  address: string;
+  city: string;
+  // Optional — guardian
+  guardian_relationship: string;
+  guardian_email: string;
+  guardian_address: string;
+  // Optional — emergency contact
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  emergency_contact_relationship: string;
 }
 
 export interface ImportRowResult {
@@ -385,11 +398,39 @@ export interface ImportRowResult {
 export const studentImportService = {
   /** CSV template content — download this, fill in, then upload */
   getTemplateCsv(): string {
-    const header   = 'first_name,last_name,date_of_birth,gender,class_name,guardian_name,guardian_phone,guardian_email';
-    const example  = 'John,Doe,2007-01-15,Male,12A,James Doe,0770123456,james.doe@email.com';
-    const example2 = 'Mary,Johnson,2008-03-20,Female,10B,Sarah Johnson,0880234567,';
-    const example3 = 'James,Smith,2006-11-03,Male,11A,Robert Smith,0770987654,';
-    return [header, example, example2, example3].join('\n');
+    const header = [
+      // Required
+      'first_name', 'last_name', 'class_name', 'guardian_name', 'guardian_phone',
+      // Optional — student
+      'date_of_birth', 'gender', 'blood_type', 'phone', 'address', 'city',
+      // Optional — guardian
+      'guardian_relationship', 'guardian_email', 'guardian_address',
+      // Optional — emergency contact
+      'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
+    ].join(',');
+
+    const row1 = [
+      'John', 'Doe', '12A', 'James Doe', '0770123456',
+      '2007-01-15', 'Male', 'O+', '', '', '',
+      'father', 'james.doe@email.com', '',
+      'Mary Doe', '0770654321', 'mother',
+    ].join(',');
+
+    const row2 = [
+      'Mary', 'Johnson', '10B', 'Sarah Johnson', '0880234567',
+      '2008-03-20', 'Female', '', '', '', '',
+      'mother', '', '',
+      '', '', '',
+    ].join(',');
+
+    const row3 = [
+      'James', 'Smith', '11A', 'Robert Smith', '0770987654',
+      '2006-11-03', 'Male', 'A+', '0880111222', 'Monrovia', 'Monrovia',
+      'father', 'robert.smith@email.com', '12 Broad St',
+      'Linda Smith', '0880333444', 'mother',
+    ].join(',');
+
+    return [header, row1, row2, row3].join('\n');
   },
 
   /** Parse a CSV file into ImportStudentRow objects (client-side, no library needed) */
@@ -417,14 +458,23 @@ export const studentImportService = {
       const parts = lines[i].split(',').map((p) => p.trim().replace(/^"|"$/g, ''));
       if (parts.every((p) => !p)) continue; // skip blank rows
       rows.push({
-        first_name:    col(parts, 'first_name'),
-        last_name:     col(parts, 'last_name'),
-        date_of_birth: col(parts, 'date_of_birth'),
-        gender:        col(parts, 'gender'),
-        class_name:    col(parts, 'class_name'),
-        guardian_name: col(parts, 'guardian_name'),
-        guardian_phone:col(parts, 'guardian_phone'),
-        guardian_email:col(parts, 'guardian_email'),
+        first_name:                     col(parts, 'first_name'),
+        last_name:                      col(parts, 'last_name'),
+        class_name:                     col(parts, 'class_name'),
+        guardian_name:                  col(parts, 'guardian_name'),
+        guardian_phone:                 col(parts, 'guardian_phone'),
+        date_of_birth:                  col(parts, 'date_of_birth'),
+        gender:                         col(parts, 'gender'),
+        blood_type:                     col(parts, 'blood_type'),
+        phone:                          col(parts, 'phone'),
+        address:                        col(parts, 'address'),
+        city:                           col(parts, 'city'),
+        guardian_relationship:          col(parts, 'guardian_relationship'),
+        guardian_email:                 col(parts, 'guardian_email'),
+        guardian_address:               col(parts, 'guardian_address'),
+        emergency_contact_name:         col(parts, 'emergency_contact_name'),
+        emergency_contact_phone:        col(parts, 'emergency_contact_phone'),
+        emergency_contact_relationship: col(parts, 'emergency_contact_relationship'),
       });
     }
 
