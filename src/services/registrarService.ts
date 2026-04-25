@@ -603,6 +603,10 @@ export const publicApplicationService = {
     lastName: string;
     dateOfBirth: string;
     gender?: string;
+    bloodType?: string;
+    studentPhone?: string;
+    studentAddress?: string;
+    studentCity?: string;
     previousSchool?: string;
     previousGrade?: string;
     guardianFullName: string;
@@ -656,6 +660,10 @@ export const publicApplicationService = {
       p_class_id: params.classId ?? null,
       p_emergency_contact_relationship: params.emergencyContactRelationship ?? null,
       p_photo_url: params.photoUrl ?? null,
+      p_blood_type: params.bloodType ?? null,
+      p_phone: params.studentPhone ?? null,
+      p_address: params.studentAddress ?? null,
+      p_city: params.studentCity ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     if (error) throw error;

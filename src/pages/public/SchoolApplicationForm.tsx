@@ -183,6 +183,10 @@ export default function SchoolApplicationForm() {
     lastName: '',
     dateOfBirth: '',
     gender: '',
+    bloodType: '',
+    studentPhone: '',
+    studentAddress: '',
+    studentCity: '',
     gradeLevel: '',
     classId: '',
     previousSchool: '',
@@ -373,6 +377,10 @@ export default function SchoolApplicationForm() {
         lastName: form.lastName,
         dateOfBirth: form.dateOfBirth,
         gender: form.gender || undefined,
+        bloodType: form.bloodType || undefined,
+        studentPhone: form.studentPhone || undefined,
+        studentAddress: form.studentAddress || undefined,
+        studentCity: form.studentCity || undefined,
         previousSchool: form.previousSchool || undefined,
         previousGrade: form.previousGrade || undefined,
         guardianFullName: form.guardianFullName,
@@ -846,6 +854,55 @@ export default function SchoolApplicationForm() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Blood Type</label>
+                  <select
+                    value={form.bloodType}
+                    onChange={(e) => updateField('bloodType', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">Select blood type</option>
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bt) => (
+                      <option key={bt} value={bt}>{bt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Phone className="inline h-3.5 w-3.5 mr-1" /> Student Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.studentPhone}
+                    onChange={(e) => updateField('studentPhone', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="+231 XXX XXX XXXX"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <MapPin className="inline h-3.5 w-3.5 mr-1" /> City
+                  </label>
+                  <input
+                    type="text"
+                    value={form.studentCity}
+                    onChange={(e) => updateField('studentCity', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="City"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <MapPin className="inline h-3.5 w-3.5 mr-1" /> Address
+                  </label>
+                  <input
+                    type="text"
+                    value={form.studentAddress}
+                    onChange={(e) => updateField('studentAddress', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Street address"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Class Applying For *</label>
                   <select
                     value={form.classId}
@@ -1148,6 +1205,30 @@ export default function SchoolApplicationForm() {
                     <span className="font-medium text-gray-900">{form.dateOfBirth || '—'}</span>
                     <span className="text-gray-500">Gender</span>
                     <span className="font-medium text-gray-900 capitalize">{form.gender || '—'}</span>
+                    {form.bloodType && (
+                      <>
+                        <span className="text-gray-500">Blood Type</span>
+                        <span className="font-medium text-gray-900">{form.bloodType}</span>
+                      </>
+                    )}
+                    {form.studentPhone && (
+                      <>
+                        <span className="text-gray-500">Phone</span>
+                        <span className="font-medium text-gray-900">{form.studentPhone}</span>
+                      </>
+                    )}
+                    {form.studentCity && (
+                      <>
+                        <span className="text-gray-500">City</span>
+                        <span className="font-medium text-gray-900">{form.studentCity}</span>
+                      </>
+                    )}
+                    {form.studentAddress && (
+                      <>
+                        <span className="text-gray-500">Address</span>
+                        <span className="font-medium text-gray-900">{form.studentAddress}</span>
+                      </>
+                    )}
                     <span className="text-gray-500">Grade Level</span>
                     <span className="font-medium text-gray-900">{form.gradeLevel}</span>
                     {form.previousSchool && (
