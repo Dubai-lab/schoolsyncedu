@@ -80,20 +80,22 @@ export default function ReportCards() {
     { enabled: !!schoolId },
   );
 
-  // Student detail (class name)
+  // Student detail (class name + class id for ranking)
   const { data: studentDetail } = useFetch(
     ['student-report-detail', selectedId],
     async () => {
       if (!selectedId) return null;
       const { data } = await supabase
         .from('students')
-        .select('current_grade_level, classes:current_class_id(name, grade_level)')
+        .select('current_class_id, current_grade_level, classes:current_class_id(name, grade_level)')
         .eq('id', selectedId)
         .single();
-      return data as { current_grade_level: string | null; classes: { name: string; grade_level: string } | null } | null;
+      return data as { current_class_id: string | null; current_grade_level: string | null; classes: { name: string; grade_level: string } | null } | null;
     },
     { enabled: !!selectedId },
   );
+
+  const classId = studentDetail?.current_class_id ?? '';
 
   // Active semester config
   const semConfig = SEMESTER_CONFIG.find((s) => s.value === semesterKey) ?? SEMESTER_CONFIG[0];
@@ -117,6 +119,76 @@ export default function ReportCards() {
   );
 
   const gradesLoading = l1 || l2 || l3;
+
+  // Fetch all grades for the whole class (needed for rank computation)
+  const fetchClassPeriodGrades = async (cId: string, year: string, sem: string) => {
+    const { data: assignments } = await supabase
+      .from('class_assignments')
+      .select('student_id')
+      .eq('class_id', cId)
+      .is('removed_at', null);
+    const ids = (assignments ?? []).map((a: { student_id: string }) => a.student_id);
+    if (ids.length === 0) return [];
+    const { data } = await supabase
+      .from('grades')
+      .select('student_id, score')
+      .eq('academic_year', year)
+      .eq('semester', sem)
+      .in('student_id', ids);
+    return (data ?? []) as { student_id: string; score: number | null }[];
+  };
+
+  const { data: classPd1 = [] } = useFetch(
+    ['class-grades', classId, academicYear, pd1Key],
+    () => fetchClassPeriodGrades(classId, academicYear, pd1Key),
+    { enabled: !!classId && !!academicYear },
+  );
+  const { data: classPd2 = [] } = useFetch(
+    ['class-grades', classId, academicYear, pd2Key],
+    () => fetchClassPeriodGrades(classId, academicYear, pd2Key),
+    { enabled: !!classId && !!academicYear },
+  );
+  const { data: classExam = [] } = useFetch(
+    ['class-grades', classId, academicYear, examKey],
+    () => fetchClassPeriodGrades(classId, academicYear, examKey),
+    { enabled: !!classId && !!academicYear },
+  );
+
+  // Build rank map: group scores by student → average → sort desc → assign rank
+  function buildRankMap(grades: { student_id: string; score: number | null }[]): Map<string, { rank: number; total: number }> {
+    const acc = new Map<string, { sum: number; cnt: number }>();
+    for (const g of grades) {
+      if (g.score == null) continue;
+      const cur = acc.get(g.student_id) ?? { sum: 0, cnt: 0 };
+      acc.set(g.student_id, { sum: cur.sum + g.score, cnt: cur.cnt + 1 });
+    }
+    const sorted = [...acc.entries()]
+      .map(([id, { sum, cnt }]) => ({ id, avg: sum / cnt }))
+      .sort((a, b) => b.avg - a.avg);
+    const total = sorted.length;
+    const out = new Map<string, { rank: number; total: number }>();
+    let curRank = 1;
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i].avg < sorted[i - 1].avg) curRank = i + 1;
+      out.set(sorted[i].id, { rank: curRank, total });
+    }
+    return out;
+  }
+
+  const pd1RankMap  = buildRankMap(classPd1);
+  const pd2RankMap  = buildRankMap(classPd2);
+  const examRankMap = buildRankMap(classExam);
+  // Semester rank: combine all 3 periods (same student weighting as colAvg logic)
+  const semRankMap  = buildRankMap([...classPd1, ...classPd2, ...classExam]);
+
+  const pd1RankInfo  = pd1RankMap.get(selectedId);
+  const pd2RankInfo  = pd2RankMap.get(selectedId);
+  const examRankInfo = examRankMap.get(selectedId);
+  const semRankInfo  = semRankMap.get(selectedId);
+
+  function fmtRank(info?: { rank: number; total: number }): string {
+    return info ? `${info.rank}/${info.total}` : '—';
+  }
 
   // Merge all 3 periods into a subject map
   type SubjectRow = { id: string; name: string; pd1?: number; pd2?: number; exam?: number };
@@ -397,10 +469,10 @@ export default function ReportCards() {
                         {/* Rank row */}
                         <tr>
                           <td className="border border-black px-3 py-0.5 text-xs font-bold">Rank</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">—</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">—</td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs"></td>
-                          <td className="border border-black px-1 py-0.5 text-center text-xs">—</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmtRank(pd1RankInfo)}</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmtRank(pd2RankInfo)}</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs">{fmtRank(examRankInfo)}</td>
+                          <td className="border border-black px-1 py-0.5 text-center text-xs font-semibold">{fmtRank(semRankInfo)}</td>
                         </tr>
                       </tbody>
                     </table>
