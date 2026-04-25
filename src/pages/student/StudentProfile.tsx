@@ -20,12 +20,31 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Camera,
+  Loader2,
 } from 'lucide-react';
 
 export default function StudentProfile() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
   const userId = user?.id ?? '';
+
+  // Photo upload state
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoUploading(true);
+    try {
+      const url = await studentPortalService.updateMyPhotoUrl(file, schoolId);
+      setPhotoPreview(url);
+      notify.success('Profile photo updated');
+    } catch {
+      notify.error('Failed to upload photo. Please try again.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   // Change password state
   const [newPassword, setNewPassword] = useState('');
@@ -105,12 +124,34 @@ export default function StudentProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Photo + Basic */}
           <Card className="p-6 text-center lg:col-span-1">
-            <div className="h-24 w-24 mx-auto rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-              {student.photo_url ? (
-                <img src={student.photo_url as string} alt="Photo" className="h-full w-full object-cover" />
-              ) : (
-                <User className="h-10 w-10 text-blue-400" />
-              )}
+            <div className="relative h-24 w-24 mx-auto">
+              <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                {photoPreview || student.photo_url ? (
+                  <img
+                    src={photoPreview ?? (student.photo_url as string)}
+                    alt="Photo"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <User className="h-10 w-10 text-blue-400" />
+                )}
+              </div>
+              <label className="absolute bottom-0 right-0 cursor-pointer flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors">
+                {photoUploading
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Camera className="h-3.5 w-3.5" />}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={photoUploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
             </div>
             <h2 className="mt-3 text-lg font-bold text-slate-800">
               {student.first_name} {student.middle_name || ''} {student.last_name}

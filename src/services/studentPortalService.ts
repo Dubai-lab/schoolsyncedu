@@ -6,6 +6,21 @@ import type { UUID } from '@/types/common.types';
 // All methods scope data to the logged-in student only.
 
 export const studentPortalService = {
+  /** Upload a new profile photo and save the URL on the student record */
+  async updateMyPhotoUrl(file: File, schoolId: UUID): Promise<string> {
+    const ext  = file.name.split('.').pop();
+    const path = `student-photos/${schoolId}/${Date.now()}_profile.${ext}`;
+    const { error: uploadErr } = await supabase.storage
+      .from('documents')
+      .upload(path, file, { contentType: file.type, upsert: true });
+    if (uploadErr) throw uploadErr;
+    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+    const photoUrl = urlData.publicUrl;
+    const { error: rpcErr } = await supabase.rpc('update_my_photo_url', { p_photo_url: photoUrl });
+    if (rpcErr) throw rpcErr;
+    return photoUrl;
+  },
+
   /** Get the student record for the logged-in user */
   async getMyProfile(schoolId: UUID, userId: UUID) {
     const { data, error } = await supabase
