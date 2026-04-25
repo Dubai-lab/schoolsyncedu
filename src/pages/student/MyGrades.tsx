@@ -19,6 +19,11 @@ import {
   Shield,
   X,
 } from 'lucide-react';
+import { MARKING_PERIOD_LABELS } from '@/utils/constants';
+
+function termLabel(raw: string): string {
+  return MARKING_PERIOD_LABELS[raw] ?? raw;
+}
 
 // ==================== GRADE PRIVACY LOCK ====================
 // PIN stored in localStorage per user: `grade_pin_{userId}`
@@ -499,7 +504,7 @@ export default function MyGrades() {
                 termFilter === t ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-50 text-slate-500 border-slate-200'
               }`}
             >
-              {t}
+              {termLabel(t)}
             </button>
           ))}
         </div>
@@ -526,7 +531,7 @@ export default function MyGrades() {
                   <th className="px-4 py-3 text-center font-medium text-slate-600">Score</th>
                   <th className="px-4 py-3 text-center font-medium text-slate-600">Grade</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Year</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Term</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">Marking Period</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -551,7 +556,7 @@ export default function MyGrades() {
                         {(g.academic_year as string) || '—'}
                       </td>
                       <td className="px-4 py-3 text-slate-500 text-xs">
-                        {(g.semester as string) || (g.term as string) || '—'}
+                        {termLabel((g.semester as string) || (g.term as string) || '')}
                       </td>
                     </tr>
                   );
