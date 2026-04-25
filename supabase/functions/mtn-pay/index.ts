@@ -95,12 +95,33 @@ serve(async (req) => {
     }
 
     // ── Load MTN config from env ──────────────────────────────────────────
-    const subscriptionKey = Deno.env.get('MTN_SUBSCRIPTION_KEY');
-    const userId          = Deno.env.get('MTN_USER_ID');
-    const apiKey          = Deno.env.get('MTN_API_KEY');
-    const baseUrl         = Deno.env.get('MTN_BASE_URL')          ?? 'https://sandbox.momodeveloper.mtn.com';
-    const targetEnv       = Deno.env.get('MTN_TARGET_ENVIRONMENT') ?? 'sandbox';
-    const currency        = Deno.env.get('MTN_CURRENCY')           ?? 'EUR';
+    const subscriptionKey  = Deno.env.get('MTN_SUBSCRIPTION_KEY');
+    const userId           = Deno.env.get('MTN_USER_ID');
+    const apiKey           = Deno.env.get('MTN_API_KEY');
+    const baseUrl          = Deno.env.get('MTN_BASE_URL')           ?? 'https://sandbox.momodeveloper.mtn.com';
+    const targetEnv        = Deno.env.get('MTN_TARGET_ENVIRONMENT')  ?? 'sandbox';
+    const currency         = Deno.env.get('MTN_CURRENCY')            ?? 'EUR';
+    const supabaseUrl      = Deno.env.get('SUPABASE_URL')            ?? '';
+    const simulateSandbox  = Deno.env.get('MTN_SIMULATE_SANDBOX') === 'true';
+
+    // ── Generate unique reference ID ──────────────────────────────────────
+    const referenceId = crypto.randomUUID();
+
+    // ── Sandbox simulation mode (bypasses MTN when sandbox is unreliable) ─
+    if (simulateSandbox) {
+      console.log(`[SIMULATE] Skipping real MTN call. referenceId: ${referenceId}`);
+      const serviceKeySim = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const adminSim      = createClient(supabaseUrl, serviceKeySim);
+      await adminSim.from('mtn_payment_requests').insert({
+        school_id, subscription_id,
+        reference_id: referenceId, amount, currency,
+        phone_number: cleanPhone, status: 'PENDING',
+      });
+      return new Response(
+        JSON.stringify({ success: true, reference_id: referenceId, message: '[SANDBOX SIMULATION] Payment request sent.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!subscriptionKey || !userId || !apiKey) {
       return new Response(JSON.stringify({ error: 'MTN credentials not configured. Run mtn-setup first.' }), {
@@ -111,12 +132,8 @@ serve(async (req) => {
     // ── Get access token ──────────────────────────────────────────────────
     const accessToken = await getMtnAccessToken(baseUrl, subscriptionKey, userId, apiKey);
 
-    // ── Generate unique reference ID ──────────────────────────────────────
-    const referenceId = crypto.randomUUID();
-
     // ── Call MTN requestToPay ─────────────────────────────────────────────
-    const supabaseUrl  = Deno.env.get('SUPABASE_URL') ?? '';
-    const callbackUrl  = `${supabaseUrl}/functions/v1/mtn-callback`;
+    const callbackUrl = `${supabaseUrl}/functions/v1/mtn-callback`;
 
     const mtnRes = await fetch(`${baseUrl}/collection/v1_0/requesttopay`, {
       method: 'POST',

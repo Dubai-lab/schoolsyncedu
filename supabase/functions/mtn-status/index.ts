@@ -72,11 +72,51 @@ serve(async (req) => {
     }
 
     // ── Load env ──────────────────────────────────────────────────────────
-    const subscriptionKey = Deno.env.get('MTN_SUBSCRIPTION_KEY');
-    const userId          = Deno.env.get('MTN_USER_ID');
-    const apiKey          = Deno.env.get('MTN_API_KEY');
-    const baseUrl         = Deno.env.get('MTN_BASE_URL')           ?? 'https://sandbox.momodeveloper.mtn.com';
-    const targetEnv       = Deno.env.get('MTN_TARGET_ENVIRONMENT')  ?? 'sandbox';
+    const subscriptionKey  = Deno.env.get('MTN_SUBSCRIPTION_KEY');
+    const userId           = Deno.env.get('MTN_USER_ID');
+    const apiKey           = Deno.env.get('MTN_API_KEY');
+    const baseUrl          = Deno.env.get('MTN_BASE_URL')           ?? 'https://sandbox.momodeveloper.mtn.com';
+    const targetEnv        = Deno.env.get('MTN_TARGET_ENVIRONMENT')  ?? 'sandbox';
+    const supabaseUrl      = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey       = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const simulateSandbox  = Deno.env.get('MTN_SIMULATE_SANDBOX') === 'true';
+
+    // ── Sandbox simulation: auto-approve after first poll ─────────────────
+    if (simulateSandbox) {
+      const adminSim = createClient(supabaseUrl, serviceKey);
+      const { data: payReqSim } = await adminSim
+        .from('mtn_payment_requests')
+        .select('id, school_id, subscription_id, amount, activated')
+        .eq('reference_id', referenceId)
+        .maybeSingle();
+
+      let invoiceNumberSim: string | null = null;
+
+      if (payReqSim && !payReqSim.activated) {
+        const { data: rpcSim } = await adminSim.rpc('record_subscription_payment', {
+          p_school_id:       payReqSim.school_id,
+          p_subscription_id: payReqSim.subscription_id,
+          p_amount_usd:      payReqSim.amount,
+          p_gateway_ref:     referenceId,
+          p_tx_ref:          referenceId,
+          p_payment_method:  'mtn',
+        });
+        invoiceNumberSim = (rpcSim as { invoice_number?: string })?.invoice_number ?? null;
+        await adminSim.from('mtn_payment_requests')
+          .update({ status: 'SUCCESSFUL', activated: true, updated_at: new Date().toISOString() })
+          .eq('reference_id', referenceId);
+        console.log(`[SIMULATE] Subscription activated. Invoice: ${invoiceNumberSim}`);
+      }
+
+      return new Response(
+        JSON.stringify({
+          status: 'SUCCESSFUL', amount: '0', currency: 'EUR',
+          reference_id: referenceId, activated: true,
+          invoice_number: invoiceNumberSim, reason: null,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!subscriptionKey || !userId || !apiKey) {
       return new Response(JSON.stringify({ error: 'MTN credentials not configured' }), {
@@ -108,8 +148,6 @@ serve(async (req) => {
     console.log(`MTN status for ${referenceId}: ${mtnData.status}`, JSON.stringify(mtnData));
 
     // ── Connect to Supabase ───────────────────────────────────────────────
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     // ── Look up our DB record ─────────────────────────────────────────────

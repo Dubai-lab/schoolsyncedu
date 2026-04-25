@@ -1,6 +1,6 @@
 $subscriptionKey = "3a6ab43342654a078155c974ef8f24a1"
 $baseUrl = "https://sandbox.momodeveloper.mtn.com"
-$callbackHost = "sandbox"
+$callbackHost = "zjwgqosyffyisatfgmff.supabase.co"
 
 $userId = [System.Guid]::NewGuid().ToString()
 
