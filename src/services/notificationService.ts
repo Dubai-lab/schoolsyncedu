@@ -245,7 +245,7 @@ export const notificationService = {
   async listForSuperAdmin(limit = 30): Promise<UserNotification[]> {
     const { data, error } = await supabase
       .from('notification_logs')
-      .select('id, event_type, recipient_email, sent_at, metadata, school_id, schools(name)')
+      .select('id, event_type, recipient_email, sent_at, metadata, school_id, is_read, schools(name)')
       .order('sent_at', { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -278,9 +278,27 @@ export const notificationService = {
       title:      titleMap[row.event_type] ?? row.event_type?.replace(/_/g, ' ') ?? 'Notification',
       body:       `${row.schools?.name ?? row.recipient_email} · ${row.recipient_email}`,
       action_url: '/admin/schools',
-      is_read:    false,
+      is_read:    row.is_read ?? false,
       created_at: row.sent_at,
     })) as UserNotification[];
+  },
+
+  /** Mark a single notification_logs entry as read (super admin) */
+  async markReadSuperAdmin(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('notification_logs')
+      .update({ is_read: true })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Mark all notification_logs entries as read (super admin) */
+  async markAllReadForSuperAdmin(): Promise<void> {
+    const { error } = await supabase
+      .from('notification_logs')
+      .update({ is_read: true })
+      .eq('is_read', false);
+    if (error) throw error;
   },
 };
 

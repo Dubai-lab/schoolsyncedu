@@ -82,7 +82,7 @@ export default function NotificationBell() {
         // Super admin reads platform-wide notification_logs
         const list = await notificationService.listForSuperAdmin();
         setNotifications(list);
-        setUnreadCount(list.length); // all treated as unread (no per-user tracking)
+        setUnreadCount(list.filter((n) => !n.is_read).length);
       } else {
         const [list, count] = await Promise.all([
           notificationService.list(userId),
@@ -130,7 +130,11 @@ export default function NotificationBell() {
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleClick = async (notif: UserNotification) => {
     if (!notif.is_read) {
-      await notificationService.markRead(notif.id);
+      if (isSuperAdmin) {
+        await notificationService.markReadSuperAdmin(notif.id);
+      } else {
+        await notificationService.markRead(notif.id);
+      }
       setNotifications((prev) =>
         prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)),
       );
@@ -143,7 +147,11 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    if (!isSuperAdmin) await notificationService.markAllRead(userId);
+    if (isSuperAdmin) {
+      await notificationService.markAllReadForSuperAdmin();
+    } else {
+      await notificationService.markAllRead(userId);
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
