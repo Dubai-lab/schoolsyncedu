@@ -457,7 +457,7 @@ export default function TranscriptPage() {
   const [selectedId, setSelectedId] = useState('');
   const [scope, setScope]           = useState<ScopeType>('full');
   const [filterYear, setFilterYear] = useState('');
-  const [filterTerm, setFilterTerm] = useState('');
+  const [filterTerm, setFilterTerm] = useState(TERM_OPTIONS[0]?.value ?? 'p1');
 
   // ── If the current user is a student, load their own record and auto-select ──
   const { data: myStudentProfile } = useFetch(
@@ -675,7 +675,7 @@ export default function TranscriptPage() {
                               : 'border-slate-200 text-slate-600 hover:border-primary-300'
                           }`}
                         >
-                          {s === 'full' ? 'Full Transcript' : s === 'year' ? 'Single Year' : 'Single Term'}
+                          {s === 'full' ? 'Full Transcript' : s === 'year' ? 'Single Year' : 'Single Period'}
                         </button>
                       ))}
                     </div>
@@ -693,10 +693,10 @@ export default function TranscriptPage() {
                         {scope === 'term' && (
                           <div className="w-48">
                             <Select
-                              label="Term"
-                              options={[{ value: '', label: 'Select term' }, ...TERM_OPTIONS]}
+                              label="Period"
+                              options={TERM_OPTIONS}
                               value={filterTerm}
-                              onChange={(e) => setFilterTerm(e.target.value)}
+                              onChange={(e) => setFilterTerm(e.target.value as typeof filterTerm)}
                             />
                           </div>
                         )}
