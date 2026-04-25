@@ -34,12 +34,18 @@ export default function StudentProfile() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const handlePhotoUpload = async (file: File) => {
+    // Show local preview instantly so the student sees feedback right away
+    const localUrl = URL.createObjectURL(file);
+    setPhotoPreview(localUrl);
     setPhotoUploading(true);
     try {
-      const url = await studentPortalService.updateMyPhotoUrl(file, schoolId);
-      setPhotoPreview(url);
+      await studentPortalService.updateMyPhotoUrl(file, schoolId);
       notify.success('Profile photo updated');
+      // Sync the DB copy so the URL is durable across page loads
+      await refetch();
     } catch {
+      // Revert preview on failure
+      setPhotoPreview(null);
       notify.error('Failed to upload photo. Please try again.');
     } finally {
       setPhotoUploading(false);
@@ -76,7 +82,7 @@ export default function StudentProfile() {
     }
   };
 
-  const { data: student, isLoading } = useFetch(
+  const { data: student, isLoading, refetch } = useFetch(
     ['my-profile', schoolId, userId],
     () => studentPortalService.getMyProfile(schoolId, userId),
     { enabled: !!schoolId && !!userId },
