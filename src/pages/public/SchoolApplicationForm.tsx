@@ -195,6 +195,7 @@ export default function SchoolApplicationForm() {
     guardianOccupation: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
+    emergencyContactRelationship: '',
   });
 
   // School classes for the grade/class picker
@@ -352,6 +353,7 @@ export default function SchoolApplicationForm() {
         guardianOccupation: form.guardianOccupation || undefined,
         emergencyContactName: form.emergencyContactName || undefined,
         emergencyContactPhone: form.emergencyContactPhone || undefined,
+        emergencyContactRelationship: form.emergencyContactRelationship || undefined,
         documents: Object.keys(documentUrls).length > 0 ? documentUrls as unknown as Array<{ type: string; file_url: string; uploaded_at: string }> : undefined,
       });
       setResult({ application_number: res.application_number, application_fee: res.application_fee, application_id: res.application_id });
@@ -958,6 +960,19 @@ export default function SchoolApplicationForm() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="+231 XXX XXX XXXX"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                  <select
+                    value={form.emergencyContactRelationship}
+                    onChange={(e) => updateField('emergencyContactRelationship', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">Select relationship</option>
+                    {RELATIONSHIPS.map((r) => (
+                      <option key={r} value={r.toLowerCase()}>{r}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

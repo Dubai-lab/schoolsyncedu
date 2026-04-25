@@ -140,7 +140,7 @@ export default function StudentProfile() {
                 <InfoRow
                   icon={Calendar}
                   label="Admission Date"
-                  value={student.admission_date ? new Date(student.admission_date as string).toLocaleDateString() : undefined}
+                  value={student.enrollment_date ? new Date(student.enrollment_date as string).toLocaleDateString() : undefined}
                 />
                 <InfoRow
                   icon={Hash}

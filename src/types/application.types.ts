@@ -51,6 +51,7 @@ export interface StudentApplication extends SchoolScopedEntity {
   additional_notes: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
+  emergency_contact_relationship: string | null;
   updated_at: Timestamp;
 }
 
@@ -93,6 +94,7 @@ export interface SubmitApplicationForm {
   guardianOccupation?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  emergencyContactRelationship?: string;
   documents?: ApplicationDocument[];
 }
 

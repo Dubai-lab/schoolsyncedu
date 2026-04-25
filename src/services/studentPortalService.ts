@@ -10,12 +10,22 @@ export const studentPortalService = {
   async getMyProfile(schoolId: UUID, userId: UUID) {
     const { data, error } = await supabase
       .from('students')
-      .select('*, guardians(*), classes:current_class_id(id, name, grade_level, section)')
+      .select('*, guardians(*), classes:current_class_id(id, name, grade_level, section), student_enrollments(academic_year, enrollment_date, status)')
       .eq('school_id', schoolId)
       .eq('user_id', userId)
       .single();
     if (error) throw error;
-    return data;
+
+    // Derive current_academic_year from the most recent enrollment if not stored directly
+    const enrollments = (data as Record<string, unknown>)?.student_enrollments as Array<{ academic_year: string; status: string }> | null;
+    const latestEnrollment = enrollments?.sort((a, b) =>
+      (b.academic_year ?? '').localeCompare(a.academic_year ?? '')
+    )[0];
+
+    return {
+      ...data,
+      current_academic_year: (data as Record<string, unknown>).current_academic_year ?? latestEnrollment?.academic_year ?? null,
+    };
   },
 
   /** Get my current class info */

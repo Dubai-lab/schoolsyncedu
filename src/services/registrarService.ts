@@ -563,6 +563,7 @@ export const publicApplicationService = {
     guardianOccupation?: string;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
+    emergencyContactRelationship?: string;
     documents?: Array<{ type: string; file_url: string; uploaded_at: string }>;
     classId?: string;
   }) {
@@ -602,6 +603,7 @@ export const publicApplicationService = {
       p_emergency_contact_phone: params.emergencyContactPhone ?? null,
       p_documents: (params.documents ?? []) as unknown,
       p_class_id: params.classId ?? null,
+      p_emergency_contact_relationship: params.emergencyContactRelationship ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     if (error) throw error;
