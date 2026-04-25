@@ -201,6 +201,17 @@ export default function SchoolApplicationForm() {
   // School classes for the grade/class picker
   const [schoolClasses, setSchoolClasses] = useState<{ id: string; name: string; grade_level: string | null; section: string | null }[]>([]);
 
+  // Passport photo (required — stored as student.photo_url)
+  const [passportPhoto, setPassportPhoto] = useState<File | null>(null);
+  const [passportPhotoPreview, setPassportPhotoPreview] = useState<string | null>(null);
+
+  const handlePassportPhoto = (file: File) => {
+    setPassportPhoto(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setPassportPhotoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
   // Document uploads
   const [documents, setDocuments] = useState<{ name: string; file: File; label: string }[]>([]);
   const [uploadingDocs, setUploadingDocs] = useState(false);
@@ -208,7 +219,6 @@ export default function SchoolApplicationForm() {
   const REQUIRED_DOCS = [
     { key: 'birth_certificate', label: 'Birth Certificate' },
     { key: 'report_card', label: 'Previous School Report Card / Transcript' },
-    { key: 'passport_photo', label: 'Passport Photo' },
     { key: 'transfer_cert', label: 'Transfer Certificate (if applicable)' },
     { key: 'immunization', label: 'Immunization Records' },
   ];
@@ -284,6 +294,9 @@ export default function SchoolApplicationForm() {
       if (!form.guardianFullName.trim()) return 'Guardian name is required';
       if (!form.guardianPhone.trim()) return 'Guardian phone is required';
     }
+    if (s === 'documents') {
+      if (!passportPhoto) return 'A passport-size photo is required';
+    }
     return null;
   };
 
@@ -306,17 +319,34 @@ export default function SchoolApplicationForm() {
 
   const handleSubmit = async () => {
     if (!school) return;
-    const studentErr = validateStep('student');
-    const guardianErr = validateStep('guardian');
-    if (studentErr || guardianErr) {
-      setError(studentErr || guardianErr || 'Please fill in all required fields');
+    const studentErr   = validateStep('student');
+    const guardianErr  = validateStep('guardian');
+    const documentsErr = validateStep('documents');
+    if (studentErr || guardianErr || documentsErr) {
+      setError(studentErr || guardianErr || documentsErr || 'Please fill in all required fields');
       return;
     }
 
     setSubmitting(true);
     setError('');
     try {
-      // Upload documents to Supabase storage if any
+      // Upload passport photo first (required)
+      let photoUrl: string | undefined;
+      if (passportPhoto) {
+        setUploadingDocs(true);
+        const ext  = passportPhoto.name.split('.').pop();
+        const path = `student-photos/${school.id}/${Date.now()}_passport.${ext}`;
+        const { error: photoErr } = await supabase.storage
+          .from('documents')
+          .upload(path, passportPhoto, { contentType: passportPhoto.type });
+        if (!photoErr) {
+          const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+          photoUrl = urlData.publicUrl;
+        }
+        setUploadingDocs(false);
+      }
+
+      // Upload other documents
       const documentUrls: Record<string, string> = {};
       if (documents.length > 0) {
         setUploadingDocs(true);
@@ -355,6 +385,7 @@ export default function SchoolApplicationForm() {
         emergencyContactPhone: form.emergencyContactPhone || undefined,
         emergencyContactRelationship: form.emergencyContactRelationship || undefined,
         documents: Object.keys(documentUrls).length > 0 ? documentUrls as unknown as Array<{ type: string; file_url: string; uploaded_at: string }> : undefined,
+        photoUrl,
       });
       setResult({ application_number: res.application_number, application_fee: res.application_fee, application_id: res.application_id });
       setSubmitted(true);
@@ -982,11 +1013,59 @@ export default function SchoolApplicationForm() {
           {step === 'documents' && (
             <div className="space-y-5">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <FileText className="h-5 w-5" style={{ color: primary }} /> Required Documents
+                <FileText className="h-5 w-5" style={{ color: primary }} /> Photo &amp; Documents
               </h2>
-              <p className="text-sm text-gray-500">
-                Upload documents now, or bring physical copies to the school upon acceptance. Accepted formats: images and PDFs.
-              </p>
+
+              {/* ── Passport Photo (required) ── */}
+              <div className={`rounded-xl border-2 p-5 ${passportPhoto ? 'border-green-400 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+                <p className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
+                  <User className="h-4 w-4 text-red-500" />
+                  Passport-Size Photo <span className="text-red-500">*</span>
+                </p>
+                <p className="text-xs text-gray-500 mb-3">A clear, recent passport-sized photo of the student. This will be used as their official profile picture and ID card photo.</p>
+                <div className="flex items-center gap-4">
+                  {/* Preview */}
+                  <div className="h-24 w-20 rounded-lg border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                    {passportPhotoPreview
+                      ? <img src={passportPhotoPreview} alt="Passport photo preview" className="h-full w-full object-cover" />
+                      : <User className="h-8 w-8 text-gray-300" />
+                    }
+                  </div>
+                  <div className="space-y-2">
+                    <label className="cursor-pointer inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                      <Upload className="h-4 w-4" />
+                      {passportPhoto ? 'Change Photo' : 'Upload Photo'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePassportPhoto(file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {passportPhoto && (
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                        <span className="text-xs text-green-700 font-medium">{passportPhoto.name}</span>
+                        <button type="button" onClick={() => { setPassportPhoto(null); setPassportPhotoPreview(null); }} className="text-red-400 hover:text-red-600 ml-1">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    {!passportPhoto && (
+                      <p className="text-xs text-red-600 font-medium">Required — please upload a photo before continuing.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Other documents (optional) ── */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Supporting Documents <span className="text-gray-400 font-normal">(optional)</span></p>
+                <p className="text-xs text-gray-500 mb-3">You may upload these now or bring physical copies to the school. Accepted formats: images and PDFs.</p>
               <div className="space-y-3">
                 {REQUIRED_DOCS.map((doc) => {
                   const uploaded = documents.find((d) => d.label === doc.label);
@@ -1032,9 +1111,7 @@ export default function SchoolApplicationForm() {
                   );
                 })}
               </div>
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
-                <AlertCircle className="inline h-3.5 w-3.5 mr-1" />
-                Document upload is optional. You can proceed without uploading and bring physical copies to the school.
+              </div>
               </div>
             </div>
           )}
@@ -1053,6 +1130,18 @@ export default function SchoolApplicationForm() {
                   <h3 className="text-xs font-semibold uppercase text-gray-400 mb-3 flex items-center gap-1">
                     <User className="h-3.5 w-3.5" /> Student Information
                   </h3>
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="h-16 w-14 rounded-lg border border-gray-200 overflow-hidden bg-gray-100 shrink-0">
+                      {passportPhotoPreview
+                        ? <img src={passportPhotoPreview} alt="Passport photo" className="h-full w-full object-cover" />
+                        : <User className="h-full w-full text-gray-300 p-2" />
+                      }
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{form.firstName} {form.lastName}</p>
+                      <p className="text-xs text-gray-400">{form.gradeLevel}</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-y-2 text-sm">
                     <span className="text-gray-500">Name</span>
                     <span className="font-medium text-gray-900">{form.firstName} {form.lastName}</span>

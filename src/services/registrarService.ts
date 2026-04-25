@@ -616,6 +616,7 @@ export const publicApplicationService = {
     emergencyContactRelationship?: string;
     documents?: Array<{ type: string; file_url: string; uploaded_at: string }>;
     classId?: string;
+    photoUrl?: string;
   }) {
     // Use the public client import for anon RPC calls
     const { createClient } = await import('@supabase/supabase-js');
@@ -654,6 +655,7 @@ export const publicApplicationService = {
       p_documents: (params.documents ?? []) as unknown,
       p_class_id: params.classId ?? null,
       p_emergency_contact_relationship: params.emergencyContactRelationship ?? null,
+      p_photo_url: params.photoUrl ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     if (error) throw error;
