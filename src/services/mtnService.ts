@@ -23,6 +23,7 @@ export interface MtnStatusResponse {
   activated:      boolean;
   invoice_number: string | null;
   reason:         { code: string; message: string } | null;
+  debug?:         { mtn_raw: unknown };
 }
 
 /** Initiate an MTN MoMo payment request */

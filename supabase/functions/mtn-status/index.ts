@@ -105,7 +105,7 @@ serve(async (req) => {
     }
 
     const mtnData = await statusRes.json() as MtnStatusResponse;
-    console.log(`MTN status for ${referenceId}: ${mtnData.status}`);
+    console.log(`MTN status for ${referenceId}: ${mtnData.status}`, JSON.stringify(mtnData));
 
     // ── Connect to Supabase ───────────────────────────────────────────────
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -173,6 +173,7 @@ serve(async (req) => {
         activated:      mtnData.status === 'SUCCESSFUL' ? (payReq?.activated || !!invoiceNumber) : false,
         invoice_number: invoiceNumber,
         reason:         mtnData.reason ?? null,
+        debug:          { mtn_raw: mtnData },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

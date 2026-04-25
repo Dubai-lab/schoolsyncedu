@@ -112,15 +112,21 @@ export default function SubscriptionManagement() {
       attempts++;
       try {
         const result = await mtnGetStatus(refId);
+        console.log('[MTN status]', result);
         setMtnPollStatus(result.status);
         if (result.status === 'SUCCESSFUL') {
           stopMtnPolling();
           setMtnSuccess(true);
           notify.success('Payment successful! Your subscription has been activated.');
-          void subId; // subscription already activated by edge function
+          void subId;
         } else if (result.status === 'FAILED') {
           stopMtnPolling();
-          setMtnError(result.reason?.message ?? 'Payment declined. Please try again.');
+          const reasonCode = result.reason?.code ?? '';
+          const reasonMsg  = result.reason?.message ?? '';
+          const display = reasonCode
+            ? `Payment failed: ${reasonCode}${reasonMsg ? ' — ' + reasonMsg : ''}`
+            : 'Payment declined by MTN. Please try again.';
+          setMtnError(display);
           setMtnReferenceId('');
         } else if (attempts >= 60) {
           stopMtnPolling();
