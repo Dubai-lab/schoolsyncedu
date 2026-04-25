@@ -8,7 +8,6 @@ import { discountService } from '@/services/adminService';
 import { mtnInitiatePayment, mtnGetStatus } from '@/services/mtnService';
 import type { Discount } from '@/types/report.types';
 import {
-  CreditCard,
   CheckCircle2,
   Shield,
   Loader2,
