@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DLS Football Hub — Live</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh;padding-bottom:40px}
+
+/* ── Header ── */
+.header{background:linear-gradient(135deg,#0f1923,#0d1117);border-bottom:3px solid #00c853;padding:18px 16px 14px;text-align:center;position:relative}
+.header h1{font-size:1.7rem;font-weight:800;color:#e6edf3;letter-spacing:3px;text-transform:uppercase}
+.header h1 span{color:#00c853}
+.live-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px}
+.live-badge{background:#dc3545;color:#fff;font-size:.65rem;font-weight:800;padding:3px 8px;border-radius:12px;letter-spacing:2px;text-transform:uppercase;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+.last-updated{font-size:.75rem;color:#8b949e}
+.refresh-btn{background:none;border:1px solid #30363d;border-radius:6px;padding:4px 10px;color:#8b949e;font-size:.75rem;cursor:pointer;transition:all .2s}
+.refresh-btn:hover{border-color:#00c853;color:#00c853}
+
+/* ── Competition Selector Dropdown ── */
+.comp-wrap{position:relative;background:#161b22;border-bottom:1px solid #21262d}
+.comp-trigger{width:100%;padding:14px 20px;background:none;border:none;color:#e6edf3;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;transition:background .2s}
+.comp-trigger:hover{background:rgba(255,255,255,.03)}
+.ct-icon{font-size:1.2rem;flex-shrink:0}
+.ct-name{font-size:.92rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;flex:1}
+.ct-sub{font-size:.68rem;color:#8b949e;letter-spacing:1px;text-transform:uppercase}
+.ct-arrow{font-size:.7rem;color:#8b949e;transition:transform .25s;flex-shrink:0}
+.ct-arrow.open{transform:rotate(180deg)}
+.comp-dropdown{display:none;position:absolute;top:100%;left:0;right:0;background:#161b22;border:1px solid #21262d;border-top:none;z-index:200;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.comp-dropdown.show{display:block}
+.comp-opt{padding:13px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s;border-bottom:1px solid #21262d}
+.comp-opt:last-child{border-bottom:none}
+.comp-opt:hover{background:rgba(255,255,255,.04)}
+.comp-opt.active{background:rgba(255,255,255,.03)}
+.co-icon{font-size:1.1rem;flex-shrink:0}
+.co-name{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.co-sub{font-size:.68rem;color:#8b949e;margin-top:2px}
+/* content area */
+.comp-content{padding:16px}
+
+/* ── Section title ── */
+.s-title{font-size:1rem;font-weight:800;color:#e6edf3;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #21262d;display:flex;align-items:center;gap:8px}
+.s-badge{font-size:.65rem;background:#21262d;border-radius:10px;padding:3px 9px;color:#8b949e;font-weight:600;letter-spacing:1px}
+
+/* ── No data card ── */
+.no-data{background:#161b22;border:1px dashed #30363d;border-radius:10px;padding:32px;text-align:center;color:#8b949e;margin:20px 0}
+.no-data .nd-icon{font-size:2.5rem;margin-bottom:10px}
+.no-data p{font-size:.85rem;line-height:1.6}
+
+/* ── Progress bar ── */
+.prog-wrap{margin-bottom:16px}
+.prog-bar{background:#21262d;border-radius:4px;height:5px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#00c853,#00e676);border-radius:4px}
+.prog-txt{font-size:.7rem;color:#8b949e;margin-top:4px;text-align:right}
+
+/* ── Matchday header ── */
+.md-header{background:linear-gradient(135deg,#0f2027,#161b22);border:1px solid #21262d;border-radius:10px;padding:13px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.md-label{font-size:1rem;font-weight:800;color:#e6edf3}
+.md-sub{font-size:.75rem;color:#8b949e;margin-top:3px}
+.md-count{font-size:.78rem;color:#8b949e;text-align:right}
+.md-count strong{color:#00c853}
+
+/* ── Fixture cards ── */
+.fixtures-list{display:flex;flex-direction:column;gap:7px;margin-bottom:20px}
+.fix-card{background:#161b22;border:1px solid #21262d;border-radius:9px;padding:11px 14px;display:flex;align-items:center;gap:8px}
+.fix-card.played{border-color:rgba(0,200,83,.3)}
+.fix-card.pending{border-color:#21262d}
+.fix-team{flex:1;font-size:.88rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fix-team.home{text-align:right}
+.fix-team.away{text-align:left}
+.fix-team.winner{color:#4ade80}
+.fix-team.loser{color:#f87171}
+.fix-score{font-size:1rem;font-weight:800;color:#00c853;min-width:52px;text-align:center;flex-shrink:0}
+.fix-vs{font-size:.78rem;color:#8b949e;min-width:24px;text-align:center;flex-shrink:0}
+.bye-fix{background:#161b22;border:1px dashed #21262d;border-radius:9px;padding:9px 14px;text-align:center;font-size:.78rem;color:#4a5568;font-style:italic}
+
+/* ── League Table ── */
+.table-wrap{overflow-x:auto;margin-bottom:24px}
+.lg-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:380px}
+.lg-table th{background:#0d1117;color:#8b949e;padding:8px 6px;text-align:center;font-size:.68rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #21262d;white-space:nowrap}
+.lg-table th:nth-child(2){text-align:left;padding-left:8px}
+.lg-table td{padding:8px 6px;text-align:center;border-bottom:1px solid #161b22}
+.lg-table td:nth-child(2){text-align:left;padding-left:8px;font-weight:700;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lg-table tr:hover td{background:rgba(255,255,255,.025)}
+.pos-num{font-weight:700;color:#8b949e;font-size:.75rem}
+.pts{font-weight:800;color:#00c853}
+.gd-p{color:#4ade80}
+.gd-n{color:#f87171}
+.rank1 td:first-child{border-left:3px solid #FFD700}
+.ranktop td:first-child{border-left:3px solid #00c853}
+.rankbot td:first-child{border-left:3px solid #dc3545}
+
+/* Form */
+.form-row{display:flex;gap:2px;justify-content:center}
+.fb{width:16px;height:16px;border-radius:2px;font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+.fb-w{background:#28a745;color:#fff}
+.fb-d{background:#6c757d;color:#fff}
+.fb-l{background:#dc3545;color:#fff}
+
+/* Legend */
+.tbl-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:.68rem;color:#8b949e}
+.leg-line{width:3px;height:12px;border-radius:2px}
+
+/* ── CL Group tables ── */
+.groups-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.grp-card{background:#161b22;border:1px solid #21262d;border-radius:10px;overflow:hidden}
+.grp-head{background:#FFD700;color:#0d1117;padding:8px 12px;font-weight:800;font-size:.88rem;letter-spacing:2px}
+.grp-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.grp-table th{background:#0d1117;color:#8b949e;padding:6px 5px;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #21262d}
+.grp-table th:first-child{text-align:left;padding-left:8px}
+.grp-table td{padding:6px 5px;text-align:center;border-bottom:1px solid #1a1f27}
+.grp-table td:first-child{text-align:left;padding-left:8px;font-weight:600;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grp-table tr:last-child td{border-bottom:none}
+.grp-table tr.q-row td:first-child{border-left:3px solid #28a745}
+.grp-table tr.e-row td:first-child{border-left:3px solid #dc3545}
+.g-pts{font-weight:800;color:#FFD700}
+
+/* ── CL Knockout ── */
+.ko-round{margin-bottom:18px}
+.ko-round-title{font-size:.75rem;font-weight:800;color:#8b949e;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;padding:5px 0;border-bottom:1px solid #21262d}
+.ko-matches{display:flex;flex-direction:column;gap:6px}
+.ko-card{background:#161b22;border:1px solid #21262d;border-radius:8px;overflow:hidden}
+.ko-team{padding:9px 12px;display:flex;align-items:center;justify-content:space-between;min-height:38px;border-bottom:1px solid #21262d}
+.ko-team:last-child{border-bottom:none}
+.ko-team.tbd{color:#4a5568;font-style:italic}
+.ko-team.winner{background:rgba(40,167,69,.1)}
+.ko-team.winner .ko-name{color:#4ade80;font-weight:800}
+.ko-name{font-size:.85rem;font-weight:600;flex:1}
+.ko-sc{font-size:1rem;font-weight:800;color:#FFD700}
+
+/* Champion banner */
+.champ-banner{background:linear-gradient(135deg,#1a2d1a,#0f2027);border:2px solid #FFD700;border-radius:12px;padding:20px;text-align:center;margin-bottom:16px}
+.champ-trophy{font-size:3rem;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.champ-name{font-size:1.5rem;font-weight:800;color:#FFD700;letter-spacing:2px;text-transform:uppercase;margin-top:8px}
+.champ-lbl{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;margin-top:4px}
+
+/* Stats mini row */
+.mini-stats{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.mini-stat{flex:1;min-width:70px;background:#161b22;border:1px solid #21262d;border-radius:7px;padding:10px 8px;text-align:center}
+.mini-val{font-size:1.3rem;font-weight:800;color:#00c853}
+.mini-lbl{font-size:.62rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* CL mini stats */
+.cl-mini-val{color:#FFD700}
+
+/* ── Bracket (viewer, read-only mirror of admin) ── */
+.bracket-scroll{overflow-x:auto;padding-bottom:20px}
+.bracket-labels{display:flex;align-items:center;margin-bottom:10px;min-width:860px}
+.bl-spacer{flex-shrink:0}
+.bl-label{text-align:center;font-size:.7rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;font-weight:700;padding:6px 0}
+.bracket{display:flex;align-items:stretch;min-width:860px;height:600px}
+.r-col{display:flex;flex-direction:column;justify-content:space-around;flex-shrink:0}
+.r-col.qf-col{width:210px}
+.r-col.sf-col{width:210px}
+.r-col.final-col{width:210px;justify-content:center}
+.r-col.champ-col{width:170px;justify-content:center}
+.c-col{display:flex;flex-direction:column;flex-shrink:0;width:40px}
+.c-half{flex:1;display:flex;flex-direction:column}
+.c-top{flex:1;border-right:2px solid #30363d;border-bottom:2px solid #30363d;border-bottom-right-radius:5px}
+.c-bot{flex:1;border-right:2px solid #30363d;border-top:2px solid #30363d;border-top-right-radius:5px}
+.c-arrow{width:100%;height:2px;background:#30363d;align-self:center}
+.b-match{background:#161b22;border:1px solid #21262d;border-radius:9px;overflow:hidden;margin:5px 3px;flex-shrink:0}
+.b-team{padding:9px 12px;display:flex;align-items:center;justify-content:space-between;min-height:40px;border-bottom:1px solid #21262d}
+.b-team:last-of-type{border-bottom:none}
+.b-team.tbd{color:#4a5568;font-style:italic}
+.b-team.winner{background:rgba(40,167,69,.12)}
+.b-team.winner .b-name{color:#4ade80;font-weight:800}
+.b-name{font-size:.85rem;font-weight:600;flex:1}
+.b-score{font-size:1rem;font-weight:800;color:#FFD700;min-width:20px;text-align:right}
+.b-champ-card{background:linear-gradient(135deg,#1a2332,#21262d);border:2px solid #30363d;border-radius:12px;padding:18px 12px;text-align:center;opacity:.4}
+.b-champ-card.show{border-color:#FFD700;opacity:1}
+.b-champ-card.show .champ-trophy{font-size:2.6rem;margin-bottom:7px;display:block}
+.b-champ-card .champ-trophy{font-size:2rem;margin-bottom:7px;display:block;color:#30363d}
+.b-champ-card.show .champ-name{font-size:1rem;font-weight:800;color:#FFD700;letter-spacing:2px;text-transform:uppercase;word-break:break-word}
+.b-champ-card .champ-name{font-size:.75rem;color:#4a5568;text-transform:uppercase;letter-spacing:1px}
+
+/* ── Zone separator lines ── */
+tr.cut-cl td{border-top:2px solid rgba(255,215,0,.35)!important}
+tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
+
+/* ── Deadline banner ── */
+.deadline-bar{display:flex;align-items:center;gap:10px;border-radius:8px;padding:10px 14px;margin-bottom:12px;border:1px solid}
+.deadline-bar.active{background:rgba(0,200,83,.06);border-color:rgba(0,200,83,.25)}
+.deadline-bar.passed{background:rgba(220,53,69,.06);border-color:rgba(220,53,69,.25)}
+.dl-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+.deadline-bar.active .dl-label{color:#00c853}
+.deadline-bar.passed .dl-label{color:#f87171}
+.dl-time{font-size:.85rem;color:#e6edf3;font-weight:600}
+.dl-status{font-size:.72rem;margin-left:auto;padding:3px 10px;border-radius:12px;font-weight:700}
+.deadline-bar.active .dl-status{background:rgba(0,200,83,.15);color:#00c853}
+.deadline-bar.passed .dl-status{background:rgba(220,53,69,.15);color:#f87171}
+
+/* ── Rules modal ── */
+.rules-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.93);z-index:9999;overflow-y:auto;padding:20px 16px;display:none}
+.rules-overlay.show{display:block}
+.rules-box{max-width:640px;margin:0 auto;padding-top:10px}
+.rules-close-btn{display:block;width:100%;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:11px;color:#8b949e;font-size:.85rem;cursor:pointer;margin-bottom:16px;text-align:center;font-weight:700;transition:all .2s}
+.rules-close-btn:hover{border-color:#00c853;color:#00c853}
+.rules-section{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:18px;margin-bottom:12px}
+.rules-section h3{font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #21262d}
+.rules-section ol,.rules-section ul{padding-left:18px}
+.rules-section li{font-size:.82rem;color:#8b949e;line-height:1.8;margin-bottom:2px}
+.rules-section li strong{color:#e6edf3}
+
+/* ── WhatsApp team links ── */
+.wa-link{color:inherit;text-decoration:none;border-bottom:1px dashed rgba(37,211,102,.45);transition:color .2s,border-color .2s}
+.wa-link:hover{color:#25d366;border-bottom-color:#25d366}
+
+/* ── Prize Pool ── */
+.prize-pool{background:linear-gradient(135deg,#1a2d1a,#111827);border:2px solid rgba(255,215,0,.4);border-radius:12px;padding:16px;margin-bottom:16px}
+.pp-title{text-align:center;font-size:.72rem;font-weight:800;color:#FFD700;text-transform:uppercase;letter-spacing:3px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(255,215,0,.2)}
+.pp-rows{display:flex;flex-direction:column;gap:8px}
+.pp-row{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,215,0,.12);border-radius:8px;padding:10px 14px}
+.pp-medal{font-size:1.4rem;flex-shrink:0}
+.pp-info{flex:1}
+.pp-pos{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.pp-prize{font-size:1.05rem;font-weight:800;color:#FFD700;margin-top:1px}
+.pp-coming{text-align:center;padding:10px;font-size:.78rem;color:#4a5568;font-style:italic}
+
+/* ── CL Sub-tabs ── */
+.cl-subtabs{display:flex;background:#0d1117;border-bottom:1px solid #21262d;margin:0 -16px 16px;padding:0 16px}
+.cl-sub-btn{flex:1;padding:10px 8px;background:none;border:none;color:#8b949e;font-size:.78rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid transparent;transition:all .2s}
+.cl-sub-btn.active{color:#FFD700;border-bottom-color:#FFD700;background:rgba(255,215,0,.04)}
+.cl-sub-section{display:none}
+.cl-sub-section.active{display:block}
+
+@media(max-width:480px){
+  .groups-grid{grid-template-columns:1fr}
+  .header h1{font-size:1.3rem;letter-spacing:2px}
+
+  /* ── Mobile table fixes ── */
+  /* Hide Draws column (col 5) — least important stat, frees space */
+  .lg-table th:nth-child(5),
+  .lg-table td:nth-child(5){ display:none }
+
+  /* Shrink form badges so they don't crush the team name */
+  .fb{ width:13px; height:13px; font-size:.55rem }
+  .form-row{ gap:1px }
+
+  /* Give team name more breathing room */
+  .lg-table td:nth-child(2){ max-width:none; width:auto }
+
+  /* Tighten cell padding */
+  .lg-table th, .lg-table td{ padding:7px 4px }
+
+  /* Smaller badge text next to team names */
+  .lg-table td:nth-child(2) span[style]{ font-size:.52rem; padding:1px 3px }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>&#9917; DLS <span>Football</span> Hub</h1>
+  <div class="live-row">
+    <span class="live-badge">&#9679; Live</span>
+    <span class="last-updated" id="last-updated">Loading...</span>
+    <button class="refresh-btn" onclick="refresh()">&#8635; Refresh</button>
+    <button class="refresh-btn" onclick="document.getElementById('rules-overlay').classList.add('show')" style="border-color:#FFD700;color:#FFD700">&#128203; Rules</button>
+  </div>
+</header>
+
+<!-- ═══════ RULES OVERLAY ═══════ -->
+<div id="rules-overlay" class="rules-overlay">
+  <div class="rules-box">
+    <button class="rules-close-btn" onclick="document.getElementById('rules-overlay').classList.remove('show')">&#10005; Close Rules</button>
+
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:2rem">&#9917;</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#e6edf3;letter-spacing:3px;text-transform:uppercase;margin-top:6px">DLS Official Rules</div>
+      <div style="font-size:.75rem;color:#8b949e;margin-top:4px">Read before competing</div>
+    </div>
+
+    <div class="rules-section">
+      <h3 style="color:#00c853">&#9917; League Rules</h3>
+      <ol>
+        <li>All matches are played on <strong>Dream League Soccer (DLS)</strong> using default game settings.</li>
+        <li>Each player represents <strong>one team</strong> for the entire season — no switching.</li>
+        <li>Every matchday has a <strong>24-hour deadline</strong>. Results must be reported to the admin before it expires.</li>
+        <li>If a player misses the deadline <strong>without a valid reason</strong>, the match may be recorded as a 0–0 draw or awarded to the available player at the admin's discretion.</li>
+        <li>Once a score is submitted and confirmed by the admin, it is <strong>final</strong>.</li>
+        <li>Players must use the <strong>exact team name</strong> they registered with.</li>
+      </ol>
+    </div>
+
+    <div class="rules-section">
+      <h3 style="color:#FFD700">&#9201; Postponement Rules</h3>
+      <ol>
+        <li>A match can only be postponed if <strong>both players agree</strong> and notify the admin <strong>before the deadline</strong>.</li>
+        <li>Postponed matches must be played within <strong>48 hours</strong> of the original deadline.</li>
+        <li>Each player is allowed a maximum of <strong>2 postponements</strong> per season.</li>
+        <li>The admin has the final say on whether a postponement is granted.</li>
+      </ol>
+    </div>
+
+    <div class="rules-section">
+      <h3 style="color:#f87171">&#128268; Internet Disconnect Rules</h3>
+      <ol>
+        <li>If a player <strong>disconnects during a match</strong>, the match must be replayed from the beginning.</li>
+        <li>If a player disconnects <strong>3 or more times</strong> in a single match, the opponent may claim a <strong>3–0 win</strong>.</li>
+        <li>Both players must <strong>agree on the final score</strong> before reporting to the admin.</li>
+        <li><strong>Screenshots of the final scoreline are strongly recommended</strong> as proof in case of disputes.</li>
+        <li>Deliberately disconnecting to avoid a loss is considered <strong>cheating</strong> and will result in disqualification.</li>
+      </ol>
+    </div>
+
+    <div class="rules-section">
+      <h3 style="color:#00c853">&#127942; Promotion &amp; Relegation</h3>
+      <ol>
+        <li>At the end of the season, the <strong>top 8 players</strong> from Division 1 qualify for the <strong>Champions League</strong>.</li>
+        <li>The <strong>bottom 3 players</strong> from Division 1 are <strong>relegated</strong> to Division 2.</li>
+        <li>Promotion and relegation are determined by <strong>final league table position</strong> (Points → Goal Difference → Goals Scored).</li>
+        <li>In the event of a tie on all criteria, a <strong>playoff match</strong> may be arranged at the admin's discretion.</li>
+      </ol>
+    </div>
+
+    <div class="rules-section">
+      <h3 style="color:#8b949e">&#9878; Fair Play</h3>
+      <ol>
+        <li>Any form of <strong>cheating, score manipulation, or unsportsmanlike conduct</strong> will result in immediate disqualification.</li>
+        <li>Treat all opponents with respect — harassment of any kind will not be tolerated.</li>
+        <li><strong>The admin's decision is final</strong> in all disputes.</li>
+      </ol>
+    </div>
+
+    <button class="rules-close-btn" onclick="document.getElementById('rules-overlay').classList.remove('show')">&#10005; Close Rules</button>
+  </div>
+</div>
+
+<!-- ═══════ COMPETITION DROPDOWN ═══════ -->
+<div class="comp-wrap">
+  <button class="comp-trigger" onclick="toggleDropdown()">
+    <span class="ct-icon" id="ct-icon">&#9917;</span>
+    <span class="ct-name" id="ct-name" style="color:#00c853">DLS League</span>
+    <span class="ct-sub" id="ct-sub">Division 1</span>
+    <span class="ct-arrow" id="ct-arrow">&#9660;</span>
+  </button>
+  <div class="comp-dropdown" id="comp-dropdown">
+    <div class="comp-opt active" id="opt-league1" onclick="selectComp('league1')">
+      <span class="co-icon">&#9917;</span>
+      <div><div class="co-name" style="color:#00c853">DLS League</div><div class="co-sub">Division 1</div></div>
+    </div>
+    <div class="comp-opt" id="opt-league2" onclick="selectComp('league2')">
+      <span class="co-icon">&#9917;</span>
+      <div><div class="co-name" style="color:#4fc3f7">DLS League 2</div><div class="co-sub">Division 2</div></div>
+    </div>
+    <div class="comp-opt" id="opt-league3" onclick="selectComp('league3')">
+      <span class="co-icon">&#9917;</span>
+      <div><div class="co-name" style="color:#ab47bc">DLS League 3</div><div class="co-sub">Division 3</div></div>
+    </div>
+    <div class="comp-opt" id="opt-cl" onclick="selectComp('cl')">
+      <span class="co-icon">&#127942;</span>
+      <div><div class="co-name" style="color:#FFD700">Champions League</div><div class="co-sub">Div 1 &amp; 2 — Top 8 each</div></div>
+    </div>
+    <div class="comp-opt" id="opt-europa" onclick="selectComp('europa')">
+      <span class="co-icon">&#11088;</span>
+      <div><div class="co-name" style="color:#ff7043">Europa League</div><div class="co-sub">Division 3 — Top 16</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CONTENT AREA ═══════ -->
+<div class="comp-content" id="comp-content"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  FIREBASE CONFIG — must match the URL in tournament.html and league.html
+const FIREBASE_URL = 'https://dls-hub-62226-default-rtdb.firebaseio.com';
+// ═══════════════════════════════════════════
+
+let leaguePub  = null;
+let league2Pub = null;
+let league3Pub = null;
+let clPub      = null;
+let europaPub  = null;
+let prizePub   = null;
+
+// ── Competition selector ──
+let currentComp = 'league1';
+const COMP_CFG = {
+  league1:{ icon:'&#9917;', name:'DLS League',       sub:'Division 1',          accent:'#00c853' },
+  league2:{ icon:'&#9917;', name:'DLS League 2',      sub:'Division 2',          accent:'#4fc3f7' },
+  league3:{ icon:'&#9917;', name:'DLS League 3',      sub:'Division 3',          accent:'#ab47bc' },
+  cl:     { icon:'&#127942;',name:'Champions League', sub:'Div 1 &amp; 2 Top 8', accent:'#FFD700' },
+  europa: { icon:'&#11088;', name:'Europa League',    sub:'Division 3 Top 16',   accent:'#ff7043' },
+};
+
+function toggleDropdown(){
+  document.getElementById('comp-dropdown').classList.toggle('show');
+  document.getElementById('ct-arrow').classList.toggle('open');
+}
+
+function selectComp(id){
+  currentComp = id;
+  const c = COMP_CFG[id];
+  document.getElementById('ct-icon').innerHTML = c.icon;
+  document.getElementById('ct-name').innerHTML = c.name;
+  document.getElementById('ct-name').style.color = c.accent;
+  document.getElementById('ct-sub').innerHTML = c.sub;
+  document.getElementById('comp-dropdown').classList.remove('show');
+  document.getElementById('ct-arrow').classList.remove('open');
+  document.querySelectorAll('.comp-opt').forEach(o=>o.classList.remove('active'));
+  document.getElementById('opt-'+id).classList.add('active');
+  renderCurrentComp();
+}
+
+function renderCurrentComp(){
+  switch(currentComp){
+    case 'league1': renderLeague(leaguePub,  'DLS League',       '#00c853'); break;
+    case 'league2': renderLeague(league2Pub, 'DLS League 2',     '#4fc3f7'); break;
+    case 'league3': renderLeague(league3Pub, 'DLS League 3',     '#ab47bc'); break;
+    case 'cl':      renderCL(clPub,     'Champions League'); break;
+    case 'europa':  renderCL(europaPub, 'Europa League');    break;
+  }
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e=>{
+  const wrap = document.querySelector('.comp-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    document.getElementById('comp-dropdown').classList.remove('show');
+    document.getElementById('ct-arrow').classList.remove('open');
+  }
+});
+
+// ── Load from Firebase ──
+async function loadData(){
+  if(!FIREBASE_URL || FIREBASE_URL === 'YOUR_FIREBASE_URL') return;
+  try {
+    const paths = [
+      ['/dls_pub_league.json',  d=>{ leaguePub  = d; }],
+      ['/dls_pub_league2.json', d=>{ league2Pub = d; }],
+      ['/dls_pub_league3.json', d=>{ league3Pub = d; }],
+      ['/dls_pub_cl.json',      d=>{ clPub      = d; }],
+      ['/dls_pub_europa.json',  d=>{ europaPub  = d; }],
+      ['/dls_pub_prizes.json',  d=>{ prizePub   = d; }],
+    ];
+    await Promise.all(paths.map(([path, set])=>
+      fetch(FIREBASE_URL+path).then(r=>r.ok?r.json():null).then(set).catch(()=>{})
+    ));
+  } catch(e) {}
+}
+
+// ── Time ago ──
+function timeAgo(ts){
+  if(!ts) return 'never';
+  const secs = Math.floor((Date.now()-ts)/1000);
+  if(secs < 60) return 'just now';
+  if(secs < 3600) return Math.floor(secs/60)+'m ago';
+  if(secs < 86400) return Math.floor(secs/3600)+'h ago';
+  return Math.floor(secs/86400)+'d ago';
+}
+
+function updateTimestamp(){
+  const times = [leaguePub,league2Pub,league3Pub,clPub,europaPub]
+    .map(p=>p?p.publishedAt:0);
+  const latest = Math.max(...times);
+  document.getElementById('last-updated').textContent = 'Updated ' + timeAgo(latest);
+}
+
+// ── Prize Pool ──
+const COMP_PRIZE_KEY = { league1:'lg1', league2:'lg2', league3:'lg3', cl:'cl', europa:'eu' };
+const COMP_PRIZE_LABEL = {
+  league1:'DLS League', league2:'DLS League 2', league3:'DLS League 3',
+  cl:'Champions League', europa:'Europa League'
+};
+function getPrizePoolHTML(){
+  const key = COMP_PRIZE_KEY[currentComp];
+  const items = prizePub && prizePub[key];
+  if(!items || !items.length) return '';
+  const label = COMP_PRIZE_LABEL[currentComp];
+  const rows = items.map(p=>`
+    <div class="pp-row">
+      <span class="pp-medal">${p.medal}</span>
+      <div class="pp-info">
+        <div class="pp-pos">${esc(p.rank)}</div>
+        <div class="pp-prize">${esc(p.amount)}</div>
+      </div>
+    </div>`).join('');
+  return `<div class="prize-pool">
+    <div class="pp-title">&#128176; ${esc(label)} &mdash; Prize Pool &#127942;</div>
+    <div class="pp-rows">${rows}</div>
+  </div>`;
+}
+
+// ── Escape HTML ──
+function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
+
+// ── WhatsApp team link ──
+// If a phone number exists for this team, wraps the name in a wa.me link
+function teamLink(name, phones){
+  if(!name) return '';
+  const escaped = esc(name);
+  if(!phones || !phones[name]) return escaped;
+  const clean = phones[name].replace(/[^\d]/g,'');
+  return `<a href="https://wa.me/${clean}" target="_blank" rel="noopener" class="wa-link">${escaped}</a>`;
+}
+
+// ══════════════════════════════
+//  RENDER LEAGUE
+// ══════════════════════════════
+function renderLeague(pub, label, accent){
+  label  = label  || 'DLS League';
+  accent = accent || '#00c853';
+  const wrap = document.getElementById('comp-content');
+  if(!pub){
+    wrap.innerHTML=`<div class="no-data">
+      <div class="nd-icon">&#9917;</div>
+      <p><strong>No ${label} data yet.</strong><br>The admin hasn't published any fixtures yet.<br>Check back soon!</p>
+    </div>`;
+    return;
+  }
+
+  const { matchday, table, season, currentMatchday, totalMatchdays, totalTeams } = pub;
+  const pct = season.totalMatches ? Math.round(season.totalPlayed/season.totalMatches*100) : 0;
+  const dayPlayed = matchday.matches.filter(m=>m.played).length;
+
+  // mini stats
+  let statsHTML = `<div class="mini-stats">
+    <div class="mini-stat"><div class="mini-val">${totalTeams}</div><div class="mini-lbl">Teams</div></div>
+    <div class="mini-stat"><div class="mini-val">${currentMatchday}/${totalMatchdays}</div><div class="mini-lbl">Matchday</div></div>
+    <div class="mini-stat"><div class="mini-val">${season.totalPlayed}</div><div class="mini-lbl">Played</div></div>
+    <div class="mini-stat"><div class="mini-val">${season.totalGoals}</div><div class="mini-lbl">Goals</div></div>
+  </div>`;
+
+  // progress
+  let progHTML = `<div class="prog-wrap">
+    <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+    <div class="prog-txt">${pct}% of season complete</div>
+  </div>`;
+
+  // deadline bar
+  let deadlineHTML = '';
+  if(matchday.deadline){
+    const dl = new Date(matchday.deadline);
+    const now = new Date();
+    const passed = now > dl;
+    const fmt = dl.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})
+               + ' · ' + dl.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    deadlineHTML = `<div class="deadline-bar ${passed?'passed':'active'}">
+      <span style="font-size:1.1rem">&#9201;</span>
+      <div>
+        <div class="dl-label">${passed?'Deadline Passed':'24H Deadline'}</div>
+        <div class="dl-time">${fmt}</div>
+      </div>
+      <span class="dl-status">${passed?'CLOSED':'OPEN'}</span>
+    </div>`;
+  }
+
+  // matchday header
+  let mdHTML = `<div class="md-header">
+    <div>
+      <div class="md-label">Matchday ${matchday.day}</div>
+      <div class="md-sub">${dayPlayed} of ${matchday.matches.length} results in</div>
+    </div>
+    <div class="md-count">MD ${currentMatchday} of ${totalMatchdays}</div>
+  </div>`;
+
+  // fixtures
+  let fixHTML = '<div class="fixtures-list">';
+  const lgPhones = pub.phones || {};
+  matchday.matches.forEach(m => {
+    if(m.played){
+      const hWin = m.hs > m.as, aWin = m.as > m.hs;
+      fixHTML += `<div class="fix-card played">
+        <div class="fix-team home ${hWin?'winner':aWin?'loser':''}">${teamLink(m.home,lgPhones)}</div>
+        <div class="fix-score">${m.hs} &ndash; ${m.as}</div>
+        <div class="fix-team away ${aWin?'winner':hWin?'loser':''}">${teamLink(m.away,lgPhones)}</div>
+      </div>`;
+    } else {
+      fixHTML += `<div class="fix-card pending">
+        <div class="fix-team home">${teamLink(m.home,lgPhones)}</div>
+        <div class="fix-vs">vs</div>
+        <div class="fix-team away">${teamLink(m.away,lgPhones)}</div>
+      </div>`;
+    }
+  });
+  if(matchday.byeTeam){
+    fixHTML += `<div class="bye-fix">&#128683; ${esc(matchday.byeTeam)} — Bye this matchday</div>`;
+  }
+  fixHTML += '</div>';
+
+  // table
+  const n = table.length;
+  const CL_SPOTS  = n >= 9 ? 8 : Math.max(1, n - 3);
+  const REL_SPOTS = n >= 4 ? 3 : 0;
+
+  let tableRows = '';
+  table.forEach((r,i)=>{
+    let rc = i===0?'rank1':i<CL_SPOTS?'ranktop':(REL_SPOTS>0&&i>=n-REL_SPOTS)?'rankbot':'';
+    if(i===CL_SPOTS) rc += ' cut-cl';
+    if(REL_SPOTS>0 && i===n-REL_SPOTS) rc += ' cut-rel';
+    const gd = r.gd>0?'+'+r.gd:r.gd;
+    const gdCls = r.gd>0?'gd-p':r.gd<0?'gd-n':'';
+    const form = (r.form||[]).slice(-5);
+    const formHTML = form.map(f=>`<div class="fb fb-${f.toLowerCase()}">${f}</div>`).join('');
+    let badge = '';
+    if(i<CL_SPOTS) badge=`<span style="font-size:.58rem;background:rgba(255,215,0,.12);color:#FFD700;border:1px solid rgba(255,215,0,.25);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle">${i===0?'CHAMP':'CL'}</span>`;
+    else if(REL_SPOTS>0&&i>=n-REL_SPOTS) badge=`<span style="font-size:.58rem;background:rgba(220,53,69,.12);color:#f87171;border:1px solid rgba(220,53,69,.25);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle">REL</span>`;
+    tableRows += `<tr class="${rc}">
+      <td class="pos-num">${r.pos}</td>
+      <td>${teamLink(r.team,lgPhones)}${badge}</td>
+      <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
+      <td class="${gdCls}">${gd}</td>
+      <td class="pts">${r.pts}</td>
+      <td><div class="form-row">${formHTML}</div></td>
+    </tr>`;
+  });
+
+  let legendHTML = `<div class="tbl-legend">
+    <div class="leg-item"><div class="leg-line" style="background:#FFD700"></div>Champion</div>
+    <div class="leg-item"><div class="leg-line" style="background:#00c853"></div>Top ${CL_SPOTS} → Champions League</div>
+    ${REL_SPOTS>0?`<div class="leg-item"><div class="leg-line" style="background:#dc3545"></div>Bottom ${REL_SPOTS} → Relegated</div>`:''}
+  </div>`;
+
+  wrap.innerHTML = getPrizePoolHTML() + statsHTML + progHTML +
+    `<div class="s-title">&#128197; Matchday ${matchday.day} Fixtures <span class="s-badge">MD ${currentMatchday}/${totalMatchdays}</span></div>`
+    + deadlineHTML + mdHTML + fixHTML +
+    `<div class="s-title">&#128202; League Table</div>
+    <div class="table-wrap">
+      <table class="lg-table">
+        <thead><tr>
+          <th>#</th><th style="text-align:left">Team</th>
+          <th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th><th>Form</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>` + legendHTML;
+}
+
+// ══════════════════════════════
+//  RENDER CL / EUROPA
+// ══════════════════════════════
+
+let clActiveTab = 'groups';
+
+function showCLTab(id){
+  clActiveTab = id;
+  document.querySelectorAll('.cl-sub-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.cl-sub-section').forEach(s=>s.classList.remove('active'));
+  const btn = document.getElementById('cl-sub-btn-'+id);
+  const sec = document.getElementById('cl-sub-'+id);
+  if(btn) btn.classList.add('active');
+  if(sec) sec.classList.add('active');
+}
+
+function renderCL(pub, label){
+  label = label || 'Champions League';
+  const wrap = document.getElementById('comp-content');
+  if(!pub){
+    wrap.innerHTML=`<div class="no-data">
+      <div class="nd-icon">&#127942;</div>
+      <p><strong>No ${label} data yet.</strong><br>The admin hasn't published any data yet.<br>Check back soon!</p>
+    </div>`;
+    return;
+  }
+
+  if(pub.phase === 'setup' || !pub.groups || !pub.groups.A || !pub.groups.A.length){
+    wrap.innerHTML=`<div class="no-data">
+      <div class="nd-icon">&#127942;</div>
+      <p>The draw hasn't happened yet. Check back soon!</p>
+    </div>`;
+    return;
+  }
+
+  // ── Build Group Stage HTML ──
+  const clPhones = pub.phones || {};
+  let groupsHTML = '';
+  groupsHTML += `<div class="s-title">&#9898; Group Stage</div>`;
+  groupsHTML += '<div class="groups-grid">';
+  ['A','B','C','D'].forEach(g=>{
+    const st = pub.standings[g] || [];
+    let rows = '';
+    st.forEach((r,i)=>{
+      const cls = i<2?'q-row':'e-row';
+      rows += `<tr class="${cls}">
+        <td>${teamLink(r.team,clPhones)}</td>
+        <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
+        <td class="g-pts">${r.pts}</td>
+      </tr>`;
+    });
+    groupsHTML += `<div class="grp-card">
+      <div class="grp-head">GROUP ${g}</div>
+      <table class="grp-table">
+        <thead><tr><th style="text-align:left">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  });
+  groupsHTML += '</div>';
+  groupsHTML += `<div class="s-title">&#128197; Fixtures</div>`;
+  ['A','B','C','D'].forEach(g=>{
+    const fx = pub.fixtures[g] || [];
+    if(!fx.length) return;
+    groupsHTML += `<div style="margin-bottom:14px">
+      <div style="font-size:.75rem;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px">Group ${g}</div>
+      <div class="fixtures-list">`;
+    fx.forEach(m=>{
+      if(m.played){
+        const hWin=m.hs>m.as, aWin=m.as>m.hs;
+        groupsHTML+=`<div class="fix-card played">
+          <div class="fix-team home ${hWin?'winner':aWin?'loser':''}">${teamLink(m.home,clPhones)}</div>
+          <div class="fix-score">${m.hs} &ndash; ${m.as}</div>
+          <div class="fix-team away ${aWin?'winner':hWin?'loser':''}">${teamLink(m.away,clPhones)}</div>
+        </div>`;
+      } else {
+        groupsHTML+=`<div class="fix-card pending">
+          <div class="fix-team home">${teamLink(m.home,clPhones)}</div>
+          <div class="fix-vs">vs</div>
+          <div class="fix-team away">${teamLink(m.away,clPhones)}</div>
+        </div>`;
+      }
+    });
+    groupsHTML += '</div></div>';
+  });
+
+  // ── Build Knockout HTML ──
+  let knockoutHTML = '';
+  // hasKO = true if any QF match has actual teams assigned (not all-null)
+  const hasKO = pub.ko && pub.ko.qf && pub.ko.qf.some(m=>m && m.home);
+  if(!hasKO){
+    knockoutHTML = `<div class="no-data">
+      <div class="nd-icon">&#127942;</div>
+      <p>Knockout stage hasn't started yet.<br>Check back after the group stage!</p>
+    </div>`;
+  } else {
+    knockoutHTML += `<div class="s-title">&#127942; Knockout Stage</div>`;
+    knockoutHTML += buildBracketHTML(pub.ko, clPhones);
+  }
+
+  // ── Assemble with sub-tabs ──
+  const activeGroup = clActiveTab === 'groups' ? 'active' : '';
+  const activeKO    = clActiveTab === 'knockout' ? 'active' : '';
+
+  wrap.innerHTML = getPrizePoolHTML() + `
+    <div class="cl-subtabs">
+      <button id="cl-sub-btn-groups" class="cl-sub-btn ${activeGroup}" onclick="showCLTab('groups')">&#9898; Group Stage</button>
+      <button id="cl-sub-btn-knockout" class="cl-sub-btn ${activeKO}" onclick="showCLTab('knockout')">&#127942; Knockout Stage</button>
+    </div>
+    <div id="cl-sub-groups" class="cl-sub-section ${activeGroup}">${groupsHTML}</div>
+    <div id="cl-sub-knockout" class="cl-sub-section ${activeKO}">${knockoutHTML}</div>
+  `;
+}
+
+function buildBracketHTML(ko, phones){
+  function mc(m){
+    if(!m) m={home:null,away:null,hs:null,as:null,winner:null};
+    const hWin = m.winner && m.winner===m.home;
+    const aWin = m.winner && m.winner===m.away;
+    const hs = (m.hs!==null&&m.hs!==undefined) ? m.hs : '';
+    const as = (m.as!==null&&m.as!==undefined) ? m.as : '';
+    return `<div class="b-match">
+      <div class="b-team ${!m.home?'tbd':hWin?'winner':''}">
+        <span class="b-name">${m.home?teamLink(m.home,phones):'TBD'}</span>
+        <span class="b-score">${hs}</span>
+      </div>
+      <div class="b-team ${!m.away?'tbd':aWin?'winner':''}">
+        <span class="b-name">${m.away?teamLink(m.away,phones):'TBD'}</span>
+        <span class="b-score">${as}</span>
+      </div>
+    </div>`;
+  }
+
+  const champion = ko.final && ko.final.winner;
+  const champHTML = `<div class="b-champ-card${champion?' show':''}">
+    <span class="champ-trophy">&#127942;</span>
+    <div class="champ-name">${champion?teamLink(champion,phones):'TBD'}</div>
+    ${champion?'<div style="font-size:.65rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;margin-top:4px">DLS Champion</div>':''}
+  </div>`;
+
+  return `<div class="bracket-scroll">
+    <div class="bracket-labels">
+      <div class="bl-label bl-spacer" style="width:218px">Quarter Finals</div>
+      <div class="bl-spacer" style="width:40px"></div>
+      <div class="bl-label bl-spacer" style="width:218px">Semi Finals</div>
+      <div class="bl-spacer" style="width:40px"></div>
+      <div class="bl-label bl-spacer" style="width:218px">Final</div>
+      <div class="bl-spacer" style="width:40px"></div>
+      <div class="bl-label bl-spacer" style="width:170px">Champion</div>
+    </div>
+    <div class="bracket">
+      <div class="r-col qf-col">
+        ${mc(ko.qf[0])}${mc(ko.qf[1])}${mc(ko.qf[2])}${mc(ko.qf[3])}
+      </div>
+      <div class="c-col">
+        <div class="c-half"><div class="c-top"></div><div class="c-bot"></div></div>
+        <div class="c-half"><div class="c-top"></div><div class="c-bot"></div></div>
+      </div>
+      <div class="r-col sf-col">
+        ${mc(ko.sf[0])}${mc(ko.sf[1])}
+      </div>
+      <div class="c-col">
+        <div class="c-half"><div class="c-top"></div><div class="c-bot"></div></div>
+      </div>
+      <div class="r-col final-col">
+        ${mc(ko.final)}
+      </div>
+      <div class="c-col" style="justify-content:center;display:flex;flex-direction:column">
+        <div class="c-arrow"></div>
+      </div>
+      <div class="r-col champ-col">${champHTML}</div>
+    </div>
+  </div>`;
+}
+
+// ── Main refresh ──
+async function refresh(){
+  await loadData();
+  renderCurrentComp();
+  updateTimestamp();
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refresh, 30000);
+
+// Initial load
+refresh();
+</script>
+</body>
+</html>

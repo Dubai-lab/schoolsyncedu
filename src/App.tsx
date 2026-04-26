@@ -18,6 +18,7 @@ import RegisterSchool from '@/pages/public/RegisterSchool';
 import SubscriptionPayment from '@/pages/public/SubscriptionPayment';
 import ContactUs from '@/pages/public/ContactUs';
 import AboutPage from '@/pages/public/AboutPage';
+import DemoPage from '@/pages/public/DemoPage';
 import PrivacyPolicy from '@/pages/public/PrivacyPolicy';
 import TermsOfService from '@/pages/public/TermsOfService';
 import Onboarding from '@/pages/public/Onboarding';
@@ -288,6 +289,9 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
         </Route>
+
+        {/* Demo simulation — standalone, no nav/footer, no auth */}
+        <Route path="/demo" element={<DemoPage />} />
 
         {/* Onboarding — standalone, no nav/footer */}
         <Route path="/onboarding" element={<Onboarding />} />
