@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
@@ -20,22 +21,63 @@ import {
   FileText,
 } from 'lucide-react';
 
+// ── Reuse the same scroll-reveal hooks as the landing page ───────────────────
+
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const observe = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('in-view'); obs.disconnect(); } },
+      { threshold: 0.12 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  useEffect(() => observe(), [observe]);
+  return ref;
+}
+
+function useStaggerReveal(count: number) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const children = Array.from(container.querySelectorAll<HTMLElement>('.reveal'));
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          children.forEach((child, i) => setTimeout(() => child.classList.add('in-view'), i * 80));
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.08 },
+    );
+    obs.observe(container);
+    return () => obs.disconnect();
+  }, [count]);
+  return containerRef;
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+
 const STATS = [
-  { value: '50+',    label: 'Schools Active' },
+  { value: '50+',     label: 'Schools Active' },
   { value: '12,000+', label: 'Students Managed' },
-  { value: '8',      label: 'Counties Covered' },
-  { value: '20+',    label: 'Platform Modules' },
+  { value: '8',       label: 'Counties Covered' },
+  { value: '20+',     label: 'Platform Modules' },
 ];
 
 const FEATURES_SUMMARY = [
-  { icon: GraduationCap, title: 'Student Enrollment',   desc: 'Online application forms, enrollment workflows, and complete student profile management.' },
-  { icon: CalendarCheck, title: 'Attendance Tracking',  desc: 'Digital attendance with NFC-enabled ID cards and automated absence notifications.' },
+  { icon: GraduationCap, title: 'Student Enrollment',    desc: 'Online application forms, enrollment workflows, and complete student profile management.' },
+  { icon: CalendarCheck, title: 'Attendance Tracking',   desc: 'Digital attendance with NFC-enabled ID cards and automated absence notifications.' },
   { icon: FileText,      title: 'Grades & Report Cards', desc: 'Grade entry, automatic GPA calculation, Liberian-format report cards, and transcripts.' },
-  { icon: DollarSign,   title: 'Fee Management',        desc: 'Automated fee billing, installment plans, mobile money collection, and financial reports.' },
-  { icon: Nfc,          title: 'NFC Smart ID Cards',    desc: 'Design, print, and scan NFC-enabled student and staff identity cards.' },
-  { icon: Library,      title: 'Library System',        desc: 'Book catalog, student checkouts, overdue tracking, and library reports.' },
-  { icon: BarChart3,    title: 'Reports & Analytics',   desc: 'Academic, attendance, and financial dashboards with exportable data.' },
-  { icon: Globe,        title: 'WAEC Registration',     desc: 'Register students for LJHSCE and WASSCE examinations directly in the platform.' },
+  { icon: DollarSign,    title: 'Fee Management',        desc: 'Automated fee billing, installment plans, mobile money collection, and financial reports.' },
+  { icon: Nfc,           title: 'NFC Smart ID Cards',    desc: 'Design, print, and scan NFC-enabled student and staff identity cards.' },
+  { icon: Library,       title: 'Library System',        desc: 'Book catalog, student checkouts, overdue tracking, and library reports.' },
+  { icon: BarChart3,     title: 'Reports & Analytics',   desc: 'Academic, attendance, and financial dashboards with exportable data.' },
+  { icon: Globe,         title: 'WAEC Registration',     desc: 'Register students for LJHSCE and WASSCE examinations directly in the platform.' },
 ];
 
 const VALUES = [
@@ -67,27 +109,68 @@ const WHY_US = [
   'Free trial included — get started with no upfront payment',
 ];
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function AboutPage() {
+  const [heroVisible, setHeroVisible] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setHeroVisible(true), 60); return () => clearTimeout(t); }, []);
+
+  const heroBase = 'transition-all duration-700 ease-out';
+  const heroShow = 'opacity-100 translate-y-0';
+  const heroHide = 'opacity-0 translate-y-8';
+
+  const statsRef       = useStaggerReveal(STATS.length);
+  const storyTitleRef  = useScrollReveal();
+  const storyTextRef   = useScrollReveal();
+  const valuesTitleRef = useScrollReveal();
+  const valuesRef      = useStaggerReveal(VALUES.length);
+  const serveLeftRef   = useScrollReveal();
+  const serveRightRef  = useScrollReveal();
+  const featTitleRef   = useScrollReveal();
+  const featRef        = useStaggerReveal(FEATURES_SUMMARY.length);
+  const whyTitleRef    = useScrollReveal();
+  const whyRef         = useStaggerReveal(WHY_US.length);
+  const securityRef    = useScrollReveal();
+  const teamLeftRef    = useScrollReveal();
+  const teamRightRef   = useScrollReveal();
+  const ctaRef         = useScrollReveal();
+
   return (
     <div>
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600 py-20 sm:py-28">
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
+        {/* Animated blobs */}
+        <div className="absolute inset-0">
+          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-white/5 blur-3xl animate-blob-float" />
+          <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-accent-500/10 blur-3xl animate-blob-float-alt" />
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
+              backgroundSize: '60px 60px',
+            }}
+          />
+        </div>
+
         <div className="relative mx-auto max-w-3xl px-4 text-center">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white/80 backdrop-blur-sm">
+          <div
+            className={`mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white/80 backdrop-blur-sm ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+            style={{ transitionDelay: '0ms' }}
+          >
             <BookOpen className="h-4 w-4" />
             About SchoolSync
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <h1
+            className={`text-4xl font-extrabold tracking-tight text-white sm:text-5xl ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+            style={{ transitionDelay: '120ms' }}
+          >
             Built for Liberia,<br />by Liberians
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
+          <p
+            className={`mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70 ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+            style={{ transitionDelay: '240ms' }}
+          >
             SchoolSync is the leading school management platform for Liberian schools. We give principals,
             registrars, bursars, teachers, students, and parents one unified system to run the entire school — digitally.
           </p>
@@ -95,11 +178,11 @@ export default function AboutPage() {
       </section>
 
       {/* ── Stats bar ────────────────────────────────────────────────────────── */}
-      <section className="border-b border-slate-100 bg-white py-10">
+      <section className="border-b border-slate-100 bg-white py-12">
         <div className="mx-auto max-w-4xl px-4">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+          <div ref={statsRef} className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {STATS.map((s) => (
-              <div key={s.label} className="text-center">
+              <div key={s.label} className="reveal text-center">
                 <p className="text-3xl font-extrabold text-primary-600">{s.value}</p>
                 <p className="mt-1 text-sm text-slate-500">{s.label}</p>
               </div>
@@ -111,13 +194,13 @@ export default function AboutPage() {
       {/* ── Our Story ────────────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center mb-12">
+          <div ref={storyTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Our Story</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Why we built SchoolSync
             </h2>
           </div>
-          <div className="prose prose-slate prose-lg mx-auto text-slate-600 leading-relaxed space-y-5">
+          <div ref={storyTextRef} className="reveal prose prose-slate prose-lg mx-auto text-slate-600 leading-relaxed space-y-5">
             <p>
               SchoolSync was born out of a simple observation: schools in Liberia were managing critical
               student data — enrollment records, grade sheets, fee ledgers, attendance registers — on paper,
@@ -144,13 +227,13 @@ export default function AboutPage() {
       {/* ── Mission / Vision / Values ────────────────────────────────────────── */}
       <section className="bg-slate-50 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center mb-12">
+          <div ref={valuesTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">What drives us</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Mission, Vision & Values</h2>
           </div>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div ref={valuesRef} className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {VALUES.map((v) => (
-              <div key={v.title} className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+              <div key={v.title} className="reveal rounded-2xl border border-slate-200 bg-white p-8 shadow-sm hover:shadow-md transition-shadow">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100">
                   <v.icon className="h-6 w-6 text-primary-600" />
                 </div>
@@ -166,7 +249,7 @@ export default function AboutPage() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-            <div>
+            <div ref={serveLeftRef} className="reveal reveal-left">
               <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Who we serve</p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
                 Every school in Liberia
@@ -191,17 +274,21 @@ export default function AboutPage() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 p-8">
-              <div className="space-y-4">
+            <div ref={serveRightRef} className="reveal reveal-right rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 p-8">
+              <div className="space-y-3">
                 {[
-                  { role: 'Principal / Head Teacher',   desc: 'Full oversight — enrollment, staff, reports, and school-wide analytics.' },
-                  { role: 'Registrar',                  desc: 'Student applications, enrollment approvals, and academic records.' },
-                  { role: 'Bursar / Accountant',        desc: 'Fee billing, payment collection, installment plans, and financial reports.' },
-                  { role: 'Teacher / Class Teacher',    desc: 'Attendance marking, grade entry, and communication with parents.' },
-                  { role: 'Student',                    desc: 'Personal portal for grades, attendance, fees, timetable, and ID card.' },
-                  { role: 'Parent / Guardian',          desc: 'Real-time access to their child\'s academic progress and fee status.' },
-                ].map((r) => (
-                  <div key={r.role} className="rounded-xl bg-white p-4 shadow-sm">
+                  { role: 'Principal / Head Teacher', desc: 'Full oversight — enrollment, staff, reports, and school-wide analytics.' },
+                  { role: 'Registrar',                desc: 'Student applications, enrollment approvals, and academic records.' },
+                  { role: 'Bursar / Accountant',      desc: 'Fee billing, payment collection, installment plans, and financial reports.' },
+                  { role: 'Teacher / Class Teacher',  desc: 'Attendance marking, grade entry, and communication with parents.' },
+                  { role: 'Student',                  desc: 'Personal portal for grades, attendance, fees, timetable, and ID card.' },
+                  { role: 'Parent / Guardian',        desc: "Real-time access to their child's academic progress and fee status." },
+                ].map((r, i) => (
+                  <div
+                    key={r.role}
+                    className="rounded-xl bg-white p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+                    style={{ transitionDelay: `${i * 60}ms` }}
+                  >
                     <p className="text-sm font-semibold text-slate-800">{r.role}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{r.desc}</p>
                   </div>
@@ -215,7 +302,7 @@ export default function AboutPage() {
       {/* ── Platform Features ────────────────────────────────────────────────── */}
       <section className="bg-slate-50 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center mb-12">
+          <div ref={featTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Platform</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               One platform. Every module your school needs.
@@ -225,9 +312,9 @@ export default function AboutPage() {
               application to the final graduation certificate.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div ref={featRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES_SUMMARY.map((f) => (
-              <div key={f.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div key={f.title} className="reveal rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100">
                   <f.icon className="h-5 w-5 text-primary-600" />
                 </div>
@@ -247,15 +334,15 @@ export default function AboutPage() {
       {/* ── Why SchoolSync ───────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center mb-12">
+          <div ref={whyTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Why choose us</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               What makes SchoolSync different
             </h2>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div ref={whyRef} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {WHY_US.map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div key={item} className="reveal flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all">
                 <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
                 <p className="text-sm leading-relaxed text-slate-600">{item}</p>
               </div>
@@ -267,7 +354,7 @@ export default function AboutPage() {
       {/* ── Security ─────────────────────────────────────────────────────────── */}
       <section className="bg-slate-50 py-16">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 sm:p-10 shadow-sm">
+          <div ref={securityRef} className="reveal rounded-2xl border border-slate-200 bg-white p-8 sm:p-10 shadow-sm">
             <div className="flex flex-col items-center text-center gap-4 sm:flex-row sm:text-left sm:items-start sm:gap-6">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-green-100">
                 <Shield className="h-7 w-7 text-green-600" />
@@ -290,7 +377,7 @@ export default function AboutPage() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            <div>
+            <div ref={teamLeftRef} className="reveal reveal-left">
               <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">The team</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Passionate about Liberian education</h2>
               <p className="mt-4 text-sm leading-relaxed text-slate-500">
@@ -305,21 +392,21 @@ export default function AboutPage() {
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/contact"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 hover:-translate-y-0.5 transition-all shadow-sm"
                 >
                   <Mail className="h-4 w-4" /> Get in Touch
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:-translate-y-0.5 transition-all"
                 >
                   Register Your School <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div ref={teamRightRef} className="reveal reveal-right space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
                     <Mail className="h-4 w-4 text-blue-600" />
@@ -332,7 +419,7 @@ export default function AboutPage() {
                 <p className="mt-1 text-xs text-slate-400">Response within 1–2 business days</p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100">
                     <Users className="h-4 w-4 text-green-600" />
@@ -354,7 +441,7 @@ export default function AboutPage() {
 
       {/* ── Final CTA ────────────────────────────────────────────────────────── */}
       <section className="bg-primary-900 py-20">
-        <div className="mx-auto max-w-3xl px-4 text-center">
+        <div ref={ctaRef} className="reveal mx-auto max-w-3xl px-4 text-center">
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
             Ready to modernize your school?
           </h2>
@@ -370,7 +457,7 @@ export default function AboutPage() {
             </Link>
             <Link
               to="/contact"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/20 hover:-translate-y-0.5 transition-all"
             >
               Contact Us
             </Link>
