@@ -21,6 +21,7 @@ export default function SchoolManagement() {
   const [selected, setSelected]           = useState<School | null>(null);
   const [mode, setMode]                   = useState<ModalMode>(null);
   const [deleteTarget, setDeleteTarget]   = useState<School | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [form, setForm]                   = useState<Partial<School>>({});
 
   // Suspend dialog
@@ -98,7 +99,7 @@ export default function SchoolManagement() {
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: () => { notify.success('School removed'); setDeleteTarget(null); },
+      onSuccess: () => { notify.success('School and all data permanently deleted'); setDeleteTarget(null); setDeleteConfirmName(''); },
       onError:   () => notify.error('Failed to delete school'),
     });
   };
@@ -386,18 +387,50 @@ export default function SchoolManagement() {
       </Dialog>
 
       {/* ===== DELETE CONFIRM ===== */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} className="max-w-sm">
-        <DialogHeader onClose={() => setDeleteTarget(null)}>
-          <DialogTitle>Delete School</DialogTitle>
+      <Dialog open={!!deleteTarget} onClose={() => { setDeleteTarget(null); setDeleteConfirmName(''); }} className="max-w-md">
+        <DialogHeader onClose={() => { setDeleteTarget(null); setDeleteConfirmName(''); }}>
+          <DialogTitle>Permanently Delete School</DialogTitle>
         </DialogHeader>
-        <DialogBody>
-          <p className="text-sm text-gray-600">
-            Are you sure you want to remove <strong>{deleteTarget?.name}</strong>? This action cannot be undone and will remove all associated data.
-          </p>
+        <DialogBody className="space-y-4">
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-red-800 space-y-1">
+              <p className="font-semibold">This cannot be undone.</p>
+              <p>Deleting <strong>{deleteTarget?.name}</strong> will permanently erase:</p>
+              <ul className="mt-1 ml-3 list-disc space-y-0.5 text-xs text-red-700">
+                <li>All students, staff, and guardian records</li>
+                <li>All grades, report cards, and transcripts</li>
+                <li>All fees, payments, and financial history</li>
+                <li>All attendance, timetables, and library data</li>
+                <li>All login accounts (auth users) for the school</li>
+              </ul>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Type <span className="font-mono font-bold text-red-700">{deleteTarget?.name}</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder="Type school name exactly..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-400/20"
+              autoComplete="off"
+            />
+          </div>
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button variant="danger" size="sm" loading={deleteMutation.isPending} onClick={handleDelete}>Delete</Button>
+          <Button variant="outline" size="sm" onClick={() => { setDeleteTarget(null); setDeleteConfirmName(''); }}>Cancel</Button>
+          <Button
+            variant="danger"
+            size="sm"
+            loading={deleteMutation.isPending}
+            disabled={deleteConfirmName !== deleteTarget?.name}
+            onClick={handleDelete}
+          >
+            <Trash2 className="w-4 h-4 mr-1.5" /> Delete Everything
+          </Button>
         </DialogFooter>
       </Dialog>
     </div>

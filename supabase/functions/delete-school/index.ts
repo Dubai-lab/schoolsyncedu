@@ -76,13 +76,17 @@ serve(async (req) => {
       });
     }
 
-    // ── Collect all auth user IDs for this school ─────────────────────────────
+    // ── Collect auth_id values for all school users ───────────────────────────
+    // Must fetch auth_id (Supabase Auth UUID), NOT the internal users.id.
     const { data: schoolUsers } = await adminClient
       .from('users')
-      .select('id')
-      .eq('school_id', school_id);
+      .select('auth_id')
+      .eq('school_id', school_id)
+      .not('auth_id', 'is', null);
 
-    const authUserIds = (schoolUsers ?? []).map((u: { id: string }) => u.id);
+    const authUserIds = (schoolUsers ?? [])
+      .map((u: { auth_id: string | null }) => u.auth_id)
+      .filter((id): id is string => !!id);
 
     // ── Delete the school record (CASCADE handles related DB rows) ────────────
     const { error: deleteError } = await adminClient
