@@ -51,7 +51,7 @@ const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Features', href: '/#features' },
   { label: 'Pricing', href: '/pricing' },
-  { label: 'About', href: '/#about' },
+  { label: 'About', href: '/about' },
 ];
 
 export default function PublicLayout() {
@@ -181,7 +181,7 @@ export default function PublicLayout() {
               <ul className="mt-3 space-y-2">
                 <li><a href="/#features" className="text-sm text-slate-500 hover:text-primary-600">Features</a></li>
                 <li><Link to="/pricing" className="text-sm text-slate-500 hover:text-primary-600">Pricing</Link></li>
-                <li><a href="/#about" className="text-sm text-slate-500 hover:text-primary-600">About</a></li>
+                <li><Link to="/about" className="text-sm text-slate-500 hover:text-primary-600">About</Link></li>
               </ul>
             </div>
 

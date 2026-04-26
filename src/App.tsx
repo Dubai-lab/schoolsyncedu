@@ -17,6 +17,7 @@ import PricingPage from '@/pages/public/PricingPage';
 import RegisterSchool from '@/pages/public/RegisterSchool';
 import SubscriptionPayment from '@/pages/public/SubscriptionPayment';
 import ContactUs from '@/pages/public/ContactUs';
+import AboutPage from '@/pages/public/AboutPage';
 import PrivacyPolicy from '@/pages/public/PrivacyPolicy';
 import TermsOfService from '@/pages/public/TermsOfService';
 import Onboarding from '@/pages/public/Onboarding';
@@ -283,6 +284,7 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/register" element={<RegisterSchool />} />
           <Route path="/contact" element={<ContactUs />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
         </Route>
