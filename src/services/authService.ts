@@ -109,26 +109,34 @@ export function hashOTP(otp: string): string {
 }
 
 /**
- * Send OTP verification email during registration
- * Calls the send-otp-email Edge Function
+ * Send OTP verification email during registration.
+ * Uses fetch directly (no Authorization header) so Supabase gateway
+ * does not attempt JWT validation on an unauthenticated request.
  */
 export async function sendOTPEmail(email: string, otp: string, schoolName?: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('send-otp-email', {
-    body: {
+  const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL as string;
+  const supabaseKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-otp-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': supabaseKey,
+    },
+    body: JSON.stringify({
       to: email,
       otp_code: otp,
       school_name: schoolName || 'SchoolSync',
-    },
+    }),
   });
 
-  if (error) {
-    // error.message from invoke, or parse the context body if available
-    const msg = (error as { message?: string; context?: { json?: () => Promise<{ error?: string }> } }).message;
-    throw new Error(msg || 'Failed to send OTP email');
-  }
-
-  if (data && (data as { error?: string }).error) {
-    throw new Error((data as { error: string }).error);
+  if (!res.ok) {
+    let message = 'Failed to send OTP email';
+    try {
+      const body = await res.json() as { error?: string };
+      if (body.error) message = body.error;
+    } catch { /* ignore parse errors */ }
+    throw new Error(message);
   }
 }
 
