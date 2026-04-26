@@ -3,8 +3,7 @@ import {
   LayoutDashboard, GraduationCap, CalendarCheck, FileText, DollarSign,
   Users, BookOpen, ClipboardList, Settings, BarChart3, ChevronLeft,
   ChevronRight, Play, Pause, RotateCcw, CheckCircle, Shield, Bell,
-  TrendingUp, AlertTriangle, Calendar, CreditCard, Mail, UserCog,
-  Building2, Nfc, Clock, Check, X, ChevronDown,
+  Calendar, UserCog, Nfc, Clock, Check, ChevronDown,
 } from 'lucide-react';
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
