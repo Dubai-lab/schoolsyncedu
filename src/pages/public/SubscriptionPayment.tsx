@@ -7,10 +7,8 @@ import {
 import { discountService } from '@/services/adminService';
 import type { Discount } from '@/types/report.types';
 import {
-  CheckCircle2,
   Shield,
   Loader2,
-  ArrowRight,
   BookOpen,
   AlertTriangle,
   Tag,
@@ -31,8 +29,6 @@ export default function SubscriptionPayment() {
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState('');
   const [paymentData,     setPaymentData]     = useState<PaymentPageData | null>(null);
-  const [paymentSuccess,  setPaymentSuccess]  = useState(false);
-  const [invoiceNumber,   setInvoiceNumber]   = useState('');
 
   // Coupon / discount
   const [couponInput,      setCouponInput]      = useState('');
@@ -93,41 +89,6 @@ export default function SubscriptionPayment() {
   };
 
   const finalAmount = paymentData ? discountedPrice(paymentData.plan.price_usd) : 0;
-
-  // ── SUCCESS ──
-  if (paymentSuccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center px-4">
-        <div className="mx-auto max-w-md text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 shadow-lg shadow-green-200/50">
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Payment Successful!</h1>
-          <p className="mt-3 text-slate-500 leading-relaxed">
-            Your <strong className="text-slate-700">{paymentData?.plan.name}</strong> subscription for{' '}
-            <strong className="text-slate-700">{paymentData?.school.name}</strong> is now active.
-          </p>
-          {invoiceNumber && (
-            <p className="mt-2 text-xs text-slate-400">
-              Invoice: <span className="font-mono">{invoiceNumber}</span>
-            </p>
-          )}
-          <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4">
-            <p className="text-sm text-green-800 font-medium">Your school portal is ready!</p>
-            <p className="mt-1 text-xs text-green-600">
-              Log in to your proprietor dashboard to set up your school, invite staff, and enroll students.
-            </p>
-          </div>
-          <Link
-            to="/auth/login"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary-600 px-8 py-3 text-sm font-semibold text-white hover:bg-primary-700 shadow-lg shadow-primary-200/50 transition-all"
-          >
-            Go to Login <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   // ── LOADING ──
   if (loading) {
