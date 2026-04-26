@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+
+# Keep authenticated dashboard routes out of search indexes
+Disallow: /dashboard
+Disallow: /proprietor
+Disallow: /registrar
+Disallow: /bursar
+Disallow: /teacher
+Disallow: /student
+Disallow: /parent
+Disallow: /it-admin
+Disallow: /settings
+Disallow: /fees
+Disallow: /attendance
+Disallow: /classes
+Disallow: /staff
+Disallow: /students
+Disallow: /reports
+Disallow: /letters
+Disallow: /library
+Disallow: /idcards
+Disallow: /waec
+Disallow: /guidance
+Disallow: /dean
+Disallow: /admin
+Disallow: /payment
+
+Sitemap: https://www.schoolsyncedu.com/sitemap.xml
