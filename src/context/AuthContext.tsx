@@ -34,7 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (err) {
-        if (err.code === 'PGRST116') { setUser(null); return; }
+        if (err.code === 'PGRST116') {
+          // Auth session exists but no user profile in DB (orphaned account).
+          // Sign out so the stale session doesn't cause repeated 406 errors.
+          await supabase.auth.signOut();
+          setUser(null);
+          return;
+        }
         throw err;
       }
       const slug = (data as any)?.schools?.slug ?? null;

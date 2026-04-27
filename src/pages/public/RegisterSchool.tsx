@@ -252,7 +252,12 @@ export default function RegisterSchool() {
         p_motto: school.motto || null,
         p_plan_id: selectedPlanId || null,
       });
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        // Auth account was created but school setup failed — sign out and clean up
+        // so the user can try again with the same email without hitting "already exists"
+        await supabase.auth.signOut();
+        throw rpcError;
+      }
 
       // Fire welcome email (non-blocking — don't fail registration if email fails)
       const result = rpcData as { school_id?: string } | null;
