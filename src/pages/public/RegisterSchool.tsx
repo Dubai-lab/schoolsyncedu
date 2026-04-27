@@ -203,7 +203,19 @@ export default function RegisterSchool() {
           },
         },
       });
-      if (authError) throw authError;
+      if (authError) {
+        if (
+          authError.message?.toLowerCase().includes('already registered') ||
+          authError.message?.toLowerCase().includes('already exists') ||
+          (authError as { code?: string }).code === 'user_already_exists'
+        ) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError(authError.message || 'Registration failed. Please try again.');
+        }
+        setSubmitting(false);
+        return;
+      }
 
       const userId = authData.user?.id;
       if (!userId) throw new Error('Failed to create account');
@@ -366,6 +378,11 @@ export default function RegisterSchool() {
         {error && (
           <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+            {error.includes('already exists') && (
+              <Link to="/auth/login" className="ml-2 font-semibold underline hover:text-red-900">
+                Sign in →
+              </Link>
+            )}
           </div>
         )}
 
