@@ -179,6 +179,8 @@ export interface Subscription {
 export interface SubscriptionWithSchool extends Subscription {
   school_name: string;
   plan_name: string;
+  owner_email?: string;
+  owner_name?: string;
 }
 
 /** discounts table */

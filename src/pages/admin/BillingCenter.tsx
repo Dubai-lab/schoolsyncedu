@@ -10,9 +10,10 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Card } from '@/components/ui/Card';
 import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { notify } from '@/components/shared/Toast';
-import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock, Sparkles, Mail, Phone, Users, MessageSquare, Layers } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock, Sparkles, Mail, Phone, Users, MessageSquare, Layers, Send } from 'lucide-react';
 
-type Tab = 'invoices' | 'subscriptions' | 'payments' | 'enterprise';
+type Tab = 'invoices' | 'subscriptions' | 'payments' | 'enterprise' | 'notify';
 type StatusFilter = 'all' | BillingInvoice['status'];
 
 function fmt(amount: number) {
@@ -40,6 +41,15 @@ export default function BillingCenter() {
   const [suspendSub, setSuspendSub]           = useState<SubscriptionWithSchool | null>(null);
   const [graceSub, setGraceSub]               = useState<SubscriptionWithSchool | null>(null);
   const [graceExtendDays, setGraceExtendDays] = useState(7);
+
+  // Manual notification push state
+  type NotifyType = 'payment_confirmed' | 'payment_pending' | 'reactivated' | 'grace_reminder';
+  const [notifySchoolId, setNotifySchoolId]   = useState('');
+  const [notifyType, setNotifyType]           = useState<NotifyType>('payment_confirmed');
+  const [notifyAmount, setNotifyAmount]       = useState('');
+  const [notifyInvoice, setNotifyInvoice]     = useState('');
+  const [notifyExpiresAt, setNotifyExpiresAt] = useState('');
+  const [notifySending, setNotifySending]     = useState(false);
 
   const { data: invoices = [], isLoading: loadingInv } = useFetch<BillingInvoice[]>(
     ['admin-invoices'],
@@ -129,6 +139,49 @@ export default function BillingCenter() {
       },
       onError: () => notify.error('Failed to extend grace period'),
     });
+  };
+
+  const handleSendNotification = async () => {
+    const sub = subscriptions.find((s) => s.school_id === notifySchoolId || s.id === notifySchoolId);
+    if (!sub) { notify.error('School not found — select a school from the list'); return; }
+
+    setNotifySending(true);
+    try {
+      const payload: Record<string, unknown> = {
+        trigger: notifyType,
+        school_id: sub.school_id,
+        school_name: sub.school_name,
+        owner_email: sub.owner_email,
+        owner_name: sub.owner_name,
+        plan_name: sub.plan_name,
+      };
+
+      if (notifyType === 'payment_confirmed') {
+        if (!notifyAmount || !notifyInvoice || !notifyExpiresAt) {
+          notify.error('Amount, invoice number, and expiry date are required for payment confirmed');
+          setNotifySending(false);
+          return;
+        }
+        payload.amount_usd = parseFloat(notifyAmount);
+        payload.invoice_number = notifyInvoice;
+        payload.expires_at = notifyExpiresAt;
+      } else if (notifyType === 'reactivated') {
+        if (!notifyExpiresAt) { notify.error('Expiry date required for reactivation email'); setNotifySending(false); return; }
+        payload.expires_at = notifyExpiresAt;
+      }
+
+      const { error } = await supabase.functions.invoke('process-subscription-notifications', { body: payload });
+      if (error) throw error;
+      notify.success(`${notifyType.replace(/_/g, ' ')} email sent to ${sub.owner_email}`);
+      setNotifyAmount('');
+      setNotifyInvoice('');
+      setNotifyExpiresAt('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notify.error(`Failed to send: ${msg}`);
+    } finally {
+      setNotifySending(false);
+    }
   };
 
   const filteredInvoices = statusFilter === 'all' ? invoices : invoices.filter((i) => i.status === statusFilter);
@@ -381,6 +434,12 @@ export default function BillingCenter() {
             )}
           </span>
         </button>
+        <button className={tabClass('notify')} onClick={() => setTab('notify')}>
+          <span className="flex items-center gap-1.5">
+            <Send className="w-3.5 h-3.5" />
+            Send Notification
+          </span>
+        </button>
       </div>
 
       {tab === 'invoices' && (
@@ -535,6 +594,123 @@ export default function BillingCenter() {
             emptyMessage="No enterprise inquiries yet."
           />
         </>
+      )}
+
+      {tab === 'notify' && (
+        <div className="max-w-xl space-y-5">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+            Use this panel to manually send billing emails — for schools that paid by bank transfer or mobile money.
+          </div>
+
+          {/* School selector */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600">School</label>
+            <select
+              value={notifySchoolId}
+              onChange={(e) => setNotifySchoolId(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+            >
+              <option value="">— Select a school —</option>
+              {subscriptions.map((s) => (
+                <option key={s.school_id} value={s.school_id}>
+                  {s.school_name} ({s.status})
+                </option>
+              ))}
+            </select>
+            {notifySchoolId && (() => {
+              const s = subscriptions.find((sub) => sub.school_id === notifySchoolId);
+              return s ? (
+                <p className="text-xs text-gray-500 pt-1">
+                  Owner email: <strong>{s.owner_email || 'unknown'}</strong> · Plan: <strong>{s.plan_name}</strong>
+                </p>
+              ) : null;
+            })()}
+          </div>
+
+          {/* Notification type */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600">Email Type</label>
+            <select
+              value={notifyType}
+              onChange={(e) => setNotifyType(e.target.value as typeof notifyType)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+            >
+              <option value="payment_confirmed">Payment Confirmed (receipt from billing@)</option>
+              <option value="payment_pending">Payment Pending reminder (from billing@)</option>
+              <option value="reactivated">School Reactivated (from support@)</option>
+              <option value="grace_reminder">Grace Period Reminder (via batch — use daily cron)</option>
+            </select>
+          </div>
+
+          {/* Conditional extra fields */}
+          {notifyType === 'payment_confirmed' && (
+            <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-600">Amount (USD)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 150.00"
+                    value={notifyAmount}
+                    onChange={(e) => setNotifyAmount(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-600">Invoice Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. INV-2025-001"
+                    value={notifyInvoice}
+                    onChange={(e) => setNotifyInvoice(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">Subscription Expires At</label>
+                <input
+                  type="date"
+                  value={notifyExpiresAt}
+                  onChange={(e) => setNotifyExpiresAt(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+                />
+              </div>
+            </div>
+          )}
+
+          {notifyType === 'reactivated' && (
+            <div className="space-y-1 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <label className="block text-xs font-medium text-gray-600">Subscription Expires At</label>
+              <input
+                type="date"
+                value={notifyExpiresAt}
+                onChange={(e) => setNotifyExpiresAt(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+              />
+            </div>
+          )}
+
+          {notifyType === 'grace_reminder' && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+              Grace period reminders are sent automatically by the daily batch processor.
+              To trigger manually, run the <code className="bg-blue-100 px-1 rounded">process-subscription-notifications</code> edge function without a trigger body.
+            </div>
+          )}
+
+          <Button
+            onClick={handleSendNotification}
+            loading={notifySending}
+            disabled={!notifySchoolId || notifyType === 'grace_reminder'}
+            className="w-full"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Send {notifyType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Email
+          </Button>
+        </div>
       )}
 
       {/* ===== ENTERPRISE INQUIRY DETAIL ===== */}

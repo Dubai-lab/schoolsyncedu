@@ -259,7 +259,7 @@ export default function RegisterSchool() {
         throw rpcError;
       }
 
-      // Fire welcome email (non-blocking — don't fail registration if email fails)
+      // Fire welcome email + billing pending notification (non-blocking)
       const result = rpcData as { school_id?: string } | null;
       const newSchoolId = result?.school_id ?? '';
       try {
@@ -268,13 +268,29 @@ export default function RegisterSchool() {
             owner_name: owner.full_name,
             owner_email: owner.email,
             school_name: school.name,
-            plan_name: selectedPlan?.name || 'Free Trial',
-            trial_days: selectedPlan?.trial_days ?? 14,
             school_id: newSchoolId || undefined,
           },
         });
       } catch (emailErr) {
         console.warn('Welcome email failed (non-fatal):', emailErr);
+      }
+
+      // Fire billing "payment pending" notification from billing@
+      if (newSchoolId) {
+        try {
+          await supabase.functions.invoke('process-subscription-notifications', {
+            body: {
+              trigger: 'payment_pending',
+              school_id: newSchoolId,
+              school_name: school.name,
+              owner_email: owner.email,
+              owner_name: owner.full_name,
+              plan_name: selectedPlan?.name || 'Free Trial',
+            },
+          });
+        } catch (billingErr) {
+          console.warn('Billing pending notification failed (non-fatal):', billingErr);
+        }
       }
 
       // Sign out so user doesn't stay logged in during payment

@@ -269,14 +269,15 @@ export const billingService = {
     return data as Subscription[];
   },
 
-  /** List subscriptions joined with school name and plan name */
+  /** List subscriptions joined with school name, plan name, and proprietor contact */
   async listSubscriptionsWithDetails() {
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*, schools(name), subscription_plans(name)')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((row) => {
+
+    const rows = (data ?? []).map((row) => {
       const r = row as unknown as Record<string, unknown>;
       return {
         ...(r as unknown as Subscription),
@@ -284,6 +285,22 @@ export const billingService = {
         plan_name: (r.subscription_plans as { name: string } | null)?.name ?? 'Unknown',
       };
     }) as SubscriptionWithSchool[];
+
+    // Fetch proprietor emails in one query
+    const schoolIds = [...new Set(rows.map((r) => r.school_id))];
+    if (schoolIds.length > 0) {
+      const { data: owners } = await supabase
+        .from('users')
+        .select('school_id, email, full_name')
+        .in('school_id', schoolIds)
+        .eq('role', 'proprietor');
+      const ownerMap = new Map((owners ?? []).map((o) => [o.school_id, o]));
+      for (const row of rows) {
+        const owner = ownerMap.get(row.school_id);
+        if (owner) { row.owner_email = owner.email; row.owner_name = owner.full_name; }
+      }
+    }
+    return rows;
   },
 
   /** Extend subscription grace period without fully reactivating */

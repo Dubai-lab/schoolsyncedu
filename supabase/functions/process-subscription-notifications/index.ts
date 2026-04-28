@@ -189,6 +189,40 @@ function buildReactivatedEmail(schoolName: string, ownerName: string, planName: 
     </div>`, new Date().getFullYear());
 }
 
+function buildPaymentPendingEmail(schoolName: string, ownerName: string, planName: string) {
+  return emailWrapper(`
+    ${headerBlock('Payment Pending — Action Required', schoolName, '#d97706')}
+    <div style="padding:36px 32px;">
+      <p style="margin:0 0 16px;font-size:16px;color:#1f2937;">Hi <strong>${escapeHtml(ownerName)}</strong>,</p>
+      <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.7;">
+        Thank you for registering <strong>${escapeHtml(schoolName)}</strong> on SchoolSync.
+        Your school account has been created and is currently on the <strong>${escapeHtml(planName)}</strong> plan.
+      </p>
+      ${alertBox(`Your subscription payment has not yet been received. Your school is currently in a <strong>trial/grace period</strong>. To avoid interruption, please complete your payment as soon as possible.`)}
+      <p style="margin:20px 0 8px;font-size:14px;font-weight:600;color:#1f2937;">How to pay:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin:0 0 24px;">
+        ${[
+          ['Bank Transfer', 'Contact us for our Liberia bank account details'],
+          ['Mobile Money', 'MTN or Orange Money — contact support for number'],
+          ['Other Methods', 'We are flexible — reach out and we will work with you'],
+        ].map(([method, detail]) => `
+        <tr>
+          <td style="padding:10px 12px;background:#f9fafb;color:#6b7280;border-bottom:1px solid #e5e7eb;font-weight:500;width:35%;">${method}</td>
+          <td style="padding:10px 12px;color:#1f2937;border-bottom:1px solid #e5e7eb;">${detail}</td>
+        </tr>`).join('')}
+      </table>
+      <p style="margin:0 0 20px;font-size:13px;color:#4b5563;line-height:1.7;">
+        Once payment is confirmed, our team will activate your subscription and send you a payment receipt.
+        If you have already made a payment, please reply to this email with your transfer reference.
+      </p>
+      <p style="margin:0;font-size:13px;color:#4b5563;">
+        Questions? Contact us at
+        <a href="mailto:billing@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;font-weight:500;">billing@schoolsyncedu.com</a>
+        or <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>.
+      </p>
+    </div>`, new Date().getFullYear());
+}
+
 function buildPaymentConfirmedEmail(schoolName: string, ownerName: string, planName: string, amount: string, invoiceNumber: string, expiresAt: string, loginUrl: string) {
   return emailWrapper(`
     ${headerBlock('Payment Confirmed', schoolName, '#16a34a')}
@@ -335,7 +369,7 @@ serve(async (req) => {
       await transporter.sendMail({
         from: `"SchoolSync" <${fromAddress}>`,
         to: owner_email,
-        subject: `Great news — ${school_name} is active again! 🎉`,
+        subject: `Great news — ${school_name} is active again!`,
         html: buildReactivatedEmail(school_name, owner_email, plan_name || 'Standard', expiresFormatted, loginUrl),
         text: `${school_name} has been reactivated on the ${plan_name} plan. Active until ${expiresFormatted}.\n\nLog in at ${loginUrl}`,
       });
@@ -350,6 +384,40 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, trigger: 'reactivated' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body?.trigger === 'payment_pending') {
+      const { school_id, school_name, owner_email, owner_name, plan_name } = body as {
+        school_id?: string; school_name?: string; owner_email?: string;
+        owner_name?: string; plan_name?: string;
+      };
+
+      if (!owner_email || !school_name) {
+        return new Response(JSON.stringify({ error: 'owner_email and school_name required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      await billingTransporter.sendMail({
+        from: `"SchoolSync Billing" <${billingFrom}>`,
+        to: owner_email,
+        subject: `Action Required — Complete your payment for ${school_name}`,
+        html: buildPaymentPendingEmail(school_name, owner_name || owner_email, plan_name || 'Free Trial'),
+        text: `Hi ${owner_name || owner_email},\n\nYour school ${school_name} is registered on SchoolSync but payment has not been received.\n\nContact billing@schoolsyncedu.com or support@schoolsyncedu.com to complete your payment.\n\nSchoolSync Billing Team`,
+      });
+
+      if (school_id) {
+        await supabase.from('notification_logs').insert({
+          school_id,
+          event_type: 'payment_pending',
+          recipient_email: owner_email,
+          metadata: { plan_name },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, trigger: 'payment_pending' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
