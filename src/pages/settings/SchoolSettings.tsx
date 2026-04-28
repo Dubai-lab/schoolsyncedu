@@ -21,6 +21,7 @@ export default function SchoolSettings() {
   );
 
   const [form, setForm] = useState<Partial<School>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof School, string>>>({});
   const merged = { ...school, ...form } as School | undefined;
 
   const updateMutation = useMutate(
@@ -28,15 +29,28 @@ export default function SchoolSettings() {
     [['school-settings', schoolId]]
   );
 
-  const set = (field: keyof School, value: string) =>
+  const set = (field: keyof School, value: string) => {
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const validate = (): boolean => {
+    const next: Partial<Record<keyof School, string>> = {};
+    const code = (merged?.school_code ?? '').trim();
+    if (code.length > 3) next.school_code = 'School code must be 3 characters or fewer (e.g. NCA).';
+    if (code.length === 0 && 'school_code' in form) next.school_code = 'School code is required.';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const handleSave = () => {
     if (!Object.keys(form).length) return;
+    if (!validate()) return;
     updateMutation.mutate(form, {
       onSuccess: () => {
         notify.success('School settings updated');
         setForm({});
+        setErrors({});
       },
       onError: () => notify.error('Failed to update settings'),
     });
@@ -82,7 +96,10 @@ export default function SchoolSettings() {
           <Input
             label="School Code"
             value={merged?.school_code ?? ''}
-            onChange={(e) => set('school_code', e.target.value)}
+            onChange={(e) => set('school_code', e.target.value.toUpperCase())}
+            maxLength={3}
+            hint="3 characters max (e.g. NCA)"
+            error={errors.school_code}
           />
           <Input
             label="MOE Registration Number"
