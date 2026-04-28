@@ -167,6 +167,10 @@ export const schoolManagementService = {
     });
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
+    // Surface auth deletion failures so admin knows to clean up manually
+    if (data?.auth_delete_failures > 0) {
+      throw new Error(data.message);
+    }
   },
 
   /** Toggle a school online or offline manually */

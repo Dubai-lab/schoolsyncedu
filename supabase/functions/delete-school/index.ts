@@ -108,10 +108,17 @@ serve(async (req) => {
     for (const uid of authUserIds) {
       const { error: authDelErr } = await adminClient.auth.admin.deleteUser(uid);
       if (authDelErr) {
-        console.warn(`Could not delete auth user ${uid}:`, authDelErr.message);
+        console.error(`Failed to delete auth user ${uid}:`, authDelErr.message);
         failedAuthDeletes.push(uid);
+      } else {
+        console.log(`Auth user deleted: ${uid}`);
       }
     }
+
+    // If any auth accounts failed to delete, warn in the response so admin knows
+    const message = failedAuthDeletes.length > 0
+      ? `School deleted but ${failedAuthDeletes.length} auth account(s) could not be removed. Delete them manually in Supabase Dashboard → Authentication → Users.`
+      : `School and all ${authUserIds.length} auth account(s) deleted successfully.`;
 
     return new Response(
       JSON.stringify({
@@ -119,6 +126,7 @@ serve(async (req) => {
         school_name: school.name,
         users_deleted: authUserIds.length - failedAuthDeletes.length,
         auth_delete_failures: failedAuthDeletes.length,
+        message,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
