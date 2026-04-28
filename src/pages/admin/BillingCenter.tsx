@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { billingService, schoolManagementService, enterpriseService } from '@/services/adminService';
 import type { BillingInvoice, SubscriptionWithSchool, PlatformPayment, EnterpriseInquiry } from '@/types/report.types';
@@ -32,6 +33,7 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' | '
 };
 
 export default function BillingCenter() {
+  const qc = useQueryClient();
   const [tab, setTab]               = useState<Tab>('invoices');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [viewInvoice, setViewInvoice]   = useState<BillingInvoice | null>(null);
@@ -187,6 +189,10 @@ export default function BillingCenter() {
       setNotifyAmountUsd('');
       setNotifyAmountLrd('');
       setNotifyExpiresAt('');
+      // Refresh all billing data so totals and tables update immediately
+      qc.invalidateQueries({ queryKey: ['admin-invoices'] });
+      qc.invalidateQueries({ queryKey: ['admin-platform-payments'] });
+      qc.invalidateQueries({ queryKey: ['admin-subscriptions-detail'] });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       notify.error(`Failed: ${msg}`);
