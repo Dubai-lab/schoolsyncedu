@@ -185,7 +185,10 @@ function buildReactivatedEmail(schoolName: string, ownerName: string, planName: 
       <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;padding:16px 20px;margin:20px 0;">
         <p style="margin:0;font-size:13px;color:#166534;">Active until: <strong>${escapeHtml(expiresAt)}</strong></p>
       </div>
-      ${ctaButton('Go to My Dashboard →', loginUrl)}
+      <p style="margin:24px 0 0;font-size:13px;color:#4b5563;">
+        Log in to your school portal at:
+        <a href="${loginUrl}" style="color:#1e40af;text-decoration:underline;">${loginUrl}</a>
+      </p>
     </div>`, new Date().getFullYear());
 }
 
@@ -243,9 +246,12 @@ function buildPaymentConfirmedEmail(schoolName: string, ownerName: string, planN
           <td style="padding:10px 12px;color:#1f2937;border-bottom:1px solid #e5e7eb;font-weight:600;">${escapeHtml(value)}</td>
         </tr>`).join('')}
       </table>
-      ${ctaButton('Go to Dashboard →', loginUrl)}
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
-        Keep this email as your receipt. Questions? <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
+      <p style="margin:0 0 12px;font-size:13px;color:#4b5563;">
+        Log in to your school portal at:
+        <a href="${loginUrl}" style="color:#1e40af;text-decoration:underline;">${loginUrl}</a>
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
+        Keep this email as your receipt. Questions? <a href="mailto:billing@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">billing@schoolsyncedu.com</a>
       </p>
     </div>`, new Date().getFullYear());
 }
