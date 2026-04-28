@@ -477,6 +477,7 @@ export default function RegisterSchool() {
                       type="tel"
                       value={owner.phone}
                       onChange={(e) => updateOwner('phone', e.target.value)}
+                      maxLength={60}
                       className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       placeholder="+231 ..."
                     />
@@ -589,6 +590,7 @@ export default function RegisterSchool() {
                     type="tel"
                     value={school.phone}
                     onChange={(e) => updateSchool('phone', e.target.value)}
+                    maxLength={60}
                     className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                     placeholder="+231 ..."
                   />
