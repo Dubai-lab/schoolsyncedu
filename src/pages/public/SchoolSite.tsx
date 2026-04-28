@@ -186,6 +186,30 @@ export default function SchoolSite() {
     );
   }
 
+  if ((school as any).is_online === false) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 px-4 text-center">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gray-800">
+          <GraduationCap className="h-10 w-10 text-gray-500" />
+        </div>
+        <h1 className="text-2xl font-bold text-white">{school.name}</h1>
+        <p className="mt-3 text-base text-gray-400 max-w-sm">
+          This school's portal is currently <span className="text-red-400 font-semibold">offline</span>.
+        </p>
+        <p className="mt-2 text-sm text-gray-500 max-w-sm">
+          If you are a student or staff member, please contact your school administrator.
+          The school may be renewing their subscription.
+        </p>
+        <div className="mt-8 rounded-lg border border-gray-800 bg-gray-900 px-6 py-4 text-sm text-gray-400">
+          School administrators can restore access at{' '}
+          <a href="mailto:support@schoolsyncedu.com" className="text-blue-400 underline">
+            support@schoolsyncedu.com
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const primary = school.primary_color || '#1e40af';
   const secondary = school.secondary_color || '#f59e0b';
   const heroHeadline = school.hero_headline || `Welcome to ${school.name}`;

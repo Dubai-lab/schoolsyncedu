@@ -79,13 +79,24 @@ export default function ProprietorDashboard() {
 
   const pendingInvoices = invoices.filter((i) => i.status === 'sent' || i.status === 'overdue');
   const [now] = useState(() => Date.now());
-  const daysRemaining = subscription?.expires_at
-    ? Math.max(0, Math.ceil((new Date(subscription.expires_at).getTime() - now) / 86400000))
-    : null;
+
+  const expiresMs = subscription?.expires_at ? new Date(subscription.expires_at).getTime() : null;
+  const msRemaining = expiresMs ? expiresMs - now : null;
+  const daysRemaining = msRemaining !== null ? Math.max(0, Math.ceil(msRemaining / 86400000)) : null;
+  const hoursRemaining = msRemaining !== null ? Math.max(0, Math.floor(msRemaining / 3600000)) : null;
+  const expiresTimeStr = expiresMs
+    ? new Date(expiresMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '';
+  const expiresFull = expiresMs
+    ? new Date(expiresMs).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '';
 
   const isSuspended = subscription?.status === 'suspended';
   const isGrace = subscription?.status === 'grace';
-  const isExpiringSoon = ['trial', 'active'].includes(subscription?.status ?? '') && daysRemaining !== null && daysRemaining <= 7;
+  const isTrial = subscription?.status === 'trial';
+  const isTrialExpired = isTrial && msRemaining !== null && msRemaining <= 0;
+  const isLastDayGrace = isGrace && daysRemaining === 0;
+  const isExpiringSoon = ['trial', 'active'].includes(subscription?.status ?? '') && daysRemaining !== null && daysRemaining <= 7 && !isTrialExpired;
 
   const subStatusVariant = (s: string): 'success' | 'warning' | 'danger' | 'info' => {
     switch (s) {
@@ -117,58 +128,108 @@ export default function ProprietorDashboard() {
         </p>
       </div>
 
-      {/* ── Urgent: school suspended ─────────────────────────────────── */}
+      {/* ── SUSPENDED: school is offline ─────────────────────────────── */}
       {isSuspended && (
         <div className="rounded-xl border-2 border-red-400 bg-red-50 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
               <AlertTriangle className="w-7 h-7 text-red-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-red-800 text-lg">Your school is offline</p>
+                <p className="font-bold text-red-800 text-lg">Your school portal is offline</p>
                 <p className="text-sm text-red-700 mt-1">
-                  Your subscription has expired. Staff and students <strong>cannot log in</strong> until you renew.
-                  Renew now to restore access immediately.
+                  Your grace period has ended and your school has been suspended. Staff and students
+                  <strong> cannot log in</strong>. Contact{' '}
+                  <a href="mailto:support@schoolsyncedu.com" className="underline">support@schoolsyncedu.com</a>{' '}
+                  to arrange payment and restore access.
                 </p>
               </div>
             </div>
             <Button className="bg-red-600 hover:bg-red-700 text-white shrink-0" onClick={() => navigate('/proprietor/subscription')}>
-              <RefreshCw className="w-4 h-4 mr-1.5" /> Renew Now
+              <RefreshCw className="w-4 h-4 mr-1.5" /> Contact Support
             </Button>
           </div>
         </div>
       )}
 
-      {/* ── Urgent: grace period ─────────────────────────────────────── */}
-      {isGrace && daysRemaining !== null && (
+      {/* ── GRACE: last day — show exact shutdown time ────────────────── */}
+      {isLastDayGrace && (
+        <div className="rounded-xl border-2 border-red-300 bg-red-50 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <AlertTriangle className="w-7 h-7 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-red-800 text-lg">Grace period ends today</p>
+                <p className="text-sm text-red-700 mt-1">
+                  Your school portal will go <strong>offline automatically at {expiresTimeStr}</strong>{' '}
+                  ({expiresFull}) if payment is not received. Staff and students will lose access.
+                  Contact us immediately at{' '}
+                  <a href="mailto:billing@schoolsyncedu.com" className="underline">billing@schoolsyncedu.com</a>.
+                </p>
+              </div>
+            </div>
+            <Button className="bg-red-600 hover:bg-red-700 text-white shrink-0" onClick={() => navigate('/proprietor/subscription')}>
+              <RefreshCw className="w-4 h-4 mr-1.5" /> Pay Now
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── GRACE: more than 0 days left ─────────────────────────────── */}
+      {isGrace && !isLastDayGrace && daysRemaining !== null && (
         <div className="rounded-xl border border-orange-300 bg-orange-50 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
               <AlertTriangle className="w-6 h-6 text-orange-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-orange-800 text-base">Grace period — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left</p>
+                <p className="font-semibold text-orange-800 text-base">
+                  Grace period — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining
+                </p>
                 <p className="text-sm text-orange-700 mt-0.5">
-                  Your trial/subscription expired. You're in a grace period. Renew before it ends or your school will go offline automatically.
+                  Your subscription has expired. You have {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} to
+                  arrange payment before your school portal goes offline automatically and staff/students
+                  lose access. Contact{' '}
+                  <a href="mailto:billing@schoolsyncedu.com" className="underline font-medium">billing@schoolsyncedu.com</a>{' '}
+                  to confirm payment.
                 </p>
               </div>
             </div>
             <Button className="bg-orange-600 hover:bg-orange-700 text-white shrink-0" onClick={() => navigate('/proprietor/subscription')}>
-              <RefreshCw className="w-4 h-4 mr-1.5" /> Renew Now
+              <RefreshCw className="w-4 h-4 mr-1.5" /> Pay Now
             </Button>
           </div>
         </div>
       )}
 
-      {/* ── Warning: expiring soon ────────────────────────────────────── */}
-      {isExpiringSoon && !isSuspended && !isGrace && (
+      {/* ── TRIAL EXPIRED: waiting for cron to move to grace ─────────── */}
+      {isTrialExpired && (
+        <div className="rounded-xl border border-orange-300 bg-orange-50 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-orange-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-orange-800 text-base">Your free trial has ended</p>
+              <p className="text-sm text-orange-700 mt-0.5">
+                Your trial period is over. Your school is entering a grace period — you will receive
+                an email shortly with details. Contact{' '}
+                <a href="mailto:billing@schoolsyncedu.com" className="underline font-medium">billing@schoolsyncedu.com</a>{' '}
+                to arrange payment and keep your school running.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TRIAL/ACTIVE: expiring soon (1–7 days left) ──────────────── */}
+      {isExpiringSoon && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-800 flex-1">
-            <strong>{subscription?.status === 'trial' ? 'Free trial' : 'Subscription'} ends in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}.</strong>{' '}
-            Renew now to avoid any interruption.
+            <strong>{isTrial ? 'Free trial' : 'Subscription'} ends in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}.</strong>{' '}
+            {hoursRemaining !== null && daysRemaining === 1 && ` (${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''})`}{' '}
+            Contact us to arrange payment and avoid interruption.
           </p>
           <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
             onClick={() => navigate('/proprietor/subscription')}>
-            Renew
+            Pay Now
           </Button>
         </div>
       )}
