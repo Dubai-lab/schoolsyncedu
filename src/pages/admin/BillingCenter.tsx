@@ -44,12 +44,14 @@ export default function BillingCenter() {
 
   // Manual notification push state
   type NotifyType = 'payment_confirmed' | 'payment_pending' | 'reactivated' | 'grace_reminder';
-  const [notifySchoolId, setNotifySchoolId]   = useState('');
-  const [notifyType, setNotifyType]           = useState<NotifyType>('payment_confirmed');
-  const [notifyAmount, setNotifyAmount]       = useState('');
-  const [notifyInvoice, setNotifyInvoice]     = useState('');
-  const [notifyExpiresAt, setNotifyExpiresAt] = useState('');
-  const [notifySending, setNotifySending]     = useState(false);
+  const [notifySchoolId, setNotifySchoolId]     = useState('');
+  const [notifyType, setNotifyType]             = useState<NotifyType>('payment_confirmed');
+  const [notifyAmountUsd, setNotifyAmountUsd]   = useState('');
+  const [notifyAmountLrd, setNotifyAmountLrd]   = useState('');
+  const [notifyPayMethod, setNotifyPayMethod]   = useState('bank');
+  const [notifyExpiresAt, setNotifyExpiresAt]   = useState('');
+  const [notifySending, setNotifySending]       = useState(false);
+  const [notifyResult, setNotifyResult]         = useState<{ invoice_number: string; expires_at: string } | null>(null);
 
   const { data: invoices = [], isLoading: loadingInv } = useFetch<BillingInvoice[]>(
     ['admin-invoices'],
@@ -142,43 +144,52 @@ export default function BillingCenter() {
   };
 
   const handleSendNotification = async () => {
-    const sub = subscriptions.find((s) => s.school_id === notifySchoolId || s.id === notifySchoolId);
-    if (!sub) { notify.error('School not found — select a school from the list'); return; }
+    const sub = subscriptions.find((s) => s.school_id === notifySchoolId);
+    if (!sub) { notify.error('Select a school first'); return; }
+
+    if (notifyType === 'payment_confirmed') {
+      if (!notifyAmountUsd || parseFloat(notifyAmountUsd) <= 0) {
+        notify.error('Enter the USD amount paid'); return;
+      }
+    }
+    if (notifyType === 'reactivated' && !notifyExpiresAt) {
+      notify.error('Enter the new subscription expiry date'); return;
+    }
 
     setNotifySending(true);
+    setNotifyResult(null);
     try {
       const payload: Record<string, unknown> = {
-        trigger: notifyType,
-        school_id: sub.school_id,
+        trigger:    notifyType,
+        school_id:  sub.school_id,
         school_name: sub.school_name,
         owner_email: sub.owner_email,
-        owner_name: sub.owner_name,
-        plan_name: sub.plan_name,
+        owner_name:  sub.owner_name,
+        plan_name:   sub.plan_name,
       };
 
       if (notifyType === 'payment_confirmed') {
-        if (!notifyAmount || !notifyInvoice || !notifyExpiresAt) {
-          notify.error('Amount, invoice number, and expiry date are required for payment confirmed');
-          setNotifySending(false);
-          return;
-        }
-        payload.amount_usd = parseFloat(notifyAmount);
-        payload.invoice_number = notifyInvoice;
-        payload.expires_at = notifyExpiresAt;
+        payload.amount_usd     = parseFloat(notifyAmountUsd);
+        payload.amount_lrd     = notifyAmountLrd ? parseFloat(notifyAmountLrd) : null;
+        payload.payment_method = notifyPayMethod;
       } else if (notifyType === 'reactivated') {
-        if (!notifyExpiresAt) { notify.error('Expiry date required for reactivation email'); setNotifySending(false); return; }
         payload.expires_at = notifyExpiresAt;
       }
 
-      const { error } = await supabase.functions.invoke('process-subscription-notifications', { body: payload });
+      const { data, error } = await supabase.functions.invoke('process-subscription-notifications', { body: payload });
       if (error) throw error;
-      notify.success(`${notifyType.replace(/_/g, ' ')} email sent to ${sub.owner_email}`);
-      setNotifyAmount('');
-      setNotifyInvoice('');
+
+      if (notifyType === 'payment_confirmed' && data?.invoice_number) {
+        setNotifyResult({ invoice_number: data.invoice_number, expires_at: data.expires_at });
+      }
+
+      notify.success(`Email sent to ${sub.owner_email} — subscription updated`);
+      setNotifyAmountUsd('');
+      setNotifyAmountLrd('');
       setNotifyExpiresAt('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      notify.error(`Failed to send: ${msg}`);
+      notify.error(`Failed: ${msg}`);
     } finally {
       setNotifySending(false);
     }
@@ -646,45 +657,65 @@ export default function BillingCenter() {
           {notifyType === 'payment_confirmed' && (
             <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment Details</p>
+
+              {/* Invoice auto-generated notice */}
+              <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                Invoice number is auto-generated by the system (e.g. INV-2026-0001). No need to enter it manually.
+              </div>
+
+              {/* Amounts */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-600">Amount (USD)</label>
+                  <label className="block text-xs font-medium text-gray-600">Amount in USD <span className="text-red-500">*</span></label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g. 150.00"
-                    value={notifyAmount}
-                    onChange={(e) => setNotifyAmount(e.target.value)}
+                    type="number" min="0" step="0.01" placeholder="e.g. 150.00"
+                    value={notifyAmountUsd}
+                    onChange={(e) => setNotifyAmountUsd(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-600">Invoice Number</label>
+                  <label className="block text-xs font-medium text-gray-600">Amount in LRD <span className="text-gray-400">(optional)</span></label>
                   <input
-                    type="text"
-                    placeholder="e.g. INV-2025-001"
-                    value={notifyInvoice}
-                    onChange={(e) => setNotifyInvoice(e.target.value)}
+                    type="number" min="0" step="1" placeholder="e.g. 24000"
+                    value={notifyAmountLrd}
+                    onChange={(e) => setNotifyAmountLrd(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
                   />
                 </div>
               </div>
+
+              {/* Payment method */}
               <div className="space-y-1">
-                <label className="block text-xs font-medium text-gray-600">Subscription Expires At</label>
-                <input
-                  type="date"
-                  value={notifyExpiresAt}
-                  onChange={(e) => setNotifyExpiresAt(e.target.value)}
+                <label className="block text-xs font-medium text-gray-600">Payment Method</label>
+                <select
+                  value={notifyPayMethod}
+                  onChange={(e) => setNotifyPayMethod(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
-                />
+                >
+                  <option value="bank">Bank Transfer</option>
+                  <option value="mtn">MTN Mobile Money</option>
+                  <option value="orange">Orange Money</option>
+                  <option value="manual">Cash / Manual</option>
+                </select>
               </div>
+
+              {/* Expiry info */}
+              {notifySchoolId && (() => {
+                const s = subscriptions.find((sub) => sub.school_id === notifySchoolId);
+                return s ? (
+                  <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded px-3 py-2">
+                    New expiry will be calculated automatically from the <strong>{s.plan_name}</strong> billing cycle.
+                  </p>
+                ) : null;
+              })()}
             </div>
           )}
 
           {notifyType === 'reactivated' && (
             <div className="space-y-1 p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <label className="block text-xs font-medium text-gray-600">Subscription Expires At</label>
+              <label className="block text-xs font-medium text-gray-600">New Subscription Expiry Date</label>
               <input
                 type="date"
                 value={notifyExpiresAt}
@@ -696,8 +727,7 @@ export default function BillingCenter() {
 
           {notifyType === 'grace_reminder' && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-              Grace period reminders are sent automatically by the daily batch processor.
-              To trigger manually, run the <code className="bg-blue-100 px-1 rounded">process-subscription-notifications</code> edge function without a trigger body.
+              Grace period reminders are sent automatically by the daily 8am cron. They cannot be sent manually — the cron handles deduplication.
             </div>
           )}
 
@@ -708,8 +738,19 @@ export default function BillingCenter() {
             className="w-full"
           >
             <Send className="w-4 h-4 mr-2" />
-            Send {notifyType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Email
+            {notifyType === 'payment_confirmed'
+              ? 'Confirm Payment & Send Receipt'
+              : `Send ${notifyType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} Email`}
           </Button>
+
+          {/* Success result */}
+          {notifyResult && (
+            <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800 space-y-1">
+              <p className="font-semibold flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Payment confirmed successfully</p>
+              <p>Invoice: <strong className="font-mono">{notifyResult.invoice_number}</strong></p>
+              <p>Subscription active until: <strong>{new Date(notifyResult.expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+            </div>
+          )}
         </div>
       )}
 
