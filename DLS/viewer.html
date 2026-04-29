@@ -469,14 +469,16 @@ function getTeamsForComp(comp){
   }
 }
 
+let _changingTeam = false;
+
 function updateNotifBanner(){
   const banner = document.getElementById('notif-banner');
   const active = document.getElementById('notif-active');
   if(!('PushManager' in window) || !('serviceWorker' in navigator)){ banner.style.display='none'; active.style.display='none'; return; }
   const dismissed = sessionStorage.getItem('notif_dismissed');
   const subscribed = localStorage.getItem('dls_notif_'+currentComp);
-  if(subscribed){ banner.style.display='none'; active.style.display='block'; document.getElementById('notif-active-team').textContent=subscribed; return; }
-  if(dismissed){ banner.style.display='none'; active.style.display='none'; return; }
+  if(subscribed && !_changingTeam){ banner.style.display='none'; active.style.display='block'; document.getElementById('notif-active-team').textContent=subscribed; return; }
+  if(dismissed && !_changingTeam){ banner.style.display='none'; active.style.display='none'; return; }
   // Populate team dropdown
   const sel = document.getElementById('notif-team-select');
   const teams = getTeamsForComp(currentComp);
@@ -510,18 +512,19 @@ async function subscribeNotifications(){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ subscription, timezone, team: teamName })
     });
-    // Remove old team entry from Firebase if changing
+    // Remove old team entry from Firebase if changing team
     const oldTeam = localStorage.getItem('dls_notif_'+currentComp);
     if(oldTeam && slugTeam(oldTeam) !== key){
       fetch(FIREBASE_URL + `/dls_push_subs/${currentComp}/${slugTeam(oldTeam)}.json`, { method: 'DELETE' }).catch(()=>{});
     }
+    _changingTeam = false;
     localStorage.setItem('dls_notif_'+currentComp, teamName);
     updateNotifBanner();
   } catch(e){ alert('Could not subscribe: ' + e.message); }
 }
 
 function changeTeamNotif(){
-  localStorage.removeItem('dls_notif_'+currentComp);
+  _changingTeam = true;
   sessionStorage.removeItem('notif_dismissed');
   updateNotifBanner();
 }
