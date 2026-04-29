@@ -1,19 +1,9 @@
-const CACHE = 'dls-v1';
-const ASSETS = [
-  './index.html',
-  './viewer.html',
-  './league.html',
-  './league2.html',
-  './league3.html',
-  './tournament.html',
-  './europa.html',
-  './prizepool.html',
-  './manifest.json',
-  './dls_logo.jpeg'
-];
+const CACHE = 'dls-v2';
+const STATIC_ASSETS = ['./manifest.json', './dls_logo.jpeg'];
+const HTML_FILES = ['.html'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
 
@@ -51,19 +41,35 @@ self.addEventListener('notificationclick', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Always go to network for Firebase — live data must stay fresh
   if(e.request.url.includes('firebaseio.com')) return;
 
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if(cached) return cached;
-      return fetch(e.request).then(res => {
-        if(res.ok && e.request.method === 'GET'){
+  const isHTML = HTML_FILES.some(ext => e.request.url.includes(ext)) ||
+                 e.request.mode === 'navigate';
+
+  if(isHTML){
+    // Network-first for HTML — always get latest code
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if(res.ok){
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      });
-    }).catch(() => caches.match('./viewer.html'))
-  );
+      }).catch(() => caches.match(e.request))
+    );
+  } else {
+    // Cache-first for static assets (images, manifest)
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if(cached) return cached;
+        return fetch(e.request).then(res => {
+          if(res.ok && e.request.method === 'GET'){
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        });
+      }).catch(() => caches.match('./viewer.html'))
+    );
+  }
 });
