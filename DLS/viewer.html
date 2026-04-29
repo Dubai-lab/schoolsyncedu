@@ -283,7 +283,8 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   </div>
 </div>
 <div id="notif-active" style="display:none;background:#0d1117;border-bottom:1px solid #21262d;padding:6px 16px;text-align:center;font-size:.72rem;color:#00c853">
-  &#128276; Match reminders are active for this competition
+  &#128276; Match reminders active for <strong id="notif-active-team" style="color:#00c853"></strong>
+  &nbsp;<button onclick="changeTeamNotif()" style="background:none;border:1px solid #30363d;border-radius:4px;color:#8b949e;font-size:.68rem;padding:2px 7px;cursor:pointer;margin-left:4px">Change team</button>
 </div>
 
 <!-- ═══════ RULES OVERLAY ═══════ -->
@@ -474,7 +475,7 @@ function updateNotifBanner(){
   if(!('PushManager' in window) || !('serviceWorker' in navigator)){ banner.style.display='none'; active.style.display='none'; return; }
   const dismissed = sessionStorage.getItem('notif_dismissed');
   const subscribed = localStorage.getItem('dls_notif_'+currentComp);
-  if(subscribed){ banner.style.display='none'; active.style.display='block'; return; }
+  if(subscribed){ banner.style.display='none'; active.style.display='block'; document.getElementById('notif-active-team').textContent=subscribed; return; }
   if(dismissed){ banner.style.display='none'; active.style.display='none'; return; }
   // Populate team dropdown
   const sel = document.getElementById('notif-team-select');
@@ -509,9 +510,20 @@ async function subscribeNotifications(){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ subscription, timezone, team: teamName })
     });
+    // Remove old team entry from Firebase if changing
+    const oldTeam = localStorage.getItem('dls_notif_'+currentComp);
+    if(oldTeam && slugTeam(oldTeam) !== key){
+      fetch(FIREBASE_URL + `/dls_push_subs/${currentComp}/${slugTeam(oldTeam)}.json`, { method: 'DELETE' }).catch(()=>{});
+    }
     localStorage.setItem('dls_notif_'+currentComp, teamName);
     updateNotifBanner();
   } catch(e){ alert('Could not subscribe: ' + e.message); }
+}
+
+function changeTeamNotif(){
+  localStorage.removeItem('dls_notif_'+currentComp);
+  sessionStorage.removeItem('notif_dismissed');
+  updateNotifBanner();
 }
 
 function renderCurrentComp(){
