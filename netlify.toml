@@ -1,0 +1,9 @@
+[build]
+  publish = "DLS"
+  functions = "DLS/netlify/functions"
+
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
+
+[functions]
+  node_bundler = "esbuild"

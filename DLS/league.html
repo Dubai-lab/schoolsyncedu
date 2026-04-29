@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DLS League</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DLS League">
+<link rel="apple-touch-icon" href="dls_logo.jpeg">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
@@ -740,6 +746,7 @@ async function publishLeague(){
     });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     toast('Published! Players can now see Matchday ' + pub.currentMatchday);
+    notifyFixture('league1', 'Division 1', pub.currentMatchday);
   } catch(e) {
     toast('Publish failed: ' + e.message, 'error');
   }
@@ -955,6 +962,14 @@ function copyMatchdayAnnouncement(){
 // ═══════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════
+const NOTIFY_SECRET = 'africa-dls-2025';
+function notifyFixture(comp, compName, matchday){
+  fetch('/.netlify/functions/notify-fixture', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ comp, compName, matchday, secret: NOTIFY_SECRET })
+  }).catch(()=>{});
+}
+
 function esc(str){
   if(!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -990,5 +1005,6 @@ function toast(msg, type='success'){
   if(LS.teams.length) scheduleCloudSave();
 })();
 </script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
 </body>
 </html>

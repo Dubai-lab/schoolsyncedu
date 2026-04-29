@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DLS Football Hub — Live</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DLS League">
+<link rel="apple-touch-icon" href="dls_logo.jpeg">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh;padding-bottom:40px}
@@ -264,6 +270,22 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   </div>
 </header>
 
+<!-- ═══════ NOTIFICATION BANNER ═══════ -->
+<div id="notif-banner" style="display:none;background:#161b22;border-bottom:1px solid #21262d;padding:10px 16px">
+  <div style="max-width:680px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:1.1rem">&#128276;</span>
+    <span style="font-size:.78rem;color:#8b949e;flex:1;min-width:160px">Get match reminders for <strong style="color:#e6edf3">Africa DLS Global League</strong></span>
+    <select id="notif-team-select" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 10px;color:#e6edf3;font-size:.78rem;outline:none;cursor:pointer;max-width:180px">
+      <option value="">Select your team...</option>
+    </select>
+    <button onclick="subscribeNotifications()" style="background:linear-gradient(135deg,#00c853,#00a844);border:none;border-radius:6px;padding:7px 14px;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">&#10003; Allow</button>
+    <button onclick="dismissNotifBanner()" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:1.1rem;padding:2px 8px;line-height:1" title="Dismiss">&#10005;</button>
+  </div>
+</div>
+<div id="notif-active" style="display:none;background:#0d1117;border-bottom:1px solid #21262d;padding:6px 16px;text-align:center;font-size:.72rem;color:#00c853">
+  &#128276; Match reminders are active for this competition
+</div>
+
 <!-- ═══════ RULES OVERLAY ═══════ -->
 <div id="rules-overlay" class="rules-overlay">
   <div class="rules-box">
@@ -284,6 +306,18 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
         <li>If a player misses the deadline <strong>without a valid reason</strong>, the match may be recorded as a 0–0 draw or awarded to the available player at the admin's discretion.</li>
         <li>Once a score is submitted and confirmed by the admin, it is <strong>final</strong>.</li>
         <li>Players must use the <strong>exact team name</strong> they registered with.</li>
+      </ol>
+    </div>
+
+    <div class="rules-section" style="border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.04)">
+      <h3 style="color:#f87171">&#9888; Strict Match Rules — No Exceptions</h3>
+      <ol>
+        <li>
+          <strong>One match, one result — no rematches.</strong> Each fixture is played <strong>once only</strong>. If players agree to replay after a draw and two different results are sent to the admin (e.g. one sends a draw, the other sends a win), the match is <strong>automatically recorded as a DRAW</strong> regardless of any private agreement between the two players. Submitting multiple results for the same fixture is not permitted under any circumstance.
+        </li>
+        <li>
+          <strong>No personal scheduling within the 24-hour window.</strong> The match window runs from <strong>12:00am to 12:00am</strong> (midnight to midnight). Both players are <strong>required to play at any time their opponent is available</strong> within that window. You may not set your own preferred time and refuse to play because your opponent is ready at a different hour. As long as the 24-hour deadline has not passed, refusing to play when your opponent is available is a violation — the admin may award the match to the ready player.
+        </li>
       </ol>
     </div>
 
@@ -406,6 +440,78 @@ function selectComp(id){
   document.querySelectorAll('.comp-opt').forEach(o=>o.classList.remove('active'));
   document.getElementById('opt-'+id).classList.add('active');
   renderCurrentComp();
+  updateNotifBanner();
+}
+
+// ═══════════════════════════════════════════
+//  PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════
+const VAPID_PUBLIC_KEY = 'BJEWamYusy3hNVKGzP0Ap5QL6nwBrx_QgFpRwZ9OdSjCPkmgCYa8Ao8KuWqUKaWJfMy1I7mMuAwyo_RzeemSYzk';
+
+function urlBase64ToUint8Array(b64){
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const base64 = (b64 + pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+function slugTeam(name){ return name.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,''); }
+
+function getTeamsForComp(comp){
+  switch(comp){
+    case 'league1': return (leaguePub?.table||[]).map(r=>r.team);
+    case 'league2': return (league2Pub?.table||[]).map(r=>r.team);
+    case 'league3': return (league3Pub?.table||[]).map(r=>r.team);
+    case 'cl':      return clPub?.groups ? Object.values(clPub.groups).flat() : [];
+    case 'europa':  return europaPub?.groups ? Object.values(europaPub.groups).flat() : [];
+    default: return [];
+  }
+}
+
+function updateNotifBanner(){
+  const banner = document.getElementById('notif-banner');
+  const active = document.getElementById('notif-active');
+  if(!('PushManager' in window) || !('serviceWorker' in navigator)){ banner.style.display='none'; active.style.display='none'; return; }
+  const dismissed = sessionStorage.getItem('notif_dismissed');
+  const subscribed = localStorage.getItem('dls_notif_'+currentComp);
+  if(subscribed){ banner.style.display='none'; active.style.display='block'; return; }
+  if(dismissed){ banner.style.display='none'; active.style.display='none'; return; }
+  // Populate team dropdown
+  const sel = document.getElementById('notif-team-select');
+  const teams = getTeamsForComp(currentComp);
+  sel.innerHTML = '<option value="">Select your team...</option>' +
+    teams.map(t=>`<option value="${t.replace(/"/g,'&quot;')}">${t}</option>`).join('');
+  banner.style.display = teams.length ? 'block' : 'none';
+  active.style.display = 'none';
+}
+
+function dismissNotifBanner(){
+  sessionStorage.setItem('notif_dismissed','1');
+  document.getElementById('notif-banner').style.display='none';
+}
+
+async function subscribeNotifications(){
+  const sel = document.getElementById('notif-team-select');
+  const teamName = sel?.value;
+  if(!teamName){ sel.style.borderColor='#dc3545'; setTimeout(()=>sel.style.borderColor='#30363d',1500); return; }
+  try{
+    const sw = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){ alert('Please allow notifications in your browser settings to receive match reminders.'); return; }
+    const subscription = await sw.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const key = slugTeam(teamName);
+    await fetch(FIREBASE_URL + `/dls_push_subs/${currentComp}/${key}.json`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ subscription, timezone, team: teamName })
+    });
+    localStorage.setItem('dls_notif_'+currentComp, teamName);
+    updateNotifBanner();
+  } catch(e){ alert('Could not subscribe: ' + e.message); }
 }
 
 function renderCurrentComp(){
@@ -812,6 +918,7 @@ async function refresh(){
   await loadData();
   renderCurrentComp();
   updateTimestamp();
+  updateNotifBanner();
 }
 
 // Auto-refresh every 30 seconds
@@ -820,5 +927,6 @@ setInterval(refresh, 30000);
 // Initial load
 refresh();
 </script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
 </body>
 </html>
