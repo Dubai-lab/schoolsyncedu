@@ -686,6 +686,10 @@ function resetLeague(){
 
 const NOTIFY_SECRET = 'africa-dls-2025';
 function notifyFixture(comp, compName, matchday){
+  const storeKey = 'dls_last_notif_' + comp;
+  const last = localStorage.getItem(storeKey);
+  if(last !== null && parseInt(last) >= matchday) return;
+  localStorage.setItem(storeKey, matchday);
   fetch('/.netlify/functions/notify-fixture', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ comp, compName, matchday, secret: NOTIFY_SECRET })

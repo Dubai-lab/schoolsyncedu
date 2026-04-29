@@ -1019,7 +1019,7 @@ async function publishCL(){
     });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     toast('Champions League published! Players can now view it.');
-    notifyFixture('cl', 'Champions League', null);
+    notifyFixture('cl', 'Champions League', buildFixtureKey(pub));
   } catch(e) {
     toast('Publish failed: ' + e.message, 'error');
   }
@@ -1105,10 +1105,24 @@ function copyKOAnnouncement(){
 //  HELPERS
 // ═══════════════════════════════════════════
 const NOTIFY_SECRET = 'africa-dls-2025';
-function notifyFixture(comp, compName, matchday){
+function buildFixtureKey(pub){
+  const pairs = [];
+  if(pub.phase === 'group' && pub.fixtures){
+    ['A','B','C','D'].forEach(g => (pub.fixtures[g]||[]).forEach(m => pairs.push(m.home+'|'+m.away)));
+  } else if(pub.phase === 'knockout' && pub.ko){
+    [...(pub.ko.qf||[]),...(pub.ko.sf||[])].forEach(m => { if(m&&m.home) pairs.push(m.home+'|'+m.away); });
+    if(pub.ko.final&&pub.ko.final.home) pairs.push(pub.ko.final.home+'|'+pub.ko.final.away);
+  }
+  return pairs.join(',') || pub.phase || 'unknown';
+}
+function notifyFixture(comp, compName, fixtureKey){
+  const storeKey = 'dls_last_notif_' + comp;
+  const last = localStorage.getItem(storeKey);
+  if(last === fixtureKey) return;
+  localStorage.setItem(storeKey, fixtureKey);
   fetch('/.netlify/functions/notify-fixture', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ comp, compName, matchday, secret: NOTIFY_SECRET })
+    body: JSON.stringify({ comp, compName, matchday: null, secret: NOTIFY_SECRET })
   }).catch(()=>{});
 }
 
