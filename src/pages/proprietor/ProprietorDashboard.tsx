@@ -22,7 +22,6 @@ import {
   Clock,
   AlertTriangle,
   FileText,
-  Building2,
   Shield,
   Globe,
   RefreshCw,
