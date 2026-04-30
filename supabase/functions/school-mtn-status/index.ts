@@ -42,16 +42,17 @@ serve(async (req) => {
     // ── Fetch school's MTN credentials ────────────────────────────────────────
     const { data: cfg } = await db
       .from('school_payment_configs')
-      .select('mtn_api_key, mtn_user_id')
+      .select('mtn_api_key, mtn_user_id, mtn_api_user_key')
       .eq('school_id', rec.school_id)
       .maybeSingle();
 
-    if (!cfg?.mtn_api_key || !cfg?.mtn_user_id) {
+    if (!cfg?.mtn_api_key || !cfg?.mtn_user_id || !cfg?.mtn_api_user_key) {
       return json({ error: 'School MTN credentials missing' }, 400);
     }
 
-    const subscriptionKey = cfg.mtn_api_key.trim();
-    const userId          = cfg.mtn_user_id.trim();
+    const subscriptionKey = cfg.mtn_api_key.trim();      // Ocp-Apim-Subscription-Key header
+    const userId          = cfg.mtn_user_id.trim();      // Basic auth username
+    const apiUserKey      = cfg.mtn_api_user_key.trim(); // Basic auth password
     const mtnBase         = Deno.env.get('MTN_BASE_URL') ?? 'https://sandbox.momodeveloper.mtn.com';
     const mtnEnv          = Deno.env.get('MTN_TARGET_ENVIRONMENT') ?? 'sandbox';
 
@@ -59,7 +60,7 @@ serve(async (req) => {
     const tokenRes = await fetch(`${mtnBase}/collection/token/`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${btoa(`${userId}:${subscriptionKey}`)}`,
+        'Authorization': `Basic ${btoa(`${userId}:${apiUserKey}`)}`,
         'Ocp-Apim-Subscription-Key': subscriptionKey,
       },
     });

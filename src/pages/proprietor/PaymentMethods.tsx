@@ -120,10 +120,11 @@ export default function PaymentMethods() {
   const [flwCurrency, setFlwCurrency] = useState('USD');
 
   // MTN MoMo
-  const [mtnCode,    setMtnCode]    = useState('');
-  const [mtnKey,     setMtnKey]     = useState(''); // subscription key
-  const [mtnUserId,  setMtnUserId]  = useState(''); // API user ID
-  const [mtnEnabled, setMtnEnabled] = useState(false);
+  const [mtnCode,        setMtnCode]        = useState('');
+  const [mtnKey,         setMtnKey]         = useState(''); // Subscription Key (Ocp-Apim-Subscription-Key)
+  const [mtnUserId,      setMtnUserId]      = useState(''); // API User ID (Basic auth username)
+  const [mtnApiUserKey,  setMtnApiUserKey]  = useState(''); // API User Key (Basic auth password)
+  const [mtnEnabled,     setMtnEnabled]     = useState(false);
 
   // Orange Money
   const [orangeCode,    setOrangeCode]    = useState('');
@@ -160,6 +161,7 @@ export default function PaymentMethods() {
       setMtnCode(savedConfig.mtn_merchant_code ?? '');
       setMtnKey(savedConfig.mtn_api_key ?? '');
       setMtnUserId(savedConfig.mtn_user_id ?? '');
+      setMtnApiUserKey(savedConfig.mtn_api_user_key ?? '');
       setMtnEnabled(savedConfig.mtn_enabled ?? false);
       setOrangeCode(savedConfig.orange_merchant_code ?? '');
       setOrangeKey(savedConfig.orange_api_key ?? '');
@@ -199,6 +201,7 @@ export default function PaymentMethods() {
         mtn_merchant_code: mtnCode.trim(),
         mtn_api_key: mtnKey.trim(),
         mtn_user_id: mtnUserId.trim(),
+        mtn_api_user_key: mtnApiUserKey.trim(),
         mtn_enabled: mtnEnabled,
         orange_merchant_code: orangeCode.trim(),
         orange_api_key: orangeKey.trim(),
@@ -430,10 +433,18 @@ export default function PaymentMethods() {
                   value={mtnUserId}
                   onChange={setMtnUserId}
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  note="UUID created when you provision an API user in the MTN MoMo Developer Portal."
+                  note="UUID you chose when provisioning an API user (X-Reference-Id in the provisioning call)."
+                />
+                <KeyInput
+                  label="API User Key"
+                  value={mtnApiUserKey}
+                  onChange={setMtnApiUserKey}
+                  placeholder="API User Key from provisioning"
+                  isSecret
+                  note="The apiKey returned by POST /v1_0/apiuser/{userId}/apikey — used as Basic auth password."
                 />
               </div>
-              {mtnKey && mtnUserId ? (
+              {mtnKey && mtnUserId && mtnApiUserKey ? (
                 <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   <span><strong>Automated push payments enabled</strong> — parents will receive a push notification to approve payment directly on their phone.</span>
@@ -441,7 +452,7 @@ export default function PaymentMethods() {
               ) : (
                 <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500">
                   <Info className="h-3.5 w-3.5 shrink-0" />
-                  <span>Add both <strong>API Subscription Key</strong> and <strong>API User ID</strong> to enable automatic push payments. With only a merchant code, parents will see USSD manual instructions.</span>
+                  <span>Add all three fields — <strong>Subscription Key</strong>, <strong>API User ID</strong>, and <strong>API User Key</strong> — to enable automatic push payments. With only a merchant code, parents will see USSD manual instructions.</span>
                 </div>
               )}
             </div>

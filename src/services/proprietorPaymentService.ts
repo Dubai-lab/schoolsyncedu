@@ -19,8 +19,9 @@ export interface PaymentConfig {
   flw_currency: string;
   // MTN MoMo
   mtn_merchant_code: string;
-  mtn_api_key: string;
-  mtn_user_id: string;
+  mtn_api_key: string;      // Ocp-Apim-Subscription-Key
+  mtn_user_id: string;      // API User ID (Basic auth username)
+  mtn_api_user_key: string; // API User Key (Basic auth password)
   mtn_enabled: boolean;
   // Orange Money
   orange_merchant_code: string;

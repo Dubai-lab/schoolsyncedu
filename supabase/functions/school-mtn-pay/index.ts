@@ -39,31 +39,29 @@ serve(async (req) => {
     // ── Fetch school's MTN credentials (service role bypasses RLS) ────────────
     const { data: cfg, error: cfgErr } = await db
       .from('school_payment_configs')
-      .select('mtn_enabled, mtn_api_key, mtn_user_id, mtn_merchant_code')
+      .select('mtn_enabled, mtn_api_key, mtn_user_id, mtn_api_user_key, mtn_merchant_code')
       .eq('school_id', school_id)
       .maybeSingle();
 
     if (cfgErr || !cfg) return json({ error: 'Payment config not found' }, 404);
     if (!cfg.mtn_enabled) return json({ error: 'MTN payments not enabled for this school' }, 400);
 
-    const subscriptionKey = cfg.mtn_api_key?.trim();
-    const userId          = cfg.mtn_user_id?.trim();
+    const subscriptionKey = cfg.mtn_api_key?.trim();      // Ocp-Apim-Subscription-Key header
+    const userId          = cfg.mtn_user_id?.trim();      // Basic auth username
+    const apiUserKey      = cfg.mtn_api_user_key?.trim(); // Basic auth password
 
-    if (!subscriptionKey || !userId) {
-      return json({ error: 'School MTN API credentials incomplete' }, 400);
+    if (!subscriptionKey || !userId || !apiUserKey) {
+      return json({ error: 'School MTN API credentials incomplete (need Subscription Key, API User ID, and API User Key)' }, 400);
     }
 
     // ── Get MTN access token ──────────────────────────────────────────────────
     const mtnBase = Deno.env.get('MTN_BASE_URL') ?? 'https://sandbox.momodeveloper.mtn.com';
     const mtnEnv  = Deno.env.get('MTN_TARGET_ENVIRONMENT') ?? 'sandbox';
 
-    // The API key for the school is stored separately — for now we derive it
-    // using the same subscription_key (schools can use the same key for access token).
-    // In production, the school's actual api_key would be stored.
     const tokenRes = await fetch(`${mtnBase}/collection/token/`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${btoa(`${userId}:${subscriptionKey}`)}`,
+        'Authorization': `Basic ${btoa(`${userId}:${apiUserKey}`)}`,
         'Ocp-Apim-Subscription-Key': subscriptionKey,
       },
     });
