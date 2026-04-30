@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { publicApplicationService } from '@/services/registrarService';
+import { supabase } from '@/lib/supabase';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
+import FlutterwaveForm from '@/components/payment/FlutterwaveForm';
+import type { PaymentConfigPublic } from '@/services/proprietorPaymentService';
 import {
   Search,
   ArrowLeft,
@@ -14,6 +20,14 @@ import {
   Calendar,
   User,
   BookOpen,
+  Landmark,
+  CreditCard,
+  Lock,
+  ShieldCheck,
+  Copy,
+  CheckCheck,
+  CheckCircle2,
+  Building2,
 } from 'lucide-react';
 
 type StatusResult = Awaited<ReturnType<typeof publicApplicationService.checkStatus>>;
@@ -31,6 +45,99 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 
 const TIMELINE_ORDER = ['submitted', 'under_review', 'accepted', 'enrolled'];
 
+// ── Stripe card form for application fee on status page ───────────────────────
+
+interface StatusStripeCardFormProps {
+  schoolId: string;
+  applicationId: string;
+  amountUsd: number;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}
+
+function StatusStripeCardForm({ schoolId, applicationId, amountUsd, onSuccess, onError }: StatusStripeCardFormProps) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('school-stripe-payment', {
+        body: { school_id: schoolId, application_id: applicationId, amount_usd: amountUsd },
+      });
+      if (fnError) {
+        let msg = fnError.message;
+        try {
+          const body = await (fnError as unknown as { context: Response }).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+
+      const { clientSecret, paymentIntentId } = data as { clientSecret: string; paymentIntentId: string };
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) throw new Error('Card element unavailable');
+
+      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: cardEl },
+      });
+      if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
+      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment did not complete');
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const anonClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL as string,
+        import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+        { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'sb-statfee-token' } },
+      );
+      await anonClient.rpc('mark_application_fee_paid_stripe', {
+        p_application_id:    applicationId,
+        p_payment_intent_id: paymentIntentId,
+      });
+
+      onSuccess();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1.5">Card Details</label>
+        <div className="rounded-lg border border-gray-300 px-3 py-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-400/20 transition-all bg-white">
+          <CardElement
+            options={{
+              hidePostalCode: true,
+              style: {
+                base: { fontSize: '14px', color: '#1e293b', fontFamily: 'ui-sans-serif, system-ui, sans-serif', '::placeholder': { color: '#94a3b8' } },
+                invalid: { color: '#dc2626' },
+              },
+            }}
+          />
+        </div>
+      </div>
+      <button
+        onClick={handlePay}
+        disabled={!stripe || processing}
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-purple-600 py-3 text-sm font-bold text-white shadow transition hover:bg-purple-700 disabled:opacity-50"
+      >
+        {processing
+          ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+          : <><Lock className="h-4 w-4" /> Pay ${amountUsd.toFixed(2)} with Card</>}
+      </button>
+      <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
+        <ShieldCheck className="h-3.5 w-3.5" /> Secure payment powered by Stripe
+      </p>
+    </div>
+  );
+}
+
 export default function ApplicationStatus() {
   const { slug } = useParams<{ slug: string }>();
   const [applicationNumber, setApplicationNumber] = useState('');
@@ -39,12 +146,44 @@ export default function ApplicationStatus() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<StatusResult | null>(null);
 
+  // Payment state
+  const [payConfig, setPayConfig]           = useState<PaymentConfigPublic | null>(null);
+  const [payFeePaid, setPayFeePaid]         = useState(false);
+  const [paySuccess, setPaySuccess]         = useState(false);
+  const [payError, setPayError]             = useState('');
+  const [copiedBankRef, setCopiedBankRef]   = useState(false);
+
+  const stripePromise = useMemo(
+    () => payConfig?.stripe_enabled && payConfig.stripe_public_key
+      ? loadStripe(payConfig.stripe_public_key)
+      : null,
+    [payConfig?.stripe_enabled, payConfig?.stripe_public_key],
+  );
+
+  // Load payment config when we have a result with school_id and unpaid fee
+  useEffect(() => {
+    if (
+      result?.found &&
+      result.school_id &&
+      (result.application_fee_amount ?? 0) > 0 &&
+      !result.application_fee_paid
+    ) {
+      publicApplicationService.getPublicPaymentConfig(result.school_id)
+        .then((cfg) => setPayConfig(cfg))
+        .catch(() => {});
+    }
+  }, [result]);
+
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!applicationNumber.trim() || !dateOfBirth) return;
     setLoading(true);
     setError('');
     setResult(null);
+    setPayConfig(null);
+    setPayFeePaid(false);
+    setPaySuccess(false);
+    setPayError('');
     try {
       const data = await publicApplicationService.checkStatus(applicationNumber.trim(), dateOfBirth);
       setResult(data);
@@ -55,10 +194,22 @@ export default function ApplicationStatus() {
     }
   };
 
+  const handlePaymentSuccess = () => {
+    setPayFeePaid(true);
+    setPaySuccess(true);
+    setPayError('');
+    // Update local result so the Paid badge appears
+    if (result) setResult({ ...result, application_fee_paid: true });
+  };
+
   const statusInfo = result?.status ? STATUS_CONFIG[result.status] : null;
   const StatusIcon = statusInfo?.icon ?? Clock;
 
   const currentStepIndex = result?.status ? TIMELINE_ORDER.indexOf(result.status) : -1;
+
+  const feeAmount   = result?.application_fee_amount ?? 0;
+  const feePaid     = result?.application_fee_paid ?? false;
+  const showPayment = result?.found && feeAmount > 0 && !feePaid && !payFeePaid;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
@@ -228,19 +379,252 @@ export default function ApplicationStatus() {
               </div>
 
               {/* Application Fee */}
-              {(result.application_fee_amount ?? 0) > 0 && (
+              {feeAmount > 0 && (
                 <div className="mt-4 rounded-lg border bg-slate-50 p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-600">Application Fee</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-800">${result.application_fee_amount?.toFixed(2)}</span>
-                      {result.application_fee_paid ? (
+                      <span className="font-medium text-slate-800">${feeAmount.toFixed(2)}</span>
+                      {(feePaid || payFeePaid) ? (
                         <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Paid</span>
                       ) : (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Unpaid</span>
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ── Payment Section ── */}
+              {feeAmount > 0 && (
+                <div className="mt-4 space-y-3 text-left">
+                  {/* Paid confirmation */}
+                  {(feePaid || payFeePaid) ? (
+                    <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-200 p-4">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-emerald-800">Payment Confirmed!</p>
+                        <p className="text-sm text-emerald-700 mt-0.5">
+                          Your application fee has been paid. The Registrar will now review your application.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+                        <p className="text-sm text-amber-800">
+                          Your application fee of{' '}
+                          <strong>${feeAmount.toFixed(2)} USD</strong> must be paid before
+                          the Registrar can review your application.
+                        </p>
+                      </div>
+
+                      {showPayment && !payConfig && (
+                        <div className="flex items-center justify-center gap-2 py-4 text-sm text-slate-400">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading payment options…
+                        </div>
+                      )}
+
+                      {payError && (
+                        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{payError}</p>
+                      )}
+
+                      {/* MTN Mobile Money */}
+                      {payConfig?.mtn_enabled && (
+                        payConfig.mtn_has_api ? (
+                          <MobileMoneyForm
+                            gateway="mtn"
+                            schoolId={result.school_id ?? ''}
+                            paymentType="application_fee"
+                            applicationId={result.application_id}
+                            amountUsd={feeAmount}
+                            onSuccess={handlePaymentSuccess}
+                            onError={(msg) => setPayError(msg)}
+                          />
+                        ) : (
+                          <div className="rounded-xl border-2 border-yellow-200 bg-yellow-50 px-4 py-3.5 space-y-1.5">
+                            <p className="font-semibold text-yellow-900 text-sm">MTN Mobile Money (MoMo)</p>
+                            <p className="font-mono text-2xl font-extrabold tracking-widest text-yellow-900">{payConfig.mtn_merchant_code || '—'}</p>
+                            <ol className="text-xs text-yellow-800 list-decimal list-inside space-y-0.5">
+                              <li>Dial <strong>*156#</strong> or open MoMo app → Pay Bill / Merchant</li>
+                              <li>Enter merchant code above, amount <strong>${feeAmount.toFixed(2)}</strong></li>
+                              <li>Reference: <strong className="font-mono">{result.application_number}</strong></li>
+                            </ol>
+                            <p className="text-xs text-yellow-700 bg-yellow-100 rounded px-2 py-1">Bring your SMS receipt to the Finance Office to confirm.</p>
+                          </div>
+                        )
+                      )}
+
+                      {/* Orange Money */}
+                      {payConfig?.orange_enabled && (
+                        payConfig.orange_has_api ? (
+                          <MobileMoneyForm
+                            gateway="orange"
+                            schoolId={result.school_id ?? ''}
+                            paymentType="application_fee"
+                            applicationId={result.application_id}
+                            amountUsd={feeAmount}
+                            onSuccess={handlePaymentSuccess}
+                            onError={(msg) => setPayError(msg)}
+                          />
+                        ) : (
+                          <div className="rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3.5 space-y-1.5">
+                            <p className="font-semibold text-orange-900 text-sm">Orange Money</p>
+                            <p className="font-mono text-2xl font-extrabold tracking-widest text-orange-900">{payConfig.orange_merchant_code || '—'}</p>
+                            <ol className="text-xs text-orange-800 list-decimal list-inside space-y-0.5">
+                              <li>Open Orange Money app → Pay Merchant</li>
+                              <li>Enter merchant code above, amount <strong>${feeAmount.toFixed(2)}</strong></li>
+                              <li>Reference: <strong className="font-mono">{result.application_number}</strong></li>
+                            </ol>
+                            <p className="text-xs text-orange-700 bg-orange-100 rounded px-2 py-1">Bring your SMS receipt to the Finance Office to confirm.</p>
+                          </div>
+                        )
+                      )}
+
+                      {/* Bank Transfer */}
+                      {payConfig?.bank_enabled && payConfig.bank_account_number && (
+                        <div className="rounded-xl border border-blue-200 overflow-hidden">
+                          <div className="bg-blue-50 px-4 py-2.5 border-b border-blue-200">
+                            <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+                              <Landmark className="h-4 w-4" />
+                              Bank Transfer
+                            </p>
+                          </div>
+                          <div className="p-4 space-y-3">
+                            <div className="rounded-lg bg-white border border-blue-100 p-3 space-y-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Account Name</span>
+                                <span className="font-semibold text-gray-800">{payConfig.bank_account_name}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Account Number</span>
+                                <span className="font-mono font-bold text-gray-900">{payConfig.bank_account_number}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Bank</span>
+                                <span className="font-medium text-gray-800">{payConfig.bank_name}</span>
+                              </div>
+                              {payConfig.bank_routing_number && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Routing / Sort Code</span>
+                                  <span className="font-mono text-gray-800">{payConfig.bank_routing_number}</span>
+                                </div>
+                              )}
+                              {payConfig.bank_swift_code && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">SWIFT / BIC</span>
+                                  <span className="font-mono text-gray-800">{payConfig.bank_swift_code}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-blue-700 mb-1">Payment Reference</p>
+                              <div className="flex items-center gap-2 rounded-lg bg-white border border-blue-200 px-3 py-2">
+                                <span className="font-mono text-sm font-bold text-blue-900 flex-1 break-all">{result.application_number}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(result.application_number ?? '').catch(() => {});
+                                    setCopiedBankRef(true);
+                                    setTimeout(() => setCopiedBankRef(false), 2000);
+                                  }}
+                                  className="text-blue-500 hover:text-blue-700 shrink-0"
+                                >
+                                  {copiedBankRef ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                </button>
+                              </div>
+                              <p className="text-xs text-blue-600 mt-1">Use your application number as the transfer reference.</p>
+                            </div>
+                            {payConfig.bank_instructions && (
+                              <p className="text-xs text-blue-700 leading-relaxed border-t border-blue-100 pt-2">{payConfig.bank_instructions}</p>
+                            )}
+                            <p className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
+                              After transferring, visit the Finance Office with your receipt to confirm payment.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Flutterwave Card Payment */}
+                      {payConfig?.flw_enabled && payConfig.flw_public_key && result.application_id && (
+                        paySuccess ? (
+                          <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3 text-xs text-green-700">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            Card payment successful! The Registrar will now review your application.
+                          </div>
+                        ) : (
+                          <FlutterwaveForm
+                            schoolId={result.school_id ?? ''}
+                            publicKey={payConfig.flw_public_key}
+                            currency={payConfig.flw_currency || 'USD'}
+                            paymentType="application_fee"
+                            applicationId={result.application_id}
+                            amountUsd={feeAmount}
+                            customer={{
+                              name:  result.student_name ?? '',
+                              email: '',
+                              phone: '',
+                            }}
+                            paymentTitle={payConfig.payment_title || 'Application Fee'}
+                            onSuccess={handlePaymentSuccess}
+                            onError={(msg) => setPayError(msg)}
+                          />
+                        )
+                      )}
+
+                      {/* Stripe Card Payment */}
+                      {payConfig?.stripe_enabled && stripePromise && result.application_id && (
+                        <div className="rounded-xl border border-purple-200 overflow-hidden">
+                          <div className="bg-purple-50 px-4 py-2.5 border-b border-purple-200">
+                            <p className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                              <CreditCard className="h-4 w-4" />
+                              Pay by Card (Stripe)
+                            </p>
+                          </div>
+                          <div className="p-4">
+                            {paySuccess ? (
+                              <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3 text-xs text-green-700">
+                                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                Card payment successful! The Registrar will now review your application.
+                              </div>
+                            ) : (
+                              <Elements stripe={stripePromise}>
+                                <StatusStripeCardForm
+                                  schoolId={result.school_id ?? ''}
+                                  applicationId={result.application_id}
+                                  amountUsd={feeAmount}
+                                  onSuccess={handlePaymentSuccess}
+                                  onError={(msg) => setPayError(msg)}
+                                />
+                              </Elements>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pay at Campus (always shown when fee is unpaid) */}
+                      <div className="rounded-xl border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                          <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            {payConfig?.flw_enabled || payConfig?.mtn_enabled || payConfig?.orange_enabled || payConfig?.bank_enabled || payConfig?.stripe_enabled
+                              ? 'Or Pay at Campus'
+                              : 'Pay at Campus Finance Office'}
+                          </p>
+                        </div>
+                        <div className="p-4">
+                          <ol className="text-xs text-slate-700 list-decimal list-inside space-y-1">
+                            <li>Visit the <strong>Finance Office</strong> at the school</li>
+                            <li>Provide your application number: <strong className="font-mono">{result.application_number}</strong></li>
+                            <li>Pay <strong>${feeAmount.toFixed(2)} USD</strong> in cash — get a receipt</li>
+                            <li>Finance records your payment → Registrar proceeds with your review</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -317,7 +701,7 @@ export default function ApplicationStatus() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => { setResult(null); setApplicationNumber(''); setDateOfBirth(''); }}
+                onClick={() => { setResult(null); setApplicationNumber(''); setDateOfBirth(''); setPayConfig(null); setPayFeePaid(false); setPaySuccess(false); setPayError(''); }}
                 className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
                 Check Another

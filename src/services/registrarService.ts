@@ -757,6 +757,8 @@ export const publicApplicationService = {
     return data as {
       found: boolean;
       message?: string;
+      application_id?: string;
+      school_id?: string;
       application_number?: string;
       student_name?: string;
       grade_level?: string;
