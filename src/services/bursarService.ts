@@ -15,6 +15,7 @@ export const bursarService = {
       _pendingFeesResult,
       _paidFeesResult,
       revenueResult,
+      appFeeResult,
     ] = await Promise.all([
       supabase.from('fee_structures').select('id').eq('school_id', schoolId),
       supabase
@@ -36,6 +37,11 @@ export const bursarService = {
         .select('amount_usd')
         .eq('school_id', schoolId)
         .eq('status', 'success'),
+      supabase
+        .from('student_applications')
+        .select('application_fee_amount')
+        .eq('school_id', schoolId)
+        .eq('application_fee_paid', true),
     ]);
 
     const totalOutstanding = (_pendingFeesResult.data ?? []).reduce(
@@ -46,12 +52,17 @@ export const bursarService = {
       (sum, p) => sum + (Number(p.amount_usd) || 0),
       0,
     );
+    const applicationFeesCollected = (appFeeResult.data ?? []).reduce(
+      (sum, a) => sum + (Number(a.application_fee_amount) || 0),
+      0,
+    );
 
     return {
       totalFeeStructures: feeStructures?.length ?? 0,
       totalStudentFees: totalStudentFees ?? 0,
       totalOutstanding,
       totalCollected,
+      applicationFeesCollected,
     };
   },
 

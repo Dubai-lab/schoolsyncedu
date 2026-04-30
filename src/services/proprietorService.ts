@@ -188,6 +188,16 @@ export const proprietorDashboardService = {
     return (data ?? []).reduce((sum, p) => sum + (p.amount_usd ?? 0), 0);
   },
 
+  async getApplicationFeesCollected(schoolId: UUID) {
+    const { data, error } = await supabase
+      .from('student_applications')
+      .select('application_fee_amount')
+      .eq('school_id', schoolId)
+      .eq('application_fee_paid', true);
+    if (error) throw error;
+    return (data ?? []).reduce((sum, a) => sum + (Number(a.application_fee_amount) || 0), 0);
+  },
+
   async getRecentAuditLogs(schoolId: UUID, limit = 5) {
     const { data, error } = await supabase
       .from('audit_logs')

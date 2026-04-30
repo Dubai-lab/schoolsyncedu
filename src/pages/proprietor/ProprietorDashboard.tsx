@@ -52,6 +52,12 @@ export default function ProprietorDashboard() {
     { enabled: !!schoolId }
   );
 
+  const { data: appFeesCollected = 0 } = useFetch<number>(
+    ['prop-app-fees', schoolId!],
+    () => proprietorDashboardService.getApplicationFeesCollected(schoolId!),
+    { enabled: !!schoolId }
+  );
+
   const { data: subscription } = useFetch<(Subscription & { plan: SubscriptionPlan }) | null>(
     ['prop-subscription', schoolId!],
     () => proprietorSubscriptionService.getSubscription(schoolId!),
@@ -323,6 +329,15 @@ export default function ProprietorDashboard() {
             <div>
               <p className="text-sm text-gray-500">Invoices Due</p>
               <p className="text-xl font-bold text-gray-900 dark:text-white">{pendingInvoices.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-teal-100 text-teal-600"><DollarSign className="w-5 h-5" /></div>
+            <div>
+              <p className="text-sm text-gray-500">Application Fees</p>
+              <p className="text-xl font-bold text-teal-700">${appFeesCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
           </div>
         </Card>

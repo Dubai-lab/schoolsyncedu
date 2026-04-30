@@ -118,7 +118,7 @@ export default function BursarDashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="Fee Structures"
           value={String(stats?.totalFeeStructures ?? 0)}
@@ -142,6 +142,12 @@ export default function BursarDashboard() {
           value={String(stats?.totalStudentFees ?? 0)}
           icon={Users}
           color="purple"
+        />
+        <StatCard
+          label="Application Fees"
+          value={formatCurrency(stats?.applicationFeesCollected ?? 0)}
+          icon={TrendingUp}
+          color="amber"
         />
       </div>
 
