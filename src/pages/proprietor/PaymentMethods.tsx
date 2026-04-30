@@ -155,11 +155,11 @@ export default function PaymentMethods() {
       setFlwCurrency(savedConfig.flw_currency ?? 'USD');
       setMtnCode(savedConfig.mtn_merchant_code ?? '');
       setMtnKey(savedConfig.mtn_api_key ?? '');
-      setMtnUserId((savedConfig as Record<string, string>).mtn_user_id ?? '');
+      setMtnUserId(savedConfig.mtn_user_id ?? '');
       setMtnEnabled(savedConfig.mtn_enabled ?? false);
       setOrangeCode(savedConfig.orange_merchant_code ?? '');
       setOrangeKey(savedConfig.orange_api_key ?? '');
-      setOrangeUserId((savedConfig as Record<string, string>).orange_user_id ?? '');
+      setOrangeUserId(savedConfig.orange_user_id ?? '');
       setOrangeEnabled(savedConfig.orange_enabled ?? false);
       setStripePublicKey(savedConfig.stripe_public_key ?? '');
       setStripeSecretKey(savedConfig.stripe_secret_key ?? '');

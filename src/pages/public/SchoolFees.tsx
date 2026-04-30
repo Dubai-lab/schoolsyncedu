@@ -705,7 +705,6 @@ export default function SchoolFees() {
                               paymentType="student_fee"
                               studentFeeId={selectedFee.id}
                               amountUsd={Number(amount) || selectedFee.balance}
-                              primaryColor={primary}
                               onSuccess={(ref) => {
                                 setLastRef(ref);
                                 setPaySuccess(true);
@@ -735,7 +734,6 @@ export default function SchoolFees() {
                               paymentType="student_fee"
                               studentFeeId={selectedFee.id}
                               amountUsd={Number(amount) || selectedFee.balance}
-                              primaryColor={primary}
                               onSuccess={(ref) => {
                                 setLastRef(ref);
                                 setPaySuccess(true);

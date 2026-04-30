@@ -22,7 +22,6 @@ interface Props {
   studentFeeId?:  string;
   applicationId?: string;
   amountUsd:      number;
-  primaryColor:   string;
   onSuccess:      (referenceId: string) => void;
   onError:        (msg: string) => void;
 }
@@ -34,7 +33,7 @@ const POLL_MAX_MS      = 5 * 60 * 1000; // 5 minutes
 
 export default function MobileMoneyForm({
   gateway, schoolId, paymentType, studentFeeId, applicationId,
-  amountUsd, primaryColor, onSuccess, onError,
+  amountUsd, onSuccess, onError,
 }: Props) {
   const [step,       setStep]       = useState<Step>('input');
   const [phone,      setPhone]      = useState('');

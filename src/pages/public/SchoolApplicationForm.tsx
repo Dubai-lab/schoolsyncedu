@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
+import type { PaymentConfigPublic } from '@/services/proprietorPaymentService';
 import type { School } from '@/types/school.types';
 import {
   GraduationCap,
@@ -25,7 +26,6 @@ import {
   Search,
   Upload,
   X,
-  Smartphone,
   Building2,
   CheckCircle2,
   Landmark,
@@ -157,16 +157,7 @@ export default function SchoolApplicationForm() {
   const [paymentFeePaid] = useState(false);
 
   // School payment config (loaded after school is known)
-  const [payConfig, setPayConfig] = useState<{
-    flw_enabled: boolean; flw_public_key: string; flw_methods: string[];
-    flw_currency: string; mtn_enabled: boolean; mtn_merchant_code: string;
-    orange_enabled: boolean; orange_merchant_code: string;
-    bank_enabled: boolean; bank_account_name: string; bank_account_number: string;
-    bank_name: string; bank_routing_number: string; bank_swift_code: string;
-    bank_instructions: string;
-    stripe_enabled: boolean; stripe_public_key: string; stripe_currency: string;
-    payment_title: string; payment_logo: string;
-  } | null>(null);
+  const [payConfig, setPayConfig] = useState<PaymentConfigPublic | null>(null);
   // Stripe state for application fee payment
   const stripeAppPromise = useMemo(
     () => payConfig?.stripe_enabled && payConfig.stripe_public_key
@@ -508,7 +499,6 @@ export default function SchoolApplicationForm() {
                           paymentType="application_fee"
                           applicationId={result.application_id}
                           amountUsd={result.application_fee}
-                          primaryColor="#FFCC00"
                           onSuccess={() => setAppStripeSuccess(true)}
                           onError={(msg) => setAppStripeError(msg)}
                         />
@@ -534,7 +524,6 @@ export default function SchoolApplicationForm() {
                           paymentType="application_fee"
                           applicationId={result.application_id}
                           amountUsd={result.application_fee}
-                          primaryColor="#FF6600"
                           onSuccess={() => setAppStripeSuccess(true)}
                           onError={(msg) => setAppStripeError(msg)}
                         />

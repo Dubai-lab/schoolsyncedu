@@ -20,10 +20,12 @@ export interface PaymentConfig {
   // MTN MoMo
   mtn_merchant_code: string;
   mtn_api_key: string;
+  mtn_user_id: string;
   mtn_enabled: boolean;
   // Orange Money
   orange_merchant_code: string;
   orange_api_key: string;
+  orange_user_id: string;
   orange_enabled: boolean;
   // Bank Transfer
   bank_enabled: boolean;
