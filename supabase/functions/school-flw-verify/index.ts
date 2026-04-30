@@ -80,15 +80,22 @@ serve(async (req) => {
     };
 
     // ── Check response integrity ──────────────────────────────────────────────
+    // Verify: FLW status, tx_ref matches, and amount matches what was recorded
+    // (amount check prevents someone from paying a smaller amount client-side)
+    const chargedAmount  = verifyData.data?.amount ?? 0;
+    const expectedAmount = Number(rec.amount_usd);
+    const amountOk       = chargedAmount >= expectedAmount - 0.01; // 1 cent tolerance for rounding
+
     if (
-      verifyData.status !== 'success'   ||
+      verifyData.status !== 'success'          ||
       verifyData.data?.status !== 'successful' ||
-      verifyData.data?.tx_ref !== tx_ref
+      verifyData.data?.tx_ref !== tx_ref       ||
+      !amountOk
     ) {
       await db.from('school_mobile_payments')
         .update({ status: 'failed', gateway_response: verifyData, updated_at: new Date().toISOString() })
         .eq('reference_id', tx_ref);
-      return json({ status: 'failed' });
+      return json({ status: 'failed', error: 'Payment integrity check failed' });
     }
 
     // ── Update tracking to successful ─────────────────────────────────────────
