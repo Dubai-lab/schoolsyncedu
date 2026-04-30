@@ -52,6 +52,9 @@ CREATE POLICY smp_select ON school_mobile_payments
 --    Adds mtn_has_api and orange_has_api booleans.
 --    Frontend uses these to decide: show automated push form (TRUE)
 --    or show manual merchant-code instructions (FALSE).
+--    Must DROP first because the return-type (OUT columns) changed.
+
+DROP FUNCTION IF EXISTS get_payment_config_public(UUID);
 
 CREATE OR REPLACE FUNCTION get_payment_config_public(p_school_id UUID)
 RETURNS TABLE (
