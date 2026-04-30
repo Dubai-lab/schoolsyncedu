@@ -112,9 +112,7 @@ export default function ProprietorDashboard() {
     { label: 'Subscription', desc: 'Plan, billing & upgrades', path: '/proprietor/subscription', icon: CreditCard, color: 'bg-indigo-100 text-indigo-600' },
     { label: 'Financial Overview', desc: 'Revenue, fees & payments', path: '/proprietor/financial', icon: DollarSign, color: 'bg-green-100 text-green-600' },
     { label: 'Audit Trail', desc: 'Activity log & compliance', path: '/proprietor/audit', icon: Shield, color: 'bg-purple-100 text-purple-600' },
-    { label: 'School Settings', desc: 'Branding, colors & profile', path: '/settings', icon: Building2, color: 'bg-amber-100 text-amber-600' },
     { label: 'School Website', desc: 'Customize your public site', path: '/proprietor/site', icon: Globe, color: 'bg-cyan-100 text-cyan-600' },
-    { label: 'School Setup', desc: 'Onboarding wizard', path: '/proprietor/setup', icon: Building2, color: 'bg-teal-100 text-teal-600' },
   ];
 
   return (

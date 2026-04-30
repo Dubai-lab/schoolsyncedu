@@ -7,6 +7,8 @@ import {
   FLW_METHODS,
   type PaymentConfig,
 } from '@/services/proprietorPaymentService';
+import { proprietorSchoolService } from '@/services/proprietorService';
+import type { School } from '@/types/school.types';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Breadcrumb from '@/components/shared/Breadcrumb';
@@ -103,6 +105,12 @@ export default function PaymentMethods() {
     { enabled: !!schoolId },
   );
 
+  const { data: school } = useFetch<School | null>(
+    ['school', schoolId],
+    () => proprietorSchoolService.getSchool(schoolId),
+    { enabled: !!schoolId },
+  );
+
   // ── Form state ──────────────────────────────────────────────────
   // Flutterwave
   const [flwPublicKey, setFlwPublicKey] = useState('');
@@ -138,10 +146,6 @@ export default function PaymentMethods() {
   const [bankSwiftCode,      setBankSwiftCode]      = useState('');
   const [bankInstructions,   setBankInstructions]   = useState('');
 
-  // Branding
-  const [paymentTitle, setPaymentTitle] = useState('');
-  const [paymentLogo, setPaymentLogo] = useState('');
-
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -172,8 +176,6 @@ export default function PaymentMethods() {
       setBankRoutingNumber(savedConfig.bank_routing_number ?? '');
       setBankSwiftCode(savedConfig.bank_swift_code ?? '');
       setBankInstructions(savedConfig.bank_instructions ?? '');
-      setPaymentTitle(savedConfig.payment_title ?? '');
-      setPaymentLogo(savedConfig.payment_logo ?? '');
     }
   }, [savedConfig]);
 
@@ -213,8 +215,8 @@ export default function PaymentMethods() {
         bank_routing_number: bankRoutingNumber.trim(),
         bank_swift_code: bankSwiftCode.trim(),
         bank_instructions: bankInstructions.trim(),
-        payment_title: paymentTitle.trim(),
-        payment_logo: paymentLogo.trim(),
+        payment_title: school?.name ?? '',
+        payment_logo: school?.logo_url ?? '',
       });
       setSaveSuccess(true);
       queryClient.invalidateQueries({ queryKey: ['payment-config', schoolId] });
@@ -685,46 +687,29 @@ export default function PaymentMethods() {
           </Card>
 
           {/* ── Branding ── */}
-          <Card className="p-5 space-y-4">
-            <div className="flex items-center gap-2">
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-3">
               <Building2 className="h-5 w-5 text-slate-500" />
-              <h2 className="font-semibold text-slate-800">Payment Modal Branding (optional)</h2>
+              <h2 className="font-semibold text-slate-800">Payment Modal Branding</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Title shown in payment popup
-                </label>
-                <input
-                  type="text"
-                  value={paymentTitle}
-                  onChange={(e) => setPaymentTitle(e.target.value)}
-                  placeholder="e.g. Springfield Academy Fee Payment"
-                  maxLength={80}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            <div className="flex items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              {school?.logo_url ? (
+                <img
+                  src={school.logo_url}
+                  alt="School logo"
+                  className="h-12 w-12 rounded-lg border border-slate-200 object-contain bg-white p-1 shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
-              </div>
+              ) : (
+                <div className="h-12 w-12 rounded-lg border border-slate-200 bg-white flex items-center justify-center shrink-0">
+                  <Building2 className="h-6 w-6 text-slate-300" />
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Logo URL
-                </label>
-                <input
-                  type="url"
-                  value={paymentLogo}
-                  onChange={(e) => setPaymentLogo(e.target.value)}
-                  placeholder="https://your-school.com/logo.png"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-300"
-                />
-                {paymentLogo && (
-                  <img
-                    src={paymentLogo}
-                    alt="Logo preview"
-                    className="mt-2 h-10 rounded border border-slate-200 object-contain bg-white p-1"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                )}
+                <p className="font-medium text-slate-800 text-sm">{school?.name ?? '—'}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Automatically pulled from your school profile. To update, change your school name or logo via IT Admin → School Settings.
+                </p>
               </div>
             </div>
           </Card>
