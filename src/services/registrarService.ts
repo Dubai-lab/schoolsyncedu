@@ -4,6 +4,7 @@ import type {
   ApplicationFilterParams,
   SchoolSetting,
 } from '@/types/application.types';
+import type { PaymentConfigPublic } from '@/services/proprietorPaymentService';
 
 /**
  * Registrar Service — handles applications, student enrollment,
@@ -718,28 +719,7 @@ export const publicApplicationService = {
     });
     if (error) return null;
     if (!data || (Array.isArray(data) && data.length === 0)) return null;
-    return (Array.isArray(data) ? data[0] : data) as {
-      flw_enabled: boolean;
-      flw_public_key: string;
-      flw_methods: string[];
-      flw_currency: string;
-      mtn_enabled: boolean;
-      mtn_merchant_code: string;
-      orange_enabled: boolean;
-      orange_merchant_code: string;
-      bank_enabled: boolean;
-      bank_account_name: string;
-      bank_account_number: string;
-      bank_name: string;
-      bank_routing_number: string;
-      bank_swift_code: string;
-      bank_instructions: string;
-      stripe_enabled: boolean;
-      stripe_public_key: string;
-      stripe_currency: string;
-      payment_title: string;
-      payment_logo: string;
-    };
+    return (Array.isArray(data) ? data[0] : data) as PaymentConfigPublic;
   },
 
   /** Record an online payment for an application fee (anon-safe, SECURITY DEFINER) */
