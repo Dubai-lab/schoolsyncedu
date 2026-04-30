@@ -8,6 +8,8 @@ import { bankTransferService, generateBankRef, type BankTransferProof } from '@/
 import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
+import FlutterwaveForm from '@/components/payment/FlutterwaveForm';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb from '@/components/shared/Breadcrumb';
@@ -205,7 +207,7 @@ interface PaymentModalProps {
 }
 
 function PaymentModal({
-  fee, student, schoolId, studentDbId, paymentCfg, schoolName, initialAmount, onClose, onPaid,
+  fee, student, schoolId, studentDbId, userEmail, paymentCfg, schoolName, initialAmount, onClose, onPaid,
 }: PaymentModalProps) {
   const [amount, setAmount] = useState(String(initialAmount ?? fee.balance));
 
@@ -218,6 +220,11 @@ function PaymentModal({
   );
   const [stripeSuccess, setStripeSuccess] = useState(false);
   const [stripeError,   setStripeError]   = useState('');
+
+  // Mobile money / FLW state
+  const [mobileSuccess, setMobileSuccess] = useState(false);
+  const [mobileError,   setMobileError]   = useState('');
+  const [flwSuccess,    setFlwSuccess]    = useState(false);
 
   // Bank transfer state
   const [existingProof,     setExistingProof]     = useState<BankTransferProof | null | undefined>(undefined);
@@ -391,38 +398,97 @@ function PaymentModal({
               </div>
 
               {/* ── MTN MOBILE MONEY ── */}
-              {paymentCfg?.mtn_enabled && paymentCfg.mtn_merchant_code && (
-                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-4 w-4 text-yellow-700" />
-                    <p className="text-sm font-bold text-yellow-800">MTN Mobile Money</p>
+              {paymentCfg?.mtn_enabled && canPay && (
+                mobileSuccess ? (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    MTN payment confirmed! Your fee balance has been updated.
                   </div>
-                  <p className="text-2xl font-extrabold tracking-widest text-yellow-900">
-                    {paymentCfg.mtn_merchant_code}
-                  </p>
-                  <p className="text-xs text-yellow-700 leading-relaxed">
-                    Dial the MTN MoMo USSD, select Pay, enter the merchant code above, and send{' '}
-                    <strong>{canPay ? fmtUSD(amountNum) : 'the amount'}</strong>.
-                    Bring your confirmation SMS to the finance office to update your balance.
-                  </p>
-                </div>
+                ) : paymentCfg.mtn_has_api ? (
+                  <>
+                    {mobileError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{mobileError}</p>}
+                    <MobileMoneyForm
+                      gateway="mtn"
+                      schoolId={schoolId}
+                      paymentType="student_fee"
+                      studentFeeId={fee.id}
+                      amountUsd={amountNum}
+                      onSuccess={() => { setMobileSuccess(true); setMobileError(''); onPaid(); }}
+                      onError={(msg) => setMobileError(msg)}
+                    />
+                  </>
+                ) : paymentCfg.mtn_merchant_code ? (
+                  <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-yellow-700" />
+                      <p className="text-sm font-bold text-yellow-800">MTN Mobile Money</p>
+                    </div>
+                    <p className="text-2xl font-extrabold tracking-widest text-yellow-900">
+                      {paymentCfg.mtn_merchant_code}
+                    </p>
+                    <p className="text-xs text-yellow-700 leading-relaxed">
+                      Dial <strong>*156#</strong> or open MoMo app → Pay Bill / Merchant, enter the code above, and send{' '}
+                      <strong>{fmtUSD(amountNum)}</strong>.
+                      Bring your confirmation SMS to the finance office to update your balance.
+                    </p>
+                  </div>
+                ) : null
               )}
 
               {/* ── ORANGE MONEY ── */}
-              {paymentCfg?.orange_enabled && paymentCfg.orange_merchant_code && (
-                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-orange-700" />
-                    <p className="text-sm font-bold text-orange-800">Orange Money</p>
+              {paymentCfg?.orange_enabled && canPay && (
+                mobileSuccess ? null : paymentCfg.orange_has_api ? (
+                  <>
+                    {mobileError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">{mobileError}</p>}
+                    <MobileMoneyForm
+                      gateway="orange"
+                      schoolId={schoolId}
+                      paymentType="student_fee"
+                      studentFeeId={fee.id}
+                      amountUsd={amountNum}
+                      onSuccess={() => { setMobileSuccess(true); setMobileError(''); onPaid(); }}
+                      onError={(msg) => setMobileError(msg)}
+                    />
+                  </>
+                ) : paymentCfg.orange_merchant_code ? (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-orange-700" />
+                      <p className="text-sm font-bold text-orange-800">Orange Money</p>
+                    </div>
+                    <p className="text-2xl font-extrabold tracking-widest text-orange-900">
+                      {paymentCfg.orange_merchant_code}
+                    </p>
+                    <p className="text-xs text-orange-700 leading-relaxed">
+                      Open Orange Money app → Pay Merchant, enter the code above, and send{' '}
+                      <strong>{fmtUSD(amountNum)}</strong>.
+                      Bring your confirmation to the finance office.
+                    </p>
                   </div>
-                  <p className="text-2xl font-extrabold tracking-widest text-orange-900">
-                    {paymentCfg.orange_merchant_code}
-                  </p>
-                  <p className="text-xs text-orange-700 leading-relaxed">
-                    Use Orange Money to send <strong>{canPay ? fmtUSD(amountNum) : 'the amount'}</strong> to this merchant code.
-                    Bring your confirmation to the finance office.
-                  </p>
-                </div>
+                ) : null
+              )}
+
+              {/* ── FLUTTERWAVE CARD PAYMENT ── */}
+              {paymentCfg?.flw_enabled && paymentCfg.flw_public_key && canPay && (
+                flwSuccess ? (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    Card payment successful! Your fee balance has been updated.
+                  </div>
+                ) : (
+                  <FlutterwaveForm
+                    schoolId={schoolId}
+                    publicKey={paymentCfg.flw_public_key}
+                    currency={paymentCfg.flw_currency || 'USD'}
+                    paymentType="student_fee"
+                    studentFeeId={fee.id}
+                    amountUsd={amountNum}
+                    customer={{ name: studentName, email: userEmail, phone: '' }}
+                    paymentTitle={paymentCfg.payment_title || schoolName}
+                    onSuccess={() => { setFlwSuccess(true); onPaid(); }}
+                    onError={(msg) => setStripeError(msg)}
+                  />
+                )
               )}
 
               {/* ── STRIPE CARD PAYMENT ── */}
