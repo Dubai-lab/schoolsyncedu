@@ -7,6 +7,7 @@ import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/p
 import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
 import type { School, SiteConfig, FeeScheduleConfig } from '@/types/school.types';
 import {
   GraduationCap,
@@ -600,7 +601,7 @@ export default function SchoolFees() {
                                   {fmt(f.balance)}
                                 </p>
                               </div>
-                              {f.status !== 'paid' && (paymentCfg?.flw_enabled || paymentCfg?.stripe_enabled) && (
+                              {f.status !== 'paid' && (paymentCfg?.flw_enabled || paymentCfg?.stripe_enabled || paymentCfg?.mtn_enabled || paymentCfg?.orange_enabled) && (
                                 <button
                                   onClick={() => {
                                     setSelectedFee(f);
@@ -621,7 +622,7 @@ export default function SchoolFees() {
                     </div>
 
                     {/* No online payment configured */}
-                    {unpaidFees.length > 0 && !paymentCfg?.flw_enabled && !paymentCfg?.stripe_enabled && (
+                    {unpaidFees.length > 0 && !paymentCfg?.flw_enabled && !paymentCfg?.stripe_enabled && !paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && (
                       <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                         <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                         <div className="text-sm text-amber-800">
@@ -695,25 +696,64 @@ export default function SchoolFees() {
                           </div>
                         )}
 
-                        {/* MTN / Orange info */}
-                        {(paymentCfg?.mtn_enabled || paymentCfg?.orange_enabled) && (
-                          <div className="space-y-2 text-sm text-gray-600">
-                            <p className="font-medium text-gray-700">Pay via Mobile Money</p>
-                            {paymentCfg?.mtn_enabled && paymentCfg.mtn_merchant_code && (
-                              <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3">
-                                <p className="font-semibold text-yellow-800">MTN MoMo</p>
-                                <p className="mt-1 text-2xl font-extrabold tracking-widest text-yellow-900">{paymentCfg.mtn_merchant_code}</p>
-                                <p className="mt-1 text-xs text-yellow-700">Send {amount ? fmt(Number(amount)) : 'the amount'} to this merchant code, then bring your confirmation to the school office.</p>
-                              </div>
-                            )}
-                            {paymentCfg?.orange_enabled && paymentCfg.orange_merchant_code && (
-                              <div className="rounded-xl border border-orange-200 bg-orange-50 p-3">
-                                <p className="font-semibold text-orange-800">Orange Money</p>
-                                <p className="mt-1 text-2xl font-extrabold tracking-widest text-orange-900">{paymentCfg.orange_merchant_code}</p>
-                                <p className="mt-1 text-xs text-orange-700">Send {amount ? fmt(Number(amount)) : 'the amount'} to this merchant code, then bring your confirmation to the school office.</p>
-                              </div>
-                            )}
-                          </div>
+                        {/* MTN MoMo */}
+                        {paymentCfg?.mtn_enabled && studentData && (
+                          paymentCfg.mtn_has_api ? (
+                            <MobileMoneyForm
+                              gateway="mtn"
+                              schoolId={school.id}
+                              paymentType="student_fee"
+                              studentFeeId={selectedFee.id}
+                              amountUsd={Number(amount) || selectedFee.balance}
+                              primaryColor={primary}
+                              onSuccess={(ref) => {
+                                setLastRef(ref);
+                                setPaySuccess(true);
+                                setSelectedFee(null);
+                                studentPortalService
+                                  .getMyFees(school.id, (studentData as Record<string, unknown>).id as string)
+                                  .then((f) => setFees((f ?? []) as StudentFeeRow[]))
+                                  .catch(() => {});
+                              }}
+                              onError={(msg) => setPayError(msg)}
+                            />
+                          ) : (
+                            <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 space-y-1">
+                              <p className="font-semibold text-yellow-800 text-sm">MTN MoMo</p>
+                              <p className="text-2xl font-extrabold tracking-widest text-yellow-900">{paymentCfg.mtn_merchant_code}</p>
+                              <p className="text-xs text-yellow-700">Send {amount ? fmt(Number(amount)) : 'the amount'} to this merchant code, then bring your confirmation SMS to the school office.</p>
+                            </div>
+                          )
+                        )}
+
+                        {/* Orange Money */}
+                        {paymentCfg?.orange_enabled && studentData && (
+                          paymentCfg.orange_has_api ? (
+                            <MobileMoneyForm
+                              gateway="orange"
+                              schoolId={school.id}
+                              paymentType="student_fee"
+                              studentFeeId={selectedFee.id}
+                              amountUsd={Number(amount) || selectedFee.balance}
+                              primaryColor={primary}
+                              onSuccess={(ref) => {
+                                setLastRef(ref);
+                                setPaySuccess(true);
+                                setSelectedFee(null);
+                                studentPortalService
+                                  .getMyFees(school.id, (studentData as Record<string, unknown>).id as string)
+                                  .then((f) => setFees((f ?? []) as StudentFeeRow[]))
+                                  .catch(() => {});
+                              }}
+                              onError={(msg) => setPayError(msg)}
+                            />
+                          ) : (
+                            <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 space-y-1">
+                              <p className="font-semibold text-orange-800 text-sm">Orange Money</p>
+                              <p className="text-2xl font-extrabold tracking-widest text-orange-900">{paymentCfg.orange_merchant_code}</p>
+                              <p className="text-xs text-orange-700">Send {amount ? fmt(Number(amount)) : 'the amount'} to this merchant code, then bring your confirmation SMS to the school office.</p>
+                            </div>
+                          )
                         )}
 
                         {/* Stripe card payment */}
@@ -743,8 +783,8 @@ export default function SchoolFees() {
                           </div>
                         )}
 
-                        {/* No payment methods */}
-                        {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.stripe_enabled && (
+                        {/* No online payment methods at all */}
+                        {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.stripe_enabled && !paymentCfg?.flw_enabled && (
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                             <p className="font-semibold">Online payment not available</p>
                             <p className="mt-1">Please visit the school finance office to pay your fees in person.</p>

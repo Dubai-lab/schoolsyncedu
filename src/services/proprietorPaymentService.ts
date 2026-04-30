@@ -52,8 +52,10 @@ export interface PaymentConfigPublic {
   flw_currency: string;
   mtn_enabled: boolean;
   mtn_merchant_code: string;
+  mtn_has_api: boolean;
   orange_enabled: boolean;
   orange_merchant_code: string;
+  orange_has_api: boolean;
   bank_enabled: boolean;
   bank_account_name: string;
   bank_account_number: string;

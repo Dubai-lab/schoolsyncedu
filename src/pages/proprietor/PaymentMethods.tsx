@@ -112,13 +112,15 @@ export default function PaymentMethods() {
   const [flwCurrency, setFlwCurrency] = useState('USD');
 
   // MTN MoMo
-  const [mtnCode, setMtnCode] = useState('');
-  const [mtnKey, setMtnKey] = useState('');
+  const [mtnCode,    setMtnCode]    = useState('');
+  const [mtnKey,     setMtnKey]     = useState(''); // subscription key
+  const [mtnUserId,  setMtnUserId]  = useState(''); // API user ID
   const [mtnEnabled, setMtnEnabled] = useState(false);
 
   // Orange Money
-  const [orangeCode, setOrangeCode] = useState('');
-  const [orangeKey, setOrangeKey] = useState('');
+  const [orangeCode,    setOrangeCode]    = useState('');
+  const [orangeKey,     setOrangeKey]     = useState(''); // API / client key
+  const [orangeUserId,  setOrangeUserId]  = useState(''); // API user ID
   const [orangeEnabled, setOrangeEnabled] = useState(false);
 
   // Stripe
@@ -153,9 +155,11 @@ export default function PaymentMethods() {
       setFlwCurrency(savedConfig.flw_currency ?? 'USD');
       setMtnCode(savedConfig.mtn_merchant_code ?? '');
       setMtnKey(savedConfig.mtn_api_key ?? '');
+      setMtnUserId((savedConfig as Record<string, string>).mtn_user_id ?? '');
       setMtnEnabled(savedConfig.mtn_enabled ?? false);
       setOrangeCode(savedConfig.orange_merchant_code ?? '');
       setOrangeKey(savedConfig.orange_api_key ?? '');
+      setOrangeUserId((savedConfig as Record<string, string>).orange_user_id ?? '');
       setOrangeEnabled(savedConfig.orange_enabled ?? false);
       setStripePublicKey(savedConfig.stripe_public_key ?? '');
       setStripeSecretKey(savedConfig.stripe_secret_key ?? '');
@@ -192,9 +196,11 @@ export default function PaymentMethods() {
         flw_currency: flwCurrency,
         mtn_merchant_code: mtnCode.trim(),
         mtn_api_key: mtnKey.trim(),
+        mtn_user_id: mtnUserId.trim(),
         mtn_enabled: mtnEnabled,
         orange_merchant_code: orangeCode.trim(),
         orange_api_key: orangeKey.trim(),
+        orange_user_id: orangeUserId.trim(),
         orange_enabled: orangeEnabled,
         stripe_public_key: stripePublicKey.trim(),
         stripe_secret_key: stripeSecretKey.trim(),
@@ -407,17 +413,35 @@ export default function PaymentMethods() {
                   value={mtnCode}
                   onChange={setMtnCode}
                   placeholder="MTN merchant code"
-                  note="Your MTN MoMo merchant identifier."
+                  note="Your MTN MoMo merchant identifier shown to payers."
                 />
                 <KeyInput
-                  label="API Key / Secret"
+                  label="API Subscription Key"
                   value={mtnKey}
                   onChange={setMtnKey}
-                  placeholder="MTN API key"
+                  placeholder="Ocp-Apim-Subscription-Key"
                   isSecret
-                  note="Keep private — used to verify MoMo payments."
+                  note="From MTN MoMo Developer Portal — Collections subscription key."
+                />
+                <KeyInput
+                  label="API User ID"
+                  value={mtnUserId}
+                  onChange={setMtnUserId}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  note="UUID created when you provision an API user in the MTN MoMo Developer Portal."
                 />
               </div>
+              {mtnKey && mtnUserId ? (
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span><strong>Automated push payments enabled</strong> — parents will receive a push notification to approve payment directly on their phone.</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  <span>Add both <strong>API Subscription Key</strong> and <strong>API User ID</strong> to enable automatic push payments. With only a merchant code, parents will see USSD manual instructions.</span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -462,17 +486,35 @@ export default function PaymentMethods() {
                   value={orangeCode}
                   onChange={setOrangeCode}
                   placeholder="Orange merchant code"
-                  note="Your Orange Money merchant identifier."
+                  note="Your Orange Money merchant identifier shown to payers."
                 />
                 <KeyInput
-                  label="API Key / Secret"
+                  label="API Key / Client Secret"
                   value={orangeKey}
                   onChange={setOrangeKey}
-                  placeholder="Orange Money API key"
+                  placeholder="Orange Money API client secret"
                   isSecret
-                  note="Keep private — used to verify Orange Money payments."
+                  note="From Orange Money Developer portal — client_credentials secret."
+                />
+                <KeyInput
+                  label="API User ID / Client ID"
+                  value={orangeUserId}
+                  onChange={setOrangeUserId}
+                  placeholder="Orange Money client_id"
+                  note="Client ID from the Orange Money Developer portal, used alongside the API secret."
                 />
               </div>
+              {orangeKey && orangeUserId ? (
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span><strong>Automated push payments enabled</strong> — parents will receive a push notification to approve payment directly on their phone.</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  <span>Add both <strong>API Key</strong> and <strong>Client ID</strong> to enable automatic push payments. With only a merchant code, parents will see USSD manual instructions.</span>
+                </div>
+              )}
             </div>
           </Card>
 

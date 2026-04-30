@@ -5,6 +5,7 @@ import { publicApplicationService } from '@/services/registrarService';
 import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
 import type { School } from '@/types/school.types';
 import {
   GraduationCap,
@@ -498,67 +499,57 @@ export default function SchoolApplicationForm() {
                       </p>
                     </div>
 
-                    {/* ── Online payment options ── */}
-                    {(payConfig?.mtn_enabled || payConfig?.orange_enabled) && (
-                      <div className="rounded-xl border border-slate-200 overflow-hidden">
-                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
-                          <p className="text-sm font-semibold text-slate-700">Pay via Mobile Money</p>
+                    {/* ── Mobile Money ── */}
+                    {payConfig?.mtn_enabled && (
+                      payConfig.mtn_has_api ? (
+                        <MobileMoneyForm
+                          gateway="mtn"
+                          schoolId={result.application_id ? (payConfig as unknown as { school_id?: string }).school_id ?? '' : ''}
+                          paymentType="application_fee"
+                          applicationId={result.application_id}
+                          amountUsd={result.application_fee}
+                          primaryColor="#FFCC00"
+                          onSuccess={() => setAppStripeSuccess(true)}
+                          onError={(msg) => setAppStripeError(msg)}
+                        />
+                      ) : (
+                        <div className="rounded-xl border-2 border-yellow-200 bg-yellow-50 px-4 py-3.5 space-y-1.5">
+                          <p className="font-semibold text-yellow-900 text-sm">MTN Mobile Money (MoMo)</p>
+                          <p className="font-mono text-2xl font-extrabold tracking-widest text-yellow-900">{payConfig.mtn_merchant_code || '—'}</p>
+                          <ol className="text-xs text-yellow-800 list-decimal list-inside space-y-0.5">
+                            <li>Dial <strong>*156#</strong> or open MoMo app → Pay Bill / Merchant</li>
+                            <li>Enter merchant code above, amount <strong>${result.application_fee.toFixed(2)}</strong></li>
+                            <li>Reference: <strong className="font-mono">{result.application_number}</strong></li>
+                          </ol>
+                          <p className="text-xs text-yellow-700 bg-yellow-100 rounded px-2 py-1">Bring your SMS receipt to the Finance Office to confirm.</p>
                         </div>
-                        <div className="p-4 space-y-3">
+                      )
+                    )}
 
-                          {/* MTN MoMo */}
-                          {payConfig?.mtn_enabled && (
-                            <div className="rounded-xl border-2 border-yellow-200 bg-yellow-50 px-4 py-3.5">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-yellow-400">
-                                  <Smartphone className="h-5 w-5 text-white" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-yellow-900 text-sm">MTN Mobile Money (MoMo)</p>
-                                  <p className="text-xs text-yellow-700">Lonestar Cell MTN</p>
-                                </div>
-                              </div>
-                              <ol className="text-xs text-yellow-800 list-decimal list-inside space-y-0.5 pl-1">
-                                <li>Dial <strong>*156#</strong> on your MTN line or open the MoMo app</li>
-                                <li>Select <strong>Pay Bill</strong> or <strong>Merchant Payment</strong></li>
-                                <li>Enter merchant code: <strong className="font-mono">{payConfig.mtn_merchant_code || '(see school office)'}</strong></li>
-                                <li>Enter amount: <strong>${result.application_fee.toFixed(2)} USD</strong></li>
-                                <li>Use reference: <strong className="font-mono">{result.application_number}</strong></li>
-                                <li>Confirm with your PIN — keep the receipt SMS</li>
-                              </ol>
-                              <p className="mt-2 text-xs text-yellow-700 bg-yellow-100 rounded px-2 py-1">
-                                After paying, visit the Finance Office with your SMS receipt to confirm.
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Orange Money */}
-                          {payConfig?.orange_enabled && (
-                            <div className="rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3.5">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500">
-                                  <Smartphone className="h-5 w-5 text-white" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-orange-900 text-sm">Orange Money</p>
-                                  <p className="text-xs text-orange-700">Orange Liberia</p>
-                                </div>
-                              </div>
-                              <ol className="text-xs text-orange-800 list-decimal list-inside space-y-0.5 pl-1">
-                                <li>Open the Orange Money app or dial the Orange Money USSD menu</li>
-                                <li>Select <strong>Pay Merchant</strong> or <strong>Bill Payment</strong></li>
-                                <li>Enter merchant code: <strong className="font-mono">{payConfig.orange_merchant_code || '(see school office)'}</strong></li>
-                                <li>Enter amount: <strong>${result.application_fee.toFixed(2)} USD</strong></li>
-                                <li>Use reference: <strong className="font-mono">{result.application_number}</strong></li>
-                                <li>Confirm with your PIN — keep the confirmation SMS</li>
-                              </ol>
-                              <p className="mt-2 text-xs text-orange-700 bg-orange-100 rounded px-2 py-1">
-                                After paying, visit the Finance Office with your SMS receipt to confirm.
-                              </p>
-                            </div>
-                          )}
+                    {payConfig?.orange_enabled && (
+                      payConfig.orange_has_api ? (
+                        <MobileMoneyForm
+                          gateway="orange"
+                          schoolId={result.application_id ? (payConfig as unknown as { school_id?: string }).school_id ?? '' : ''}
+                          paymentType="application_fee"
+                          applicationId={result.application_id}
+                          amountUsd={result.application_fee}
+                          primaryColor="#FF6600"
+                          onSuccess={() => setAppStripeSuccess(true)}
+                          onError={(msg) => setAppStripeError(msg)}
+                        />
+                      ) : (
+                        <div className="rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3.5 space-y-1.5">
+                          <p className="font-semibold text-orange-900 text-sm">Orange Money</p>
+                          <p className="font-mono text-2xl font-extrabold tracking-widest text-orange-900">{payConfig.orange_merchant_code || '—'}</p>
+                          <ol className="text-xs text-orange-800 list-decimal list-inside space-y-0.5">
+                            <li>Open Orange Money app → Pay Merchant</li>
+                            <li>Enter merchant code above, amount <strong>${result.application_fee.toFixed(2)}</strong></li>
+                            <li>Reference: <strong className="font-mono">{result.application_number}</strong></li>
+                          </ol>
+                          <p className="text-xs text-orange-700 bg-orange-100 rounded px-2 py-1">Bring your SMS receipt to the Finance Office to confirm.</p>
                         </div>
-                      </div>
+                      )
                     )}
 
                     {/* ── Bank Transfer ── */}
