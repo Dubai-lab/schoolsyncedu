@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
+import FlutterwaveForm from '@/components/payment/FlutterwaveForm';
 import type { PaymentConfigPublic } from '@/services/proprietorPaymentService';
 import type { School } from '@/types/school.types';
 import {
@@ -605,6 +606,33 @@ export default function SchoolApplicationForm() {
                       </div>
                     )}
 
+                    {/* ── Flutterwave Card Payment ── */}
+                    {payConfig?.flw_enabled && payConfig.flw_public_key && result.application_id && (
+                      appStripeSuccess ? (
+                        <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3 text-xs text-green-700">
+                          <CheckCircle2 className="h-4 w-4 shrink-0" />
+                          Card payment successful! The Registrar will now review your application.
+                        </div>
+                      ) : (
+                        <FlutterwaveForm
+                          schoolId={school.id}
+                          publicKey={payConfig.flw_public_key}
+                          currency={payConfig.flw_currency || 'USD'}
+                          paymentType="application_fee"
+                          applicationId={result.application_id}
+                          amountUsd={result.application_fee}
+                          customer={{
+                            name:  `${form.firstName} ${form.lastName}`.trim() || form.guardianFullName,
+                            email: form.guardianEmail || '',
+                            phone: form.guardianPhone || '',
+                          }}
+                          paymentTitle={payConfig.payment_title || school.name}
+                          onSuccess={() => { setAppStripeSuccess(true); setAppStripeError(''); }}
+                          onError={(msg) => setAppStripeError(msg)}
+                        />
+                      )
+                    )}
+
                     {/* ── Stripe Card Payment ── */}
                     {payConfig?.stripe_enabled && stripeAppPromise && result.application_id && (
                       <div className="rounded-xl border border-purple-200 overflow-hidden">
@@ -645,7 +673,7 @@ export default function SchoolApplicationForm() {
                       <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                         <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
-                          {payConfig?.mtn_enabled || payConfig?.orange_enabled || payConfig?.bank_enabled || payConfig?.stripe_enabled
+                          {payConfig?.flw_enabled || payConfig?.mtn_enabled || payConfig?.orange_enabled || payConfig?.bank_enabled || payConfig?.stripe_enabled
                             ? 'Or Pay at Campus'
                             : 'Pay at Campus Finance Office'}
                         </p>

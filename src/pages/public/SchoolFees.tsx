@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import MobileMoneyForm from '@/components/payment/MobileMoneyForm';
+import FlutterwaveForm from '@/components/payment/FlutterwaveForm';
 import type { School, SiteConfig, FeeScheduleConfig } from '@/types/school.types';
 import {
   GraduationCap,
@@ -754,6 +755,34 @@ export default function SchoolFees() {
                           )
                         )}
 
+                        {/* Flutterwave card payment */}
+                        {paymentCfg?.flw_enabled && paymentCfg.flw_public_key && studentData && (
+                          <FlutterwaveForm
+                            schoolId={school.id}
+                            publicKey={paymentCfg.flw_public_key}
+                            currency={paymentCfg.flw_currency || 'USD'}
+                            paymentType="student_fee"
+                            studentFeeId={selectedFee.id}
+                            amountUsd={Number(amount) || selectedFee.balance}
+                            customer={{
+                              name:  `${studentData.first_name as string} ${studentData.last_name as string}`,
+                              email: user?.email ?? '',
+                              phone: (studentData.phone as string) ?? '',
+                            }}
+                            paymentTitle={paymentCfg.payment_title || school.name}
+                            onSuccess={(ref) => {
+                              setLastRef(ref);
+                              setPaySuccess(true);
+                              setSelectedFee(null);
+                              studentPortalService
+                                .getMyFees(school.id, (studentData as Record<string, unknown>).id as string)
+                                .then((f) => setFees((f ?? []) as StudentFeeRow[]))
+                                .catch(() => {});
+                            }}
+                            onError={(msg) => setPayError(msg)}
+                          />
+                        )}
+
                         {/* Stripe card payment */}
                         {paymentCfg?.stripe_enabled && stripePromise && studentData && (
                           <div className="space-y-2">
@@ -782,7 +811,7 @@ export default function SchoolFees() {
                         )}
 
                         {/* No online payment methods at all */}
-                        {!paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.stripe_enabled && !paymentCfg?.flw_enabled && (
+                        {!paymentCfg?.flw_enabled && !paymentCfg?.mtn_enabled && !paymentCfg?.orange_enabled && !paymentCfg?.stripe_enabled && (
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                             <p className="font-semibold">Online payment not available</p>
                             <p className="mt-1">Please visit the school finance office to pay your fees in person.</p>
