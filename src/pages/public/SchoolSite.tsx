@@ -252,13 +252,6 @@ export default function SchoolSite() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2 sm:px-8">
           {/* Logo + Name */}
           <div className="flex items-center gap-3">
-            {school.logo_url ? (
-              <img src={school.logo_url} alt={school.name} className="h-24 w-24 object-contain drop-shadow-sm" />
-            ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-xl shadow-sm" style={{ backgroundColor: primary }}>
-                <GraduationCap className="h-5 w-5 text-white" />
-              </div>
-            )}
             <div>
               <p className={`text-sm font-extrabold leading-tight tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>
                 {school.name}
