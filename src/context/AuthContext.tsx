@@ -50,6 +50,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [setUser]);
 
+  // Re-validate session when user returns to the tab (browser throttles token refresh timers
+  // when tabs are in the background, causing silent expiry after ~1 hour of inactivity)
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session && isAuthenticated) {
+        reset(); // Session truly expired — sign out cleanly
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isAuthenticated, reset]);
+
   // Bootstrap session on mount + listen for auth changes (token refresh, sign out from other tab)
   useEffect(() => {
     setLoading(true);
