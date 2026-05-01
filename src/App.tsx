@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useEffect } from 'react';
 import { useDomainContext } from '@/context/DomainContext';
 import { AuthProvider } from '@/context/AuthContext';
@@ -276,6 +277,7 @@ function CustomDomainGateway() {
 export default function App() {
   return (
     <AuthProvider>
+      <SpeedInsights />
       <ScrollToTop />
       <CustomDomainGateway />
       <Routes>

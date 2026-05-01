@@ -148,11 +148,11 @@ function CardPreview({
       >
         {design.show_school_logo !== false && (
           <div
-            className="shrink-0 rounded-full bg-white flex items-center justify-center overflow-hidden"
+            className="shrink-0 flex items-center justify-center overflow-hidden"
             style={{ width: `${32 * scale}px`, height: `${32 * scale}px` }}
           >
             {logoUrl ? (
-              <img src={logoUrl} alt="" className="w-full h-full object-contain p-0.5" />
+              <img src={logoUrl} alt="" className="w-full h-full object-contain" />
             ) : (
               <span style={{ fontSize: `${10 * scale}px`, color: textColor }}>🏫</span>
             )}
@@ -628,7 +628,7 @@ function CardEditor({
                   <div className="flex items-center gap-3">
                     <div className="h-14 w-14 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
                       {(design.logo || school?.logo_url) ? (
-                        <img src={design.logo || school?.logo_url || ''} alt="Logo" className="w-full h-full object-contain p-1" />
+                        <img src={design.logo || school?.logo_url || ''} alt="Logo" className="w-full h-full object-contain" />
                       ) : (
                         <Image className="h-6 w-6 text-slate-300" />
                       )}
