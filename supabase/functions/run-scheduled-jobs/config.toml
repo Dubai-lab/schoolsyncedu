@@ -1,2 +1,1 @@
-[functions.run-scheduled-jobs]
 verify_jwt = false

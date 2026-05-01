@@ -84,8 +84,10 @@ function buildTrialReminderEmail(schoolName: string, ownerName: string, daysLeft
         Don't lose your student records, grades, attendance data, and everything you've set up.
         Upgrade to a paid plan to keep full access to SchoolSync.
       </p>
-      ${ctaButton('Upgrade My Plan →', billingUrl)}
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To upgrade, log in to your school portal and go to <a href="${billingUrl}" style="color:#1e40af;text-decoration:underline;">Billing &amp; Subscription</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
         Questions? Email <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
       </p>
     </div>`, new Date().getFullYear());
@@ -109,8 +111,10 @@ function buildExpiryReminderEmail(schoolName: string, ownerName: string, daysLef
         urgent ? '#dc2626' : '#f59e0b',
         urgent ? '#991b1b' : '#92400e'
       )}
-      ${ctaButton('Renew My Subscription →', billingUrl)}
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To renew, log in to your school portal and go to <a href="${billingUrl}" style="color:#1e40af;text-decoration:underline;">Billing &amp; Subscription</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
         Questions? Email <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
       </p>
     </div>`, new Date().getFullYear());
@@ -127,8 +131,10 @@ function buildGraceStartEmail(schoolName: string, ownerName: string, graceDays: 
       <p style="margin:16px 0;font-size:14px;color:#4b5563;line-height:1.7;">
         During the grace period, your school portal remains accessible. However, if you don't renew before the grace period ends, your school will be suspended and staff/students won't be able to log in.
       </p>
-      ${ctaButton('Renew Now — Keep My School Active →', billingUrl)}
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To renew, log in to your school portal and go to <a href="${billingUrl}" style="color:#1e40af;text-decoration:underline;">Billing &amp; Subscription</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
         Questions? Email <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
       </p>
     </div>`, new Date().getFullYear());
@@ -146,8 +152,10 @@ function buildGraceReminderEmail(schoolName: string, ownerName: string, daysLeft
       <p style="margin:16px 0;font-size:14px;color:#4b5563;line-height:1.7;">
         Once suspended, staff and students will not be able to log in. Your data is preserved — simply renew to restore access immediately.
       </p>
-      ${ctaButton('Renew Immediately →', billingUrl)}
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To renew, log in to your school portal and go to <a href="${billingUrl}" style="color:#1e40af;text-decoration:underline;">Billing &amp; Subscription</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
         Questions? Email <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
       </p>
     </div>`, new Date().getFullYear());
@@ -165,7 +173,9 @@ function buildSuspendedEmail(schoolName: string, ownerName: string, billingUrl: 
       <p style="margin:16px 0;font-size:14px;color:#4b5563;line-height:1.7;">
         Your data is safe and securely stored. To restore access immediately, renew your subscription. Access will be restored within minutes of payment.
       </p>
-      ${ctaButton('Restore My School Access →', billingUrl)}
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To renew, log in to your school portal and go to <a href="${billingUrl}" style="color:#1e40af;text-decoration:underline;">Billing &amp; Subscription</a>.
+      </p>
       <p style="margin:16px 0;font-size:13px;color:#4b5563;line-height:1.7;">
         Need a payment extension or have billing questions? Contact us at
         <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>.
@@ -516,14 +526,15 @@ serve(async (req) => {
       html: string;
       text: string;
       metadata?: Record<string, unknown>;
+      withinHours?: number;
     }) {
-      const { schoolId, subscriptionId, eventType, recipientEmail, subject, html, text, metadata } = params;
+      const { schoolId, subscriptionId, eventType, recipientEmail, subject, html, text, metadata, withinHours = 20 } = params;
 
-      // Deduplication check (20-hour window)
+      // Deduplication check
       const { data: alreadySent } = await supabase.rpc('notification_already_sent', {
         p_school_id: schoolId,
         p_event_type: eventType,
-        p_within_hours: 20,
+        p_within_hours: withinHours,
       });
 
       if (alreadySent) {
@@ -624,22 +635,21 @@ serve(async (req) => {
           if (config.notify_on_grace_start !== false && daysUntilExpiry !== null) {
             const totalGraceDays = sub.grace_days_remaining || 7;
 
-            // If this is close to the start of grace (expiry far = just started)
-            // We detect "grace start" as daysUntilExpiry >= totalGraceDays - 1
+            // Grace start: fire once per grace period (first cron run after entering grace,
+            // regardless of timing — dedup window covers the full grace period)
             const graceEventType = 'grace_start';
-            if (daysUntilExpiry >= totalGraceDays - 1) {
-              const sent = await sendAndLog({
-                schoolId: sub.school_id,
-                subscriptionId: sub.id,
-                eventType: graceEventType,
-                recipientEmail: owner.email,
-                subject: `Your SchoolSync subscription has expired — Grace period started (${school.name})`,
-                html: buildGraceStartEmail(school.name, owner.full_name, totalGraceDays, billingUrl),
-                text: `Hi ${owner.full_name},\n\nYour subscription for ${school.name} has expired. You have a ${totalGraceDays}-day grace period. Renew at ${billingUrl}\n\nSchoolSync Team`,
-                metadata: { plan_name: plan.name, grace_days: totalGraceDays },
-              });
-              if (sent) sentCount++;
-            }
+            const sent = await sendAndLog({
+              schoolId: sub.school_id,
+              subscriptionId: sub.id,
+              eventType: graceEventType,
+              recipientEmail: owner.email,
+              subject: `Your SchoolSync subscription has expired — Grace period started (${school.name})`,
+              html: buildGraceStartEmail(school.name, owner.full_name, totalGraceDays, billingUrl),
+              text: `Hi ${owner.full_name},\n\nYour subscription for ${school.name} has expired. You have a ${totalGraceDays}-day grace period. Renew at ${billingUrl}\n\nSchoolSync Team`,
+              metadata: { plan_name: plan.name, grace_days: totalGraceDays },
+              withinHours: totalGraceDays * 24,
+            });
+            if (sent) sentCount++;
 
             // Grace reminder days
             const graceReminderDays: number[] = config.grace_reminder_days || [2];

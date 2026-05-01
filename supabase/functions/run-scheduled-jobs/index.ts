@@ -67,18 +67,18 @@ serve(async (req) => {
   // ── 2. Notification emails (runs at 08:00 UTC or when explicitly triggered) ─
   if (runNotifications && (isNotificationHour || body.job === 'notifications' || body.job === 'all')) {
     try {
-      const notifUrl = `${SUPABASE_URL}/functions/v1/process-subscription-notifications`;
-      const resp = await fetch(notifUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+      const resp = await fetch(
+        `${SUPABASE_URL}/functions/v1/process-subscription-notifications`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
         },
-        body: JSON.stringify({}),
-      });
+      );
       const notifData = await resp.json().catch(() => ({}));
-      results.notifications = { ok: resp.ok, status: resp.status, ...notifData };
-      console.log(`[notifications] status=${resp.status}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${JSON.stringify(notifData)}`);
+      results.notifications = { ok: true, ...notifData };
+      console.log(`[notifications] invoked ok`);
     } catch (err) {
       results.notifications = { ok: false, error: String(err) };
       console.error('[notifications] error:', err);

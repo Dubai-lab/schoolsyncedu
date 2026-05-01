@@ -253,9 +253,9 @@ export default function SchoolSite() {
           {/* Logo + Name */}
           <div className="flex items-center gap-3">
             {school.logo_url ? (
-              <img src={school.logo_url} alt={school.name} className="h-10 w-10 rounded-xl object-cover shadow-sm" />
+              <img src={school.logo_url} alt={school.name} className="h-14 w-14 rounded-xl object-contain bg-white p-0.5 shadow-sm" />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm" style={{ backgroundColor: primary }}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl shadow-sm" style={{ backgroundColor: primary }}>
                 <GraduationCap className="h-5 w-5 text-white" />
               </div>
             )}
@@ -808,9 +808,9 @@ export default function SchoolSite() {
             <div className="sm:col-span-2 lg:col-span-1">
               <div className="flex items-center gap-3">
                 {school.logo_url ? (
-                  <img src={school.logo_url} alt={school.name} className="h-11 w-11 rounded-xl object-cover" />
+                  <img src={school.logo_url} alt={school.name} className="h-14 w-14 rounded-xl object-contain bg-white p-0.5" />
                 ) : (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/15">
                     <GraduationCap className="h-6 w-6 text-white" />
                   </div>
                 )}
