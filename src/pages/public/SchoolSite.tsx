@@ -252,6 +252,13 @@ export default function SchoolSite() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2 sm:px-8">
           {/* Logo + Name */}
           <div className="flex items-center gap-3">
+            {school.logo_url ? (
+              <img src={school.logo_url} alt={school.name} className="h-10 w-10 object-contain" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: primary }}>
+                <GraduationCap className="h-5 w-5 text-white" />
+              </div>
+            )}
             <div>
               <p className={`text-sm font-extrabold leading-tight tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>
                 {school.name}
@@ -403,58 +410,62 @@ export default function SchoolSite() {
             </>
           )}
 
-          <div className="relative mx-auto w-full max-w-6xl px-5 pb-24 pt-32 sm:px-8 lg:pt-40">
-            <div className="max-w-3xl">
-              {/* School crest — large display in hero */}
+          <div className="relative mx-auto w-full max-w-6xl px-5 pb-24 pt-28 sm:px-8 lg:pt-36">
+            <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-16">
+
+              {/* School crest — large, left column on desktop */}
               {school.logo_url && (
-                <div className="mb-6">
+                <div className="shrink-0 flex justify-center">
                   <img
                     src={school.logo_url}
                     alt={school.name}
-                    className="h-36 w-36 object-contain drop-shadow-2xl sm:h-44 sm:w-44"
+                    className="h-52 w-52 object-contain drop-shadow-2xl sm:h-64 sm:w-64 lg:h-72 lg:w-72"
                   />
                 </div>
               )}
 
-              {/* Badge */}
-              {(school.founded_year || school.county) && (
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
-                  <Award className="h-3.5 w-3.5 opacity-80" />
-                  {school.founded_year && `Est. ${school.founded_year}`}
-                  {school.founded_year && school.county && ' · '}
-                  {school.county && `${school.county} County`}
-                </div>
-              )}
+              {/* Text content — right column on desktop */}
+              <div className="flex-1 text-center lg:text-left">
+                {/* Badge */}
+                {(school.founded_year || school.county) && (
+                  <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                    <Award className="h-3.5 w-3.5 opacity-80" />
+                    {school.founded_year && `Est. ${school.founded_year}`}
+                    {school.founded_year && school.county && ' · '}
+                    {school.county && `${school.county} County`}
+                  </div>
+                )}
 
-              <h1 className="text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl xl:text-7xl">
-                {heroHeadline}
-              </h1>
+                <h1 className="text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
+                  {heroHeadline}
+                </h1>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-white/70 sm:text-lg lg:text-xl">
-                {heroSubtext}
-              </p>
-
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Link
-                  to={`/school/${slug}/apply`}
-                  className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl sm:text-base"
-                  style={{ backgroundColor: secondary }}
-                >
-                  <ClipboardEdit className="h-4 w-4" /> Apply Now
-                </Link>
-                <a
-                  href="#about"
-                  className="inline-flex items-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:text-base"
-                >
-                  Discover More <ChevronRight className="h-4 w-4" />
-                </a>
-              </div>
-
-              {cfg.school_hours && (
-                <p className="mt-6 inline-flex items-center gap-1.5 text-xs text-white/40">
-                  <Clock className="h-3.5 w-3.5" /> {cfg.school_hours}
+                <p className="mt-5 text-base leading-relaxed text-white/70 sm:text-lg">
+                  {heroSubtext}
                 </p>
-              )}
+
+                <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+                  <Link
+                    to={`/school/${slug}/apply`}
+                    className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl sm:text-base"
+                    style={{ backgroundColor: secondary }}
+                  >
+                    <ClipboardEdit className="h-4 w-4" /> Apply Now
+                  </Link>
+                  <a
+                    href="#about"
+                    className="inline-flex items-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:text-base"
+                  >
+                    Discover More <ChevronRight className="h-4 w-4" />
+                  </a>
+                </div>
+
+                {cfg.school_hours && (
+                  <p className="mt-5 inline-flex items-center gap-1.5 text-xs text-white/40">
+                    <Clock className="h-3.5 w-3.5" /> {cfg.school_hours}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
