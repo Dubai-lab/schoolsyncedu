@@ -92,7 +92,7 @@ function MiniCardPreview({ student, design, school, overridePhotoUrl }: {
       {/* Header */}
       <div className="relative flex items-center gap-1.5 px-2 py-1" style={{ backgroundColor: header }}>
         {school?.logo_url && (
-          <img src={school.logo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+          <img src={school.logo_url} alt="" className="w-8 h-8 object-contain" />
         )}
         <div className="flex-1 min-w-0">
           <p className="font-bold truncate leading-tight" style={{ fontSize: '7px', color: text }}>
@@ -203,9 +203,9 @@ function buildCardHtml(
       : `<div style="position:absolute;inset:0;background:${bg};"></div>`;
 
     const logoHtml = showLogo && schoolLogo
-      ? `<img src="${schoolLogo}" style="width:8mm;height:8mm;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
+      ? `<img src="${schoolLogo}" style="width:13mm;height:13mm;object-fit:contain;flex-shrink:0;" />`
       : showLogo
-        ? `<div style="width:8mm;height:8mm;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:6pt;">&#x1F3EB;</div>`
+        ? `<div style="width:13mm;height:13mm;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:6pt;">&#x1F3EB;</div>`
         : '';
     const nameHtml = showName
       ? `<div style="font-weight:bold;font-size:7pt;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${text};">${schoolName}</div>`
@@ -315,10 +315,7 @@ function buildCardHtml(
           ${emergencyHtml}
           ${addressHtml}
           ${backCustomHtml}
-          <div style="margin-top:auto;font-size:3.5pt;color:${backText}88;text-align:center;font-style:italic;">
-            If found, please call the school at ${schoolPhone || '000 000 0000'}
-          </div>
-          <div style="font-size:3pt;color:${backText}55;text-align:center;margin-top:1mm;">
+          <div style="margin-top:auto;font-size:3pt;color:${backText}55;text-align:center;">
             This card is the property of the school. If found, please return.
           </div>
         </div>
