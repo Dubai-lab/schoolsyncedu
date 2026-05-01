@@ -412,6 +412,17 @@ export default function SchoolSite() {
 
           <div className="relative mx-auto w-full max-w-6xl px-5 pb-24 pt-32 sm:px-8 lg:pt-40">
             <div className="max-w-3xl">
+              {/* School crest — large display in hero */}
+              {school.logo_url && (
+                <div className="mb-6">
+                  <img
+                    src={school.logo_url}
+                    alt={school.name}
+                    className="h-36 w-36 object-contain drop-shadow-2xl sm:h-44 sm:w-44"
+                  />
+                </div>
+              )}
+
               {/* Badge */}
               {(school.founded_year || school.county) && (
                 <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
