@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { useEffect } from 'react';
 import { useDomainContext } from '@/context/DomainContext';
 import { AuthProvider } from '@/context/AuthContext';
@@ -278,6 +279,7 @@ export default function App() {
   return (
     <AuthProvider>
       <SpeedInsights />
+      <VercelAnalytics />
       <ScrollToTop />
       <CustomDomainGateway />
       <Routes>
