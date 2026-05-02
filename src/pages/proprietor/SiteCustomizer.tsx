@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
+import SubdomainAddonCard from '@/components/shared/SubdomainAddonCard';
 import {
   Save,
   Globe,
@@ -25,7 +26,7 @@ export default function SiteCustomizer() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
 
-  const { data: school, isLoading } = useFetch<School>(
+  const { data: school, isLoading, refetch: refetchSchool } = useFetch<School>(
     ['school-site', schoolId],
     () => schoolSettingsService.get(schoolId),
     { enabled: !!schoolId }
@@ -118,11 +119,22 @@ export default function SiteCustomizer() {
               >
                 {siteUrl}
               </a>
-              <p className="mt-0.5 text-xs text-gray-400">
-                In production: {merged?.slug}.eduliberia.com
-              </p>
             </div>
           </div>
+        </Card>
+      )}
+
+      {/* Custom Subdomain Add-on */}
+      {school && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe className="w-5 h-5 text-primary-600" />
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Custom Subdomain</h2>
+              <p className="text-sm text-gray-500">Get a professional URL like <span className="font-mono">yourschool.schoolsyncedu.com</span></p>
+            </div>
+          </div>
+          <SubdomainAddonCard school={school} onRefresh={() => refetchSchool()} />
         </Card>
       )}
 

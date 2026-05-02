@@ -47,4 +47,16 @@ export const schoolSiteService = {
     if (error) throw error;
     return data;
   },
+
+  /** Fetch a school by its branded subdomain (e.g. "newcovenant" for newcovenant.schoolsyncedu.com) */
+  async getBySubdomain(subdomain: string) {
+    const { data, error } = await getPublicClient()
+      .from('schools')
+      .select('*')
+      .eq('subdomain', subdomain)
+      .eq('subdomain_active', true)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
 };

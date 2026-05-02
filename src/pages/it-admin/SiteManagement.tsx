@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
+import SubdomainAddonCard from '@/components/shared/SubdomainAddonCard';
 import {
   Save,
   Globe,
@@ -49,7 +50,7 @@ export default function SiteManagement() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
 
-  const { data: school, isLoading } = useFetch<School>(
+  const { data: school, isLoading, refetch: refetchSchool } = useFetch<School>(
     ['it-admin-school', schoolId],
     () => itAdminSiteService.getSchool(schoolId),
     { enabled: !!schoolId },
@@ -203,6 +204,20 @@ export default function SiteManagement() {
               </a>
             </div>
           </div>
+        </Card>
+      )}
+
+      {/* ==================== BRANDED SUBDOMAIN ==================== */}
+      {school && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe className="w-5 h-5 text-blue-600" />
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Custom Subdomain</h2>
+              <p className="text-sm text-slate-500">Get a professional URL like <span className="font-mono">yourschool.schoolsyncedu.com</span></p>
+            </div>
+          </div>
+          <SubdomainAddonCard school={school} onRefresh={() => refetchSchool()} />
         </Card>
       )}
 

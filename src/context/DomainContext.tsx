@@ -9,6 +9,21 @@ const PLATFORM_HOSTS = [
   'localhost',
 ];
 
+const PLATFORM_APEX = 'schoolsyncedu.com';
+
+/**
+ * Returns the branded subdomain name if the hostname is a first-level subdomain
+ * of schoolsyncedu.com (e.g. "newcovenant.schoolsyncedu.com" → "newcovenant").
+ * Returns null for the apex, www, Vercel preview URLs, or nested subdomains.
+ */
+function extractPlatformSubdomain(hostname: string): string | null {
+  if (!hostname.endsWith(`.${PLATFORM_APEX}`)) return null;
+  const sub = hostname.slice(0, -(`.${PLATFORM_APEX}`).length);
+  // Must be a single label (no dots = not nested like a.b.schoolsyncedu.com)
+  if (!sub || sub.includes('.')) return null;
+  return sub;
+}
+
 function isPlatformHost(hostname: string) {
   return (
     PLATFORM_HOSTS.includes(hostname) ||
@@ -19,7 +34,7 @@ function isPlatformHost(hostname: string) {
 
 interface DomainContextValue {
   isCustomDomain: boolean;
-  school: School | null;       // school resolved from the custom domain
+  school: School | null;       // school resolved from the custom domain / subdomain
   schoolSlug: string | null;   // convenience shortcut
   isLoading: boolean;
   notFound: boolean;
@@ -35,7 +50,11 @@ const DomainContext = createContext<DomainContextValue>({
 
 export function DomainProvider({ children }: { children: ReactNode }) {
   const hostname = window.location.hostname;
-  const isCustomDomain = !isPlatformHost(hostname);
+
+  // A branded subdomain like newcovenant.schoolsyncedu.com is still "our" domain
+  // but should resolve to a school — treat it as a custom domain for routing purposes.
+  const platformSubdomain = extractPlatformSubdomain(hostname);
+  const isCustomDomain = platformSubdomain !== null || !isPlatformHost(hostname);
 
   const [school, setSchool] = useState<School | null>(null);
   const [isLoading, setIsLoading] = useState(isCustomDomain);
@@ -43,15 +62,19 @@ export function DomainProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isCustomDomain) return;
-    schoolSiteService
-      .getByCustomDomain(hostname)
+
+    const lookup = platformSubdomain
+      ? schoolSiteService.getBySubdomain(platformSubdomain)
+      : schoolSiteService.getByCustomDomain(hostname);
+
+    lookup
       .then((data) => {
         setSchool(data as School | null);
         setNotFound(!data);
       })
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
-  }, [hostname, isCustomDomain]);
+  }, [hostname, isCustomDomain, platformSubdomain]);
 
   return (
     <DomainContext.Provider

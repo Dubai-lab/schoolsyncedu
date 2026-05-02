@@ -36,6 +36,9 @@ export interface School {
   founded_year: number | null;
   county: string | null;
   custom_domain: string | null;
+  subdomain: string | null;
+  subdomain_active: boolean;
+  subdomain_paid_until: string | null;
   site_published: boolean;
   site_config: SiteConfig;
   /** Whether the school portal is accessible. False = suspended (subscription expired). */
