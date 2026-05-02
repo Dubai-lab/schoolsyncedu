@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { subdomainAddonService } from '@/services/subdomainAddonService';
 import type { SubdomainPricing, SubdomainPayment } from '@/services/subdomainAddonService';
-import { createPaymentIntent, generateTxRef } from '@/services/stripeService';
+import { generateTxRef } from '@/services/stripeService';
 import { notify } from '@/components/shared/Toast';
 import {
   Lock,
@@ -82,8 +82,14 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
     setProcessing(true);
     setCardError('');
     try {
-      const txRef    = generateTxRef();
-      const { clientSecret, paymentIntentId } = await createPaymentIntent(amountUsd, txRef);
+      const txRef = generateTxRef(schoolId);
+      const { data: piData, error: piError } = await supabase.functions.invoke(
+        'create-stripe-payment-intent',
+        { body: { amount_usd: amountUsd, school_id: schoolId, plan_name: 'subdomain-addon', tx_ref: txRef } },
+      );
+      if (piError) throw new Error(piError.message);
+      if (piData?.error) throw new Error(String(piData.error));
+      const { clientSecret, paymentIntentId } = piData as { clientSecret: string; paymentIntentId: string };
 
       const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: cardEl },
