@@ -126,12 +126,18 @@ export default function SchoolSite() {
     schoolSiteService
       .getBySlug(slug)
       .then((data) => {
-        if (!data) setNotFound(true);
-        else setSchool(data);
+        if (!data) { setNotFound(true); return; }
+        // If school has an active subdomain and visitor is on the default URL,
+        // redirect permanently so only one domain is ever active.
+        if (data.subdomain_active && data.subdomain && !isCustomDomain) {
+          window.location.replace(`https://${data.subdomain}.schoolsyncedu.com`);
+          return;
+        }
+        setSchool(data);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, isCustomDomain]);
 
   // Inject school-specific PWA manifest + register service worker so
   // students can install the school's portal as a home screen app.

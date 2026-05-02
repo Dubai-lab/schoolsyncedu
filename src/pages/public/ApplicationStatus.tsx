@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { publicApplicationService } from '@/services/registrarService';
+import { schoolSiteService } from '@/services/schoolSiteService';
+import { useDomainContext } from '@/context/DomainContext';
 import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -140,6 +142,7 @@ function StatusStripeCardForm({ schoolId, applicationId, amountUsd, onSuccess, o
 
 export default function ApplicationStatus() {
   const { slug } = useParams<{ slug: string }>();
+  const { isCustomDomain } = useDomainContext();
   const [applicationNumber, setApplicationNumber] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [loading, setLoading] = useState(false);
@@ -159,6 +162,16 @@ export default function ApplicationStatus() {
       : null,
     [payConfig?.stripe_enabled, payConfig?.stripe_public_key],
   );
+
+  // Redirect to subdomain if the school has one active and we're on the default URL
+  useEffect(() => {
+    if (!slug || isCustomDomain) return;
+    schoolSiteService.getBySlug(slug).then((data) => {
+      if (data?.subdomain_active && data.subdomain) {
+        window.location.replace(`https://${data.subdomain}.schoolsyncedu.com/status`);
+      }
+    }).catch(() => {});
+  }, [slug, isCustomDomain]);
 
   // Load payment config when we have a result with school_id and unpaid fee
   useEffect(() => {

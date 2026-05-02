@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { schoolSiteService } from '@/services/schoolSiteService';
+import { useDomainContext } from '@/context/DomainContext';
 import { getHomePath } from '@/middleware/requireAuth';
 import type { School, SiteConfig, AuthPageConfig } from '@/types/school.types';
 import {
@@ -19,6 +20,7 @@ import {
 
 export default function SchoolLogin() {
   const { slug } = useParams<{ slug: string }>();
+  const { isCustomDomain } = useDomainContext();
   const { signIn, signOut, error, isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,12 +50,16 @@ export default function SchoolLogin() {
     schoolSiteService
       .getBySlug(slug)
       .then((data) => {
-        if (!data) setNotFound(true);
-        else setSchool(data as School);
+        if (!data) { setNotFound(true); return; }
+        if (data.subdomain_active && data.subdomain && !isCustomDomain) {
+          window.location.replace(`https://${data.subdomain}.schoolsyncedu.com/login`);
+          return;
+        }
+        setSchool(data as School);
       })
       .catch(() => setNotFound(true))
       .finally(() => setPageLoading(false));
-  }, [slug]);
+  }, [slug, isCustomDomain]);
 
   // Only navigate after a fresh sign-in (not on page load with stale session)
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { schoolSiteService } from '@/services/schoolSiteService';
+import { useDomainContext } from '@/context/DomainContext';
 import { publicApplicationService } from '@/services/registrarService';
 import { supabase } from '@/lib/supabase';
 import { loadStripe } from '@stripe/stripe-js';
@@ -146,6 +147,7 @@ const STEPS: { key: Step; label: string; icon: React.ElementType }[] = [
 
 export default function SchoolApplicationForm() {
   const { slug } = useParams<{ slug: string }>();
+  const { isCustomDomain } = useDomainContext();
   const [school, setSchool] = useState<School | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -237,6 +239,10 @@ export default function SchoolApplicationForm() {
       .then(async ([schoolData]) => {
         if (!schoolData) {
           setNotFound(true);
+          return;
+        }
+        if (schoolData.subdomain_active && schoolData.subdomain && !isCustomDomain) {
+          window.location.replace(`https://${schoolData.subdomain}.schoolsyncedu.com/apply`);
           return;
         }
         setSchool(schoolData);

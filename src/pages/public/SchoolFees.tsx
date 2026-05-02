@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useDomainContext } from '@/context/DomainContext';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { studentPortalService } from '@/services/studentPortalService';
 import { proprietorPaymentService, type PaymentConfigPublic } from '@/services/proprietorPaymentService';
@@ -175,6 +176,7 @@ function StripeCardForm({
 
 export default function SchoolFees() {
   const { slug } = useParams<{ slug: string }>();
+  const { isCustomDomain } = useDomainContext();
   const { user, isAuthenticated } = useAuth();
 
   const [school, setSchool] = useState<School | null>(null);
@@ -213,6 +215,10 @@ export default function SchoolFees() {
       .getBySlug(slug)
       .then((data) => {
         if (!data) { setNotFound(true); return; }
+        if (data.subdomain_active && data.subdomain && !isCustomDomain) {
+          window.location.replace(`https://${data.subdomain}.schoolsyncedu.com/fees`);
+          return;
+        }
         setSchool(data as School);
         // Load payment config in parallel
         proprietorPaymentService
@@ -222,7 +228,7 @@ export default function SchoolFees() {
       })
       .catch(() => setNotFound(true))
       .finally(() => setPageLoading(false));
-  }, [slug]);
+  }, [slug, isCustomDomain]);
 
   // ── load student fees when "Pay My Fees" tab active ──────────────────────────
   useEffect(() => {
