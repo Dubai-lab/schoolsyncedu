@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { schoolSiteService } from '@/services/schoolSiteService';
+import { useDomainContext } from '@/context/DomainContext';
 import type { School, SiteConfig } from '@/types/school.types';
 import {
   GraduationCap,
@@ -91,7 +92,9 @@ const SectionLabel = ({ text, color }: { text: string; color: string }) => (
 );
 
 export default function SchoolSite() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: slugParam } = useParams<{ slug: string }>();
+  const { isCustomDomain, schoolSlug: domainSlug } = useDomainContext();
+  const slug = slugParam ?? domainSlug ?? '';
   const [school, setSchool] = useState<School | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -99,6 +102,13 @@ export default function SchoolSite() {
   const [scrolled, setScrolled] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
+
+  // On custom domain/subdomain, restore the clean URL (hide /school/slug from address bar)
+  useEffect(() => {
+    if (isCustomDomain) {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [isCustomDomain]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -229,12 +239,15 @@ export default function SchoolSite() {
   const hasGallery = show('gallery') && (cfg.gallery_images ?? []).length > 0;
   const socialLinks = Object.entries(cfg.social_links ?? {}).filter(([, url]) => url);
 
+  // On custom domain/subdomain, use root-relative paths so the slug never appears in the URL
+  const linkBase = isCustomDomain ? '' : `/school/${slug}`;
+
   const navLinks = [
     { label: 'Home', href: '#home' },
     ...(show('about') ? [{ label: 'About', href: '#about' }] : []),
     ...(hasPrograms ? [{ label: 'Programs', href: '#programs' }] : []),
     ...(hasGallery ? [{ label: 'Gallery', href: '#gallery' }] : []),
-    ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `/school/${slug}/fees` }] : []),
+    ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `${linkBase}/fees` }] : []),
     { label: 'Contact', href: '#contact' },
   ];
 
@@ -301,14 +314,14 @@ export default function SchoolSite() {
           {/* CTAs */}
           <div className="hidden items-center gap-2.5 md:flex">
             <Link
-              to={`/school/${slug}/apply`}
+              to={`${linkBase}/apply`}
               className="rounded-lg px-4 py-2 text-sm font-bold transition-all hover:opacity-90 hover:shadow-md"
               style={{ backgroundColor: secondary, color: '#fff' }}
             >
               Apply Now
             </Link>
             <Link
-              to={`/school/${school.slug}/login`}
+              to={`${linkBase}/login`}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition-all hover:shadow-md ${
                 scrolled
                   ? 'border-gray-200 bg-white text-gray-800 hover:border-gray-300'
@@ -357,7 +370,7 @@ export default function SchoolSite() {
               )}
               <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3">
                 <Link
-                  to={`/school/${slug}/apply`}
+                  to={`${linkBase}/apply`}
                   onClick={() => setMobileMenuOpen(false)}
                   className="rounded-xl py-3 text-center text-sm font-bold text-white"
                   style={{ backgroundColor: secondary }}
@@ -365,7 +378,7 @@ export default function SchoolSite() {
                   Apply Now
                 </Link>
                 <Link
-                  to={`/school/${school.slug}/login`}
+                  to={`${linkBase}/login`}
                   onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700"
                 >
@@ -446,7 +459,7 @@ export default function SchoolSite() {
 
                 <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
                   <Link
-                    to={`/school/${slug}/apply`}
+                    to={`${linkBase}/apply`}
                     className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl sm:text-base"
                     style={{ backgroundColor: secondary }}
                   >
@@ -745,7 +758,7 @@ export default function SchoolSite() {
             <p className="mt-1.5 text-sm text-white/60">Applications are open. Start your journey with us today.</p>
           </div>
           <Link
-            to={`/school/${slug}/apply`}
+            to={`${linkBase}/apply`}
             className="inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-sm font-extrabold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl whitespace-nowrap sm:text-base"
             style={{ backgroundColor: secondary }}
           >
@@ -867,7 +880,7 @@ export default function SchoolSite() {
                   </li>
                 ))}
                 <li>
-                  <Link to={`/school/${slug}/apply`} className="text-sm font-semibold transition-colors hover:text-white" style={{ color: secondary }}>
+                  <Link to={`${linkBase}/apply`} className="text-sm font-semibold transition-colors hover:text-white" style={{ color: secondary }}>
                     Apply Now →
                   </Link>
                 </li>
@@ -919,7 +932,7 @@ export default function SchoolSite() {
                 Access the school management system for staff, students, and administrators.
               </p>
               <Link
-                to={`/school/${school.slug}/login`}
+                to={`${linkBase}/login`}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-white/20"
               >
                 <LogIn className="h-4 w-4" /> Staff / Student Login
