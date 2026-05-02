@@ -17,6 +17,8 @@ const PLATFORM_APEX = 'schoolsyncedu.com';
  * Returns null for the apex, www, Vercel preview URLs, or nested subdomains.
  */
 function extractPlatformSubdomain(hostname: string): string | null {
+  // Must not be one of the known platform hostnames (e.g. www.schoolsyncedu.com)
+  if (PLATFORM_HOSTS.includes(hostname)) return null;
   if (!hostname.endsWith(`.${PLATFORM_APEX}`)) return null;
   const sub = hostname.slice(0, -(`.${PLATFORM_APEX}`).length);
   // Must be a single label (no dots = not nested like a.b.schoolsyncedu.com)
