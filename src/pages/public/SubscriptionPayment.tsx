@@ -25,6 +25,7 @@ export default function SubscriptionPayment() {
 
   const schoolId = searchParams.get('school');
   const email    = searchParams.get('email');
+  const cycle    = (searchParams.get('cycle') ?? 'monthly') as 'monthly' | 'yearly';
 
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState('');
@@ -88,7 +89,12 @@ export default function SubscriptionPayment() {
     setCouponSuccess('');
   };
 
-  const finalAmount = paymentData ? discountedPrice(paymentData.plan.price_usd) : 0;
+  const cyclePrice = paymentData
+    ? cycle === 'yearly'
+      ? +(paymentData.plan.price_usd * 12 * (1 - (paymentData.plan.yearly_discount_percent ?? 0) / 100)).toFixed(2)
+      : paymentData.plan.price_usd
+    : 0;
+  const finalAmount = paymentData ? discountedPrice(cyclePrice) : 0;
 
   // ── LOADING ──
   if (loading) {
@@ -173,10 +179,20 @@ export default function SubscriptionPayment() {
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">{paymentData.plan.name} Plan</h3>
                     <p className="mt-1 text-sm text-slate-500">{paymentData.plan.description}</p>
+                    {cycle === 'yearly' && (
+                      <span className="mt-2 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                        Annual billing
+                      </span>
+                    )}
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-slate-900">${paymentData.plan.price_usd}</p>
-                    <p className="text-xs text-slate-500">/{paymentData.plan.billing_cycle}</p>
+                    <p className="text-2xl font-bold text-slate-900">${cyclePrice}</p>
+                    <p className="text-xs text-slate-500">/{cycle === 'yearly' ? 'year' : paymentData.plan.billing_cycle}</p>
+                    {cycle === 'yearly' && (paymentData.plan.yearly_discount_percent ?? 0) > 0 && (
+                      <p className="text-xs text-green-600 font-medium mt-0.5">
+                        Save ${(paymentData.plan.price_usd * 12 * ((paymentData.plan.yearly_discount_percent ?? 0) / 100)).toFixed(2)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-primary-200 space-y-2">
@@ -251,7 +267,7 @@ export default function SubscriptionPayment() {
                   <>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Subtotal</span>
-                      <span className="text-slate-700">${paymentData.plan.price_usd} USD</span>
+                      <span className="text-slate-700">${cyclePrice} USD</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-green-600 font-medium">Discount ({appliedDiscount.name})</span>

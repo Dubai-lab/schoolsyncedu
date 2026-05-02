@@ -58,6 +58,7 @@ export default function RegisterSchool() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const preselectedPlan = searchParams.get('plan');
+  const preselectedCycle = searchParams.get('cycle');
 
   const [step, setStep] = useState<Step>(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -91,6 +92,9 @@ export default function RegisterSchool() {
   });
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(
+    preselectedCycle === 'yearly' ? 'yearly' : 'monthly'
+  );
 
   const { data: plans = [] } = useFetch<SubscriptionPlan[]>(
     ['register-plans'],
@@ -298,7 +302,7 @@ export default function RegisterSchool() {
 
       // Redirect to payment page with school info
       if (newSchoolId && selectedPlanId) {
-        navigate(`/payment?school=${newSchoolId}&email=${encodeURIComponent(owner.email)}`);
+        navigate(`/payment?school=${newSchoolId}&email=${encodeURIComponent(owner.email)}&cycle=${billingCycle}`);
       } else {
         // No plan selected — just show success & go to login
         setRegisteredEmail(owner.email);
@@ -629,39 +633,81 @@ export default function RegisterSchool() {
                 All plans include a free trial. You won't be charged until the trial ends.
               </p>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {visiblePlans.map((plan) => (
+              {/* Billing cycle toggle */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-600 font-medium">Billing:</span>
+                <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 p-1">
                   <button
-                    key={plan.id}
                     type="button"
-                    onClick={() => setSelectedPlanId(plan.id)}
-                    className={`relative rounded-xl border-2 p-5 text-left transition-all ${
-                      selectedPlanId === plan.id
-                        ? 'border-primary-500 bg-primary-50/50 ring-2 ring-primary-200'
-                        : 'border-slate-200 hover:border-slate-300'
+                    onClick={() => setBillingCycle('monthly')}
+                    className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                      billingCycle === 'monthly' ? 'bg-primary-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    {selectedPlanId === plan.id && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircle className="h-5 w-5 text-primary-600" />
-                      </div>
-                    )}
-                    <h3 className="font-semibold text-slate-900">{plan.name}</h3>
-                    <p className="mt-1 text-xs text-slate-500">{plan.description}</p>
-                    <div className="mt-3">
-                      <span className="text-2xl font-bold text-slate-900">${plan.price_usd}</span>
-                      <span className="text-sm text-slate-500">/{plan.billing_cycle}</span>
-                    </div>
-                    <div className="mt-3 space-y-1.5">
-                      <p className="text-xs text-slate-600">
-                        ✓ Up to {plan.student_limit.toLocaleString()} students
-                      </p>
-                      <p className="text-xs text-green-600 font-medium">
-                        ✓ {plan.trial_days} day free trial
-                      </p>
-                    </div>
+                    Monthly
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle('yearly')}
+                    className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                      billingCycle === 'yearly' ? 'bg-primary-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Yearly
+                    {(() => {
+                      const maxDiscount = Math.max(...visiblePlans.map((p) => p.yearly_discount_percent ?? 0));
+                      return maxDiscount > 0
+                        ? <span className={`ml-1 ${billingCycle === 'yearly' ? 'text-green-300' : 'text-green-600'}`}>Save {maxDiscount}%</span>
+                        : null;
+                    })()}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {visiblePlans.map((plan) => {
+                  const discountFactor = 1 - (plan.yearly_discount_percent ?? 0) / 100;
+                  const yearlyPrice = +(plan.price_usd * 12 * discountFactor).toFixed(2);
+                  const displayPrice = billingCycle === 'yearly' ? yearlyPrice : plan.price_usd;
+                  const displayCycle = billingCycle === 'yearly' ? 'year' : plan.billing_cycle;
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className={`relative rounded-xl border-2 p-5 text-left transition-all ${
+                        selectedPlanId === plan.id
+                          ? 'border-primary-500 bg-primary-50/50 ring-2 ring-primary-200'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {selectedPlanId === plan.id && (
+                        <div className="absolute top-3 right-3">
+                          <CheckCircle className="h-5 w-5 text-primary-600" />
+                        </div>
+                      )}
+                      <h3 className="font-semibold text-slate-900">{plan.name}</h3>
+                      <p className="mt-1 text-xs text-slate-500">{plan.description}</p>
+                      <div className="mt-3">
+                        <span className="text-2xl font-bold text-slate-900">${displayPrice}</span>
+                        <span className="text-sm text-slate-500">/{displayCycle}</span>
+                      </div>
+                      {billingCycle === 'yearly' && (plan.yearly_discount_percent ?? 0) > 0 && (
+                        <p className="mt-1 text-xs text-green-600 font-medium">
+                          Save ${(plan.price_usd * 12 * ((plan.yearly_discount_percent ?? 0) / 100)).toFixed(2)}/yr
+                        </p>
+                      )}
+                      <div className="mt-3 space-y-1.5">
+                        <p className="text-xs text-slate-600">
+                          ✓ Up to {plan.student_limit.toLocaleString()} students
+                        </p>
+                        <p className="text-xs text-green-600 font-medium">
+                          ✓ {plan.trial_days} day free trial
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
               <Link
@@ -700,19 +746,30 @@ export default function RegisterSchool() {
                 </div>
               </div>
 
-              {selectedPlan && (
-                <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" /> Selected Plan
-                  </h3>
-                  <p className="text-lg font-bold text-slate-900">
-                    {selectedPlan.name} — ${selectedPlan.price_usd}/{selectedPlan.billing_cycle}
-                  </p>
-                  <p className="text-xs text-primary-600 font-medium">
-                    You'll be redirected to a secure payment page after registration.
-                  </p>
-                </div>
-              )}
+              {selectedPlan && (() => {
+                const discountFactor = 1 - (selectedPlan.yearly_discount_percent ?? 0) / 100;
+                const yearlyPrice = +(selectedPlan.price_usd * 12 * discountFactor).toFixed(2);
+                const displayPrice = billingCycle === 'yearly' ? yearlyPrice : selectedPlan.price_usd;
+                const displayCycle = billingCycle === 'yearly' ? 'year' : selectedPlan.billing_cycle;
+                return (
+                  <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" /> Selected Plan
+                    </h3>
+                    <p className="text-lg font-bold text-slate-900">
+                      {selectedPlan.name} — ${displayPrice}/{displayCycle}
+                    </p>
+                    {billingCycle === 'yearly' && (selectedPlan.yearly_discount_percent ?? 0) > 0 && (
+                      <p className="text-xs text-green-600 font-medium">
+                        Save ${(selectedPlan.price_usd * 12 * ((selectedPlan.yearly_discount_percent ?? 0) / 100)).toFixed(2)} vs monthly billing
+                      </p>
+                    )}
+                    <p className="text-xs text-primary-600 font-medium">
+                      You'll be redirected to a secure payment page after registration.
+                    </p>
+                  </div>
+                );
+              })()}
 
               <p className="text-xs text-slate-400 leading-relaxed">
                 By clicking "Create School," you agree to our Terms of Service and Privacy Policy.

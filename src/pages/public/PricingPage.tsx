@@ -76,11 +76,11 @@ export default function PricingPage() {
     if (activeSub && activeSub.plan_name === plan.name)
       return <div className={`${base} opacity-80 cursor-default pointer-events-none`}><CheckCircle2 className="h-4 w-4" /> Current Plan</div>;
     if (expiredSub && expiredSub.plan_name === plan.name)
-      return <Link to={`/pay?school=${user?.school_id}&email=${user?.email}`} className={base}>Renew Now <ArrowRight className="h-4 w-4" /></Link>;
+      return <Link to={`/pay?school=${user?.school_id}&email=${user?.email}&cycle=${billingCycle}`} className={base}>Renew Now <ArrowRight className="h-4 w-4" /></Link>;
     if (activeSub?.status === 'trial')
-      return <Link to={`/pay?school=${user?.school_id}&email=${user?.email}`} className={base}>Upgrade Now <ArrowRight className="h-4 w-4" /></Link>;
+      return <Link to={`/pay?school=${user?.school_id}&email=${user?.email}&cycle=${billingCycle}`} className={base}>Upgrade Now <ArrowRight className="h-4 w-4" /></Link>;
     const ctaText = plan.cta_button_text?.trim() || 'Start Free Trial';
-    return <Link to={`/register?plan=${plan.slug}`} className={base}>{ctaText} <ArrowRight className="h-4 w-4" /></Link>;
+    return <Link to={`/register?plan=${plan.slug}&cycle=${billingCycle}`} className={base}>{ctaText} <ArrowRight className="h-4 w-4" /></Link>;
   }
 
   const toggleModule = (m: string) =>
