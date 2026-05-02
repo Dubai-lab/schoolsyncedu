@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { supabase } from '@/lib/supabase';
+import { schoolSiteService } from '@/services/schoolSiteService';
 import { createPaymentIntent, generateTxRef } from '@/services/stripeService';
 import { notify } from '@/components/shared/Toast';
 import {
@@ -175,6 +176,7 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
   const [nameError,    setNameError]    = useState('');
   const [showPayForm,  setShowPayForm]  = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [checking,     setChecking]     = useState(false);
 
   // Normalize: lowercase, strip non-allowed chars
   const sanitize = (v: string) => v.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -190,6 +192,24 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
     const s = sanitize(v);
     setNameInput(s);
     setNameError(validateName(s));
+  };
+
+  const handleActivateClick = async () => {
+    const err = validateName(nameInput);
+    if (err) { setNameError(err); return; }
+    setChecking(true);
+    try {
+      const existing = await schoolSiteService.getBySubdomain(nameInput);
+      if (existing && existing.id !== schoolId) {
+        setNameError('This name is already taken by another school. Please choose a different name.');
+        return;
+      }
+      setShowPayForm(true);
+    } catch {
+      setShowPayForm(true); // if check fails, let payment proceed (RPC will catch it)
+    } finally {
+      setChecking(false);
+    }
   };
 
   const handlePaySuccess = (paidUntil: string) => {
@@ -338,13 +358,13 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
       {!showPayForm ? (
         <button
           type="button"
-          disabled={!nameInput || !!nameError}
-          onClick={() => setShowPayForm(true)}
+          disabled={!nameInput || !!nameError || checking}
+          onClick={handleActivateClick}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Lock className="h-4 w-4" />
-          Pay $1 to Activate
-          <ArrowRight className="h-4 w-4" />
+          {checking
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking availability...</>
+            : <><Lock className="h-4 w-4" /> Pay $1 to Activate <ArrowRight className="h-4 w-4" /></>}
         </button>
       ) : (
         <Elements stripe={stripePromise}>

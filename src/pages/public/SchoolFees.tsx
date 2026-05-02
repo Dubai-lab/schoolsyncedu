@@ -207,6 +207,11 @@ export default function SchoolFees() {
   const [payError, setPayError] = useState<string | null>(null);
   const [lastRef, setLastRef] = useState<string | null>(null);
 
+  // Clean URL on subdomain (hide /school/slug/fees → /fees)
+  useEffect(() => {
+    if (isCustomDomain) window.history.replaceState(null, '', '/fees');
+  }, [isCustomDomain]);
+
   // ── load school ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!slug) return;

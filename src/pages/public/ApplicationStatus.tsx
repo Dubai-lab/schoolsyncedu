@@ -163,6 +163,11 @@ export default function ApplicationStatus() {
     [payConfig?.stripe_enabled, payConfig?.stripe_public_key],
   );
 
+  // Clean URL on subdomain (hide /school/slug/status → /status)
+  useEffect(() => {
+    if (isCustomDomain) window.history.replaceState(null, '', '/status');
+  }, [isCustomDomain]);
+
   // Redirect to subdomain if the school has one active and we're on the default URL
   useEffect(() => {
     if (!slug || isCustomDomain) return;

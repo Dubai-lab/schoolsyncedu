@@ -43,6 +43,11 @@ export default function SchoolLogin() {
   const displayError = localError || error;
   const loading = submitting || (isLoading && submitting);
 
+  // Clean URL on subdomain (hide /school/slug/login → /login)
+  useEffect(() => {
+    if (isCustomDomain) window.history.replaceState(null, '', '/login');
+  }, [isCustomDomain]);
+
   // Load school data
   useEffect(() => {
     if (!slug) return;

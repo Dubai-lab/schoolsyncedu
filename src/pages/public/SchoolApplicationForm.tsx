@@ -230,6 +230,11 @@ export default function SchoolApplicationForm() {
     setDocuments((prev) => prev.filter((d) => d.label !== label));
   };
 
+  // Clean URL on subdomain (hide /school/slug/apply → /apply)
+  useEffect(() => {
+    if (isCustomDomain) window.history.replaceState(null, '', '/apply');
+  }, [isCustomDomain]);
+
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
