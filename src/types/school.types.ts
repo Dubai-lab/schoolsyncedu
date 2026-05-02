@@ -39,6 +39,7 @@ export interface School {
   subdomain: string | null;
   subdomain_active: boolean;
   subdomain_paid_until: string | null;
+  subdomain_plan: 'monthly' | 'yearly' | null;
   site_published: boolean;
   site_config: SiteConfig;
   /** Whether the school portal is accessible. False = suspended (subscription expired). */

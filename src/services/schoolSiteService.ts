@@ -48,13 +48,17 @@ export const schoolSiteService = {
     return data;
   },
 
-  /** Fetch a school by its branded subdomain (e.g. "newcovenant" for newcovenant.schoolsyncedu.com) */
+  /** Fetch a school by its branded subdomain (e.g. "newcovenant" for newcovenant.schoolsyncedu.com).
+   *  Enforces a 24-hour grace period: subdomains remain accessible for 24 hours after paid_until
+   *  expires, giving the school time to renew before the site goes down. */
   async getBySubdomain(subdomain: string) {
+    const graceCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await getPublicClient()
       .from('schools')
       .select('*')
       .eq('subdomain', subdomain)
       .eq('subdomain_active', true)
+      .gt('subdomain_paid_until', graceCutoff)
       .maybeSingle();
     if (error) throw error;
     return data;

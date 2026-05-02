@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import { pricingPlanService } from '@/services/adminService';
+import { subdomainAddonService } from '@/services/subdomainAddonService';
+import type { SubdomainPricing } from '@/services/subdomainAddonService';
 import type { SubscriptionPlan, BillingCycle } from '@/types/report.types';
 import Table from '@/components/ui/Table';
 import type { Column } from '@/components/ui/Table';
@@ -10,7 +12,7 @@ import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Card } from '@/components/ui/Card';
 import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { notify } from '@/components/shared/Toast';
-import { CreditCard, Eye, EyeOff, Check, X, Plus, Pencil, Trash2, Power } from 'lucide-react';
+import { CreditCard, Eye, EyeOff, Check, X, Plus, Pencil, Trash2, Power, Globe, Save } from 'lucide-react';
 
 const BILLING_CYCLES: BillingCycle[] = ['monthly', 'yearly', 'custom', 'lifetime'];
 const DEFAULT_FEATURES = ['attendance', 'grades', 'fees', 'letters', 'library', 'nfc', 'communications', 'reports', 'waec', 'id_cards'];
@@ -68,6 +70,36 @@ export default function PricingPlans() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<PlanForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<SubscriptionPlan | null>(null);
+
+  // ── Custom Subdomain Add-on pricing ──────────────────────────────────────────
+  const { data: subdomainPricing } = useFetch<SubdomainPricing>(
+    ['subdomain-addon-pricing'],
+    () => subdomainAddonService.getPricing(),
+  );
+  const [subdomainForm, setSubdomainForm] = useState<{ monthly: string; discount: string }>({
+    monthly: '', discount: '',
+  });
+  const [subdomainSaving, setSubdomainSaving] = useState(false);
+
+  // Populate form when pricing loads
+  const monthlyVal  = subdomainForm.monthly  !== '' ? Number(subdomainForm.monthly)  : (subdomainPricing?.monthly_price_usd ?? 1);
+  const discountVal = subdomainForm.discount !== '' ? Number(subdomainForm.discount) : (subdomainPricing?.yearly_discount_percent ?? 20);
+  const yearlyPreview = subdomainAddonService.calcYearlyPrice(monthlyVal, discountVal);
+
+  const handleSubdomainSave = async () => {
+    if (monthlyVal <= 0) { notify.error('Monthly price must be greater than 0'); return; }
+    if (discountVal < 0 || discountVal > 90) { notify.error('Discount must be between 0% and 90%'); return; }
+    setSubdomainSaving(true);
+    try {
+      await subdomainAddonService.setPricing(monthlyVal, discountVal);
+      notify.success('Subdomain pricing updated');
+      setSubdomainForm({ monthly: '', discount: '' });
+    } catch {
+      notify.error('Failed to save pricing');
+    } finally {
+      setSubdomainSaving(false);
+    }
+  };
 
   const { data: plans = [], isLoading } = useFetch<SubscriptionPlan[]>(
     ['admin-plans'],
@@ -527,6 +559,75 @@ export default function PricingPlans() {
           </Button>
         </DialogFooter>
       </Dialog>
+
+      {/* ===== CUSTOM SUBDOMAIN ADD-ON PRICING ===== */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-100 text-blue-600"><Globe className="w-5 h-5" /></div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Custom Subdomain Add-on</h2>
+            <p className="text-xs text-gray-500">
+              Schools can purchase a branded subdomain (e.g. <span className="font-mono">ncca.schoolsyncedu.com</span>).
+              Set the monthly price and yearly discount — yearly is auto-calculated.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600">Monthly Price (USD)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+              <input
+                type="number"
+                min={0.01}
+                step={0.01}
+                placeholder={String(subdomainPricing?.monthly_price_usd ?? 1)}
+                value={subdomainForm.monthly}
+                onChange={(e) => setSubdomainForm((f) => ({ ...f, monthly: e.target.value }))}
+                className="w-full rounded-lg border border-slate-300 bg-white pl-7 pr-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600">Yearly Discount (%)</label>
+            <div className="relative">
+              <input
+                type="number"
+                min={0}
+                max={90}
+                step={1}
+                placeholder={String(subdomainPricing?.yearly_discount_percent ?? 20)}
+                value={subdomainForm.discount}
+                onChange={(e) => setSubdomainForm((f) => ({ ...f, discount: e.target.value }))}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600">Yearly Price (auto-calculated)</label>
+            <div className="flex items-center h-9 rounded-lg border border-slate-200 bg-slate-50 px-3">
+              <span className="text-sm font-semibold text-slate-700">${yearlyPreview.toFixed(2)}</span>
+              <span className="ml-1 text-xs text-slate-400">/year</span>
+              {discountVal > 0 && (
+                <span className="ml-auto text-xs text-emerald-600 font-medium">{discountVal}% off</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 pt-1">
+          <Button size="sm" icon={<Save className="w-3.5 h-3.5" />} loading={subdomainSaving} onClick={handleSubdomainSave}>
+            Save Subdomain Pricing
+          </Button>
+          <p className="text-xs text-slate-400">
+            Current: ${subdomainPricing?.monthly_price_usd ?? 1}/mo · ${subdomainAddonService.calcYearlyPrice(subdomainPricing?.monthly_price_usd ?? 1, subdomainPricing?.yearly_discount_percent ?? 20).toFixed(2)}/yr
+          </p>
+        </div>
+      </Card>
 
       {/* ===== DELETE CONFIRM ===== */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} className="max-w-sm">
