@@ -43,6 +43,7 @@ export default function SubscriptionManagement() {
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [showCardForm,   setShowCardForm]   = useState(false);
+  const [billingCycle,   setBillingCycle]   = useState<'monthly' | 'yearly'>('monthly');
 
   const { data: subscription, isLoading: loadingSub } = useFetch<(Subscription & { plan: SubscriptionPlan }) | null>(
     ['prop-subscription', schoolId!],
@@ -95,6 +96,7 @@ export default function SubscriptionManagement() {
     setChangePlanOpen(false);
     setSelectedPlanId(null);
     setShowCardForm(false);
+    setBillingCycle('monthly');
   };
 
 
@@ -367,10 +369,46 @@ export default function SubscriptionManagement() {
           {/* Step 1 — Plan selection */}
           {!showCardForm && (
             <>
+              {/* Billing cycle toggle */}
+              <div className="flex items-center gap-3 mb-5">
+                <span className="text-sm text-slate-600 font-medium">Billing:</span>
+                <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle('monthly')}
+                    className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                      billingCycle === 'monthly' ? 'bg-primary-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle('yearly')}
+                    className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                      billingCycle === 'yearly' ? 'bg-primary-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Yearly
+                    {(() => {
+                      const visiblePlans = plans.filter(p => !p.is_enterprise && p.is_active && p.is_visible);
+                      const maxDiscount = Math.max(...visiblePlans.map((p) => p.yearly_discount_percent ?? 0));
+                      return maxDiscount > 0
+                        ? <span className={`ml-1 ${billingCycle === 'yearly' ? 'text-green-300' : 'text-green-600'}`}>Save {maxDiscount}%</span>
+                        : null;
+                    })()}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 {plans.filter(p => !p.is_enterprise && p.is_active && p.is_visible).map((plan) => {
                   const isCurrent = plan.id === subscription?.plan_id;
                   const isSelected = selectedPlanId === plan.id || (isCurrent && selectedPlanId === null && (isSuspended || isGrace));
+                  const discountFactor = 1 - (plan.yearly_discount_percent ?? 0) / 100;
+                  const yearlyPrice = +(plan.price_usd * 12 * discountFactor).toFixed(2);
+                  const displayPrice = billingCycle === 'yearly' ? yearlyPrice : plan.price_usd;
+                  const displayCycle = billingCycle === 'yearly' ? 'year' : plan.billing_cycle;
                   return (
                     <button
                       key={plan.id}
@@ -389,9 +427,14 @@ export default function SubscriptionManagement() {
                         </div>
                       </div>
                       <p className="text-2xl font-bold text-gray-900">
-                        ${plan.price_usd}
-                        <span className="text-sm font-normal text-gray-500">/{plan.billing_cycle}</span>
+                        ${displayPrice}
+                        <span className="text-sm font-normal text-gray-500">/{displayCycle}</span>
                       </p>
+                      {billingCycle === 'yearly' && (plan.yearly_discount_percent ?? 0) > 0 && (
+                        <p className="text-xs text-green-600 font-medium mt-0.5">
+                          Save ${(plan.price_usd * 12 * ((plan.yearly_discount_percent ?? 0) / 100)).toFixed(2)}/yr
+                        </p>
+                      )}
                       <p className="text-sm text-gray-500 mt-1">Up to {plan.student_limit.toLocaleString()} students</p>
                       {plan.trial_days > 0 && (
                         <p className="text-xs text-green-600 mt-0.5">{plan.trial_days}-day free trial · {plan.grace_days}d grace</p>
@@ -410,17 +453,28 @@ export default function SubscriptionManagement() {
           )}
 
           {/* Step 2 — Coming Soon */}
-          {showCardForm && selectedPlan && (
+          {showCardForm && selectedPlan && (() => {
+            const discountFactor = 1 - (selectedPlan.yearly_discount_percent ?? 0) / 100;
+            const yearlyPrice = +(selectedPlan.price_usd * 12 * discountFactor).toFixed(2);
+            const displayPrice = billingCycle === 'yearly' ? yearlyPrice : selectedPlan.price_usd;
+            const displayCycle = billingCycle === 'yearly' ? 'year' : selectedPlan.billing_cycle;
+            return (
             <div className="space-y-4">
               {/* Plan summary */}
               <div className="rounded-xl border border-primary-200 bg-primary-50/40 p-4 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">{selectedPlan.name} Plan</p>
-                  <p className="text-xs text-slate-500">{selectedPlan.billing_cycle}</p>
+                  <p className="text-xs text-slate-500">{billingCycle === 'yearly' ? 'Annual billing' : selectedPlan.billing_cycle}</p>
+                  {billingCycle === 'yearly' && (selectedPlan.yearly_discount_percent ?? 0) > 0 && (
+                    <p className="text-xs text-green-600 font-medium mt-0.5">
+                      Save ${(selectedPlan.price_usd * 12 * ((selectedPlan.yearly_discount_percent ?? 0) / 100)).toFixed(2)} vs monthly
+                    </p>
+                  )}
                 </div>
-                <p className="text-2xl font-bold text-slate-900">
-                  ${selectedPlan.price_usd}
-                </p>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-slate-900">${displayPrice}</p>
+                  <p className="text-xs text-slate-400">/{displayCycle}</p>
+                </div>
               </div>
 
               {/* Coming Soon */}
@@ -449,7 +503,8 @@ export default function SubscriptionManagement() {
                 Back to Plans
               </Button>
             </div>
-          )}
+            );
+          })()}
         </DialogBody>
 
         {/* Show footer only on step 1 */}
