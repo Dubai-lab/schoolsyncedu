@@ -12,9 +12,9 @@ import { Card } from '@/components/ui/Card';
 import Dialog, { DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { notify } from '@/components/shared/Toast';
 import { supabase } from '@/lib/supabase';
-import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock, Sparkles, Mail, Phone, Users, MessageSquare, Layers, Send } from 'lucide-react';
+import { DollarSign, FileText, Clock, CheckCircle, Eye, Ban, WifiOff, Wifi, CalendarClock, Sparkles, Mail, Phone, Users, MessageSquare, Layers, Send, Globe } from 'lucide-react';
 
-type Tab = 'invoices' | 'subscriptions' | 'payments' | 'enterprise' | 'notify';
+type Tab = 'invoices' | 'subscriptions' | 'payments' | 'addons' | 'enterprise' | 'notify';
 type StatusFilter = 'all' | BillingInvoice['status'];
 
 function fmt(amount: number) {
@@ -73,6 +73,24 @@ export default function BillingCenter() {
   const { data: enterpriseInquiries = [], isLoading: loadingEnterprise } = useFetch<EnterpriseInquiry[]>(
     ['admin-enterprise-inquiries'],
     () => enterpriseService.list()
+  );
+
+  type SubdomainPaymentRow = {
+    id: string; school_id: string; amount_usd: number;
+    plan: 'monthly' | 'yearly'; gateway_ref: string | null;
+    paid_at: string; paid_until: string;
+    schools?: { name: string };
+  };
+  const { data: addonPayments = [], isLoading: loadingAddons } = useFetch<SubdomainPaymentRow[]>(
+    ['admin-subdomain-payments'],
+    async () => {
+      const { data, error } = await supabase
+        .from('subdomain_payments')
+        .select('*, schools(name)')
+        .order('paid_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as SubdomainPaymentRow[];
+    }
   );
 
   const [viewInquiry, setViewInquiry] = useState<EnterpriseInquiry | null>(null);
@@ -202,7 +220,9 @@ export default function BillingCenter() {
   };
 
   const filteredInvoices = statusFilter === 'all' ? invoices : invoices.filter((i) => i.status === statusFilter);
-  const totalRevenue  = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_usd, 0);
+  const subscriptionRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_usd, 0);
+  const addonRevenue        = addonPayments.reduce((s, p) => s + Number(p.amount_usd), 0);
+  const totalRevenue  = subscriptionRevenue + addonRevenue;
   const paidCount     = invoices.filter((i) => i.status === 'paid').length;
   const overdueCount  = invoices.filter((i) => i.status === 'overdue').length;
   const pendingCount  = invoices.filter((i) => i.status === 'sent' || i.status === 'draft').length;
@@ -440,6 +460,13 @@ export default function BillingCenter() {
         <button className={tabClass('subscriptions')} onClick={() => setTab('subscriptions')}>
           Subscriptions {subscriptions.length > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{subscriptions.length}</span>}
         </button>
+        <button className={tabClass('addons')} onClick={() => setTab('addons')}>
+          <span className="flex items-center gap-1.5">
+            <Globe className="w-3.5 h-3.5" />
+            Add-ons
+            {addonPayments.length > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{addonPayments.length}</span>}
+          </span>
+        </button>
         <button className={tabClass('enterprise')} onClick={() => setTab('enterprise')}>
           <span className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5" />
@@ -517,6 +544,62 @@ export default function BillingCenter() {
             keyExtractor={(r) => r.id}
             loading={loadingSubs}
             emptyMessage="No subscriptions found."
+          />
+        </>
+      )}
+
+      {tab === 'addons' && (
+        <>
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+            <Globe className="w-4 h-4 text-blue-500" />
+            <span>
+              <span className="font-semibold text-gray-800">{addonPayments.length}</span> subdomain add-on payment{addonPayments.length !== 1 ? 's' : ''}.
+            </span>
+            <span className="ml-auto font-semibold text-green-700">
+              Total: {fmt(addonRevenue)}
+            </span>
+          </div>
+          <Table<SubdomainPaymentRow>
+            columns={[
+              {
+                key: 'paid_at',
+                header: 'Date',
+                render: (row) => new Date(row.paid_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+              },
+              {
+                key: 'schools',
+                header: 'School',
+                render: (row) => <span className="text-sm font-medium">{row.schools?.name ?? row.school_id.slice(0, 8) + '…'}</span>,
+              },
+              {
+                key: 'plan',
+                header: 'Plan',
+                render: (row) => (
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${row.plan === 'yearly' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {row.plan === 'yearly' ? 'Annual' : 'Monthly'}
+                  </span>
+                ),
+              },
+              {
+                key: 'amount_usd',
+                header: 'Amount',
+                render: (row) => <span className="font-semibold">{fmt(Number(row.amount_usd))}</span>,
+              },
+              {
+                key: 'paid_until',
+                header: 'Valid Until',
+                render: (row) => new Date(row.paid_until).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+              },
+              {
+                key: 'gateway_ref',
+                header: 'Gateway Ref',
+                render: (row) => <span className="font-mono text-xs text-gray-500">{row.gateway_ref ?? '—'}</span>,
+              },
+            ]}
+            data={addonPayments}
+            keyExtractor={(r) => r.id}
+            loading={loadingAddons}
+            emptyMessage="No subdomain add-on payments yet."
           />
         </>
       )}
