@@ -233,9 +233,18 @@ import StudentDashboard from '@/pages/student/StudentDashboard';
 // When a school uses their own domain (e.g. portal.sdahs.edu.lr), we detect
 // it in DomainContext and redirect root + /login → /school/:slug equivalents
 // so all existing SchoolSite / SchoolLogin pages work without modification.
+// Public school-site paths that need the domain lookup before rendering
+const PUBLIC_SCHOOL_PATHS = ['/', '/login', '/apply', '/status', '/fees'];
+
+function isPublicSchoolPath(pathname: string) {
+  return PUBLIC_SCHOOL_PATHS.includes(pathname) || pathname === '';
+}
+
 function CustomDomainGateway() {
   const { isCustomDomain, schoolSlug, isLoading, notFound } = useDomainContext();
   const navigate = useNavigate();
+  const pathname = window.location.pathname;
+  const isPublic = isPublicSchoolPath(pathname);
 
   useEffect(() => {
     if (!isCustomDomain || isLoading || !schoolSlug) return;
@@ -253,7 +262,9 @@ function CustomDomainGateway() {
     }
   }, [isCustomDomain, schoolSlug, isLoading, navigate]);
 
-  if (isCustomDomain && isLoading) {
+  // Only block rendering for public school-site paths.
+  // Dashboard / authenticated pages load immediately — domain lookup runs in background.
+  if (isCustomDomain && isLoading && isPublic) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -261,7 +272,7 @@ function CustomDomainGateway() {
     );
   }
 
-  if (isCustomDomain && notFound) {
+  if (isCustomDomain && notFound && isPublic) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-3 bg-slate-50">
         <p className="text-lg font-semibold text-slate-700">School not found</p>
