@@ -57,14 +57,14 @@ serve(async (req) => {
     const { amount_usd, school_id, subscription_id, plan_name, tx_ref } = body as {
       amount_usd: number;
       school_id: string;
-      subscription_id: string;
-      plan_name: string;
-      tx_ref: string;
+      subscription_id?: string;
+      plan_name?: string;
+      tx_ref?: string;
     };
 
-    if (!amount_usd || !school_id || !subscription_id) {
+    if (!amount_usd || !school_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: amount_usd, school_id, subscription_id' }),
+        JSON.stringify({ error: 'Missing required fields: amount_usd, school_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -85,7 +85,7 @@ serve(async (req) => {
       description: `SchoolSync — ${plan_name || 'Subscription'} plan`,
       metadata: {
         school_id,
-        subscription_id,
+        subscription_id: subscription_id || '',
         plan_name: plan_name || '',
         tx_ref: tx_ref || '',
         platform: 'schoolsync',
