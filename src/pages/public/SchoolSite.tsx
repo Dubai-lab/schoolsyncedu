@@ -167,6 +167,15 @@ const slideRight = (delay: number, visible: boolean) => ({
   transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
 });
 
+function scrollToSection(hash: string) {
+  const id = hash.startsWith('#') ? hash.slice(1) : hash;
+  const el = document.getElementById(id);
+  if (!el) return;
+  const navHeight = 72;
+  const top = el.getBoundingClientRect().top + window.scrollY - navHeight;
+  window.scrollTo({ top, behavior: 'smooth' });
+}
+
 export default function SchoolSite() {
   const { slug: slugParam } = useParams<{ slug: string }>();
   const { isCustomDomain, schoolSlug: domainSlug } = useDomainContext();
@@ -426,15 +435,16 @@ export default function SchoolSite() {
           <div className="hidden items-center gap-7 md:flex">
             {navLinks.map((lnk) =>
               lnk.href.startsWith('#') ? (
-                <a
+                <button
                   key={lnk.label}
-                  href={lnk.href}
+                  type="button"
+                  onClick={() => scrollToSection(lnk.href)}
                   className={`text-sm font-medium transition-colors hover:opacity-100 ${
                     scrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/75 hover:text-white'
                   }`}
                 >
                   {lnk.label}
-                </a>
+                </button>
               ) : (
                 <Link
                   key={lnk.label}
@@ -487,14 +497,14 @@ export default function SchoolSite() {
             <div className="flex flex-col gap-1">
               {navLinks.map((lnk) =>
                 lnk.href.startsWith('#') ? (
-                  <a
+                  <button
                     key={lnk.label}
-                    href={lnk.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    type="button"
+                    onClick={() => { scrollToSection(lnk.href); setMobileMenuOpen(false); }}
+                    className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     {lnk.label}
-                  </a>
+                  </button>
                 ) : (
                   <Link
                     key={lnk.label}
@@ -652,12 +662,13 @@ export default function SchoolSite() {
                   >
                     <ClipboardEdit className="h-4 w-4" /> Apply Now
                   </Link>
-                  <a
-                    href="#about"
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('#about')}
                     className="inline-flex items-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:text-base"
                   >
                     Discover More <ChevronRight className="h-4 w-4" />
-                  </a>
+                  </button>
                 </div>
 
                 {cfg.school_hours && (
@@ -1147,7 +1158,7 @@ export default function SchoolSite() {
                 {navLinks.map((lnk) => (
                   <li key={lnk.label}>
                     {lnk.href.startsWith('#') ? (
-                      <a href={lnk.href} className="text-sm text-white/50 transition-colors hover:text-white">{lnk.label}</a>
+                      <button type="button" onClick={() => scrollToSection(lnk.href)} className="text-sm text-white/50 transition-colors hover:text-white">{lnk.label}</button>
                     ) : (
                       <Link to={lnk.href} className="text-sm text-white/50 transition-colors hover:text-white">{lnk.label}</Link>
                     )}
