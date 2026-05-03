@@ -44,13 +44,17 @@ function formatDateTime(iso: string) {
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
-type SubdomainStatus = 'active' | 'grace' | 'expired' | 'fresh';
+type SubdomainStatus = 'active' | 'grace' | 'expired' | 'fresh' | 'paused';
 
 function getStatus(school: School): SubdomainStatus {
-  if (!school.subdomain_active || !school.subdomain_paid_until) {
+  if (!school.subdomain_active) {
+    // Still has paid time — school voluntarily reverted to default URL
+    if (school.subdomain_paid_until && new Date(school.subdomain_paid_until) > new Date()) {
+      return 'paused';
+    }
     return school.subdomain ? 'expired' : 'fresh';
   }
-  const paidUntil = new Date(school.subdomain_paid_until);
+  const paidUntil = new Date(school.subdomain_paid_until!);
   const now = new Date();
   if (paidUntil > now) return 'active';
   const graceCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -119,7 +123,7 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
           plan,
           paid_until: result.paid_until,
         },
-      }).catch(() => { /* non-fatal */ });
+      }).catch((e) => { console.warn('Subdomain receipt email failed (non-fatal):', e); });
 
       onSuccess(result.paid_until as string);
     } catch (err) {
@@ -341,6 +345,7 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
   const [showPayForm,  setShowPayForm]  = useState(false);
   const [showUpgrade,  setShowUpgrade]  = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
   const [checking,     setChecking]     = useState(false);
 
   // Normalize: lowercase, strip non-allowed chars
@@ -389,12 +394,26 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
     try {
       const { error } = await supabase.rpc('deactivate_subdomain_addon', { p_school_id: schoolId });
       if (error) throw error;
-      notify.success('Reverted to default URL.');
+      notify.success('Reverted to default URL. You can re-activate any time while your subscription is active.');
       onRefresh();
     } catch (err) {
       notify.error(err instanceof Error ? err.message : 'Failed to deactivate');
     } finally {
       setDeactivating(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    setReactivating(true);
+    try {
+      const result = await subdomainAddonService.reactivate(schoolId);
+      if (!result.success) throw new Error(result.error ?? 'Re-activation failed');
+      notify.success(`Subdomain re-activated! Active until ${formatDate(result.paid_until!)}.`);
+      onRefresh();
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Failed to re-activate');
+    } finally {
+      setReactivating(false);
     }
   };
 
@@ -575,6 +594,40 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
             </Elements>
           </div>
         )}
+
+        <PaymentHistory schoolId={schoolId} />
+      </div>
+    );
+  }
+
+  // ── PAUSED STATE (voluntarily reverted, subscription still active) ───────────
+  if (status === 'paused') {
+    const paidUntil = new Date(school.subdomain_paid_until!);
+    const daysLeft  = Math.ceil((paidUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return (
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-4">
+        <div className="flex items-start gap-2">
+          <Globe className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-blue-800">Subdomain Paused</p>
+            <p className="text-xs text-blue-700 mt-1">
+              <span className="font-mono font-semibold">{school.subdomain}.{PLATFORM_APEX}</span> is reserved for your school.
+              You have <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong> of paid access remaining (until {formatDate(school.subdomain_paid_until!)}).
+              Re-activate for free to restore your custom URL.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleReactivate}
+          disabled={reactivating}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50"
+        >
+          {reactivating
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> Re-activating...</>
+            : <><Unlock className="h-4 w-4" /> Re-activate Subdomain — Free</>}
+        </button>
 
         <PaymentHistory schoolId={schoolId} />
       </div>

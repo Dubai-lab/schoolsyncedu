@@ -36,13 +36,15 @@ export const subdomainAddonService = {
   },
 
   async getPaymentHistory(schoolId: string): Promise<SubdomainPayment[]> {
-    const { data, error } = await supabase
-      .from('subdomain_payments')
-      .select('*')
-      .eq('school_id', schoolId)
-      .order('paid_at', { ascending: false });
+    const { data, error } = await supabase.rpc('get_subdomain_payment_history', { p_school_id: schoolId });
     if (error) throw error;
     return (data ?? []) as SubdomainPayment[];
+  },
+
+  async reactivate(schoolId: string): Promise<{ success: boolean; paid_until?: string; error?: string }> {
+    const { data, error } = await supabase.rpc('reactivate_subdomain_addon', { p_school_id: schoolId });
+    if (error) throw error;
+    return data as { success: boolean; paid_until?: string; error?: string };
   },
 
   /** Calculates yearly price from monthly price and discount percent */

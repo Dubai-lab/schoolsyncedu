@@ -76,18 +76,14 @@ export default function BillingCenter() {
   );
 
   type SubdomainPaymentRow = {
-    id: string; school_id: string; amount_usd: number;
-    plan: 'monthly' | 'yearly'; gateway_ref: string | null;
-    paid_at: string; paid_until: string;
-    schools?: { name: string };
+    id: string; school_id: string; school_name: string | null;
+    amount_usd: number; plan: 'monthly' | 'yearly';
+    gateway_ref: string | null; paid_at: string; paid_until: string;
   };
   const { data: addonPayments = [], isLoading: loadingAddons } = useFetch<SubdomainPaymentRow[]>(
     ['admin-subdomain-payments'],
     async () => {
-      const { data, error } = await supabase
-        .from('subdomain_payments')
-        .select('*, schools(name)')
-        .order('paid_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_all_subdomain_payments');
       if (error) throw error;
       return (data ?? []) as SubdomainPaymentRow[];
     }
@@ -567,9 +563,9 @@ export default function BillingCenter() {
                 render: (row) => new Date(row.paid_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
               },
               {
-                key: 'schools',
+                key: 'school_name',
                 header: 'School',
-                render: (row) => <span className="text-sm font-medium">{row.schools?.name ?? row.school_id.slice(0, 8) + '…'}</span>,
+                render: (row) => <span className="text-sm font-medium">{row.school_name ?? row.school_id.slice(0, 8) + '…'}</span>,
               },
               {
                 key: 'plan',
