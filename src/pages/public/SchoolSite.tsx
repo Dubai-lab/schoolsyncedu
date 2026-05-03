@@ -36,6 +36,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronLeft,
 } from 'lucide-react';
 
 // ==================== ICON RESOLVER ====================
@@ -101,6 +102,7 @@ export default function SchoolSite() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
   const heroRef = useRef<HTMLElement>(null);
 
   // On custom domain/subdomain, restore the clean URL (hide /school/slug from address bar)
@@ -118,6 +120,14 @@ export default function SchoolSite() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Hero slideshow auto-advance
+  useEffect(() => {
+    const slides = school?.site_config?.hero_slides ?? [];
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => setSlideIndex((i) => (i + 1) % slides.length), 5000);
+    return () => clearInterval(timer);
+  }, [school?.site_config?.hero_slides]);
 
   useEffect(() => {
     if (!slug) return;
@@ -243,7 +253,9 @@ export default function SchoolSite() {
 
   const hasPrograms = show('programs') && (cfg.programs ?? []).length > 0;
   const hasGallery = show('gallery') && (cfg.gallery_images ?? []).length > 0;
+  const hasStaff = show('administration') && (cfg.staff ?? []).length > 0;
   const socialLinks = Object.entries(cfg.social_links ?? {}).filter(([, url]) => url);
+  const heroSlides = cfg.hero_slides ?? [];
 
   // On custom domain/subdomain, use root-relative paths so the slug never appears in the URL
   const linkBase = isCustomDomain ? '' : `/school/${slug}`;
@@ -253,6 +265,7 @@ export default function SchoolSite() {
     ...(show('about') ? [{ label: 'About', href: '#about' }] : []),
     ...(hasPrograms ? [{ label: 'Programs', href: '#programs' }] : []),
     ...(hasGallery ? [{ label: 'Gallery', href: '#gallery' }] : []),
+    ...(hasStaff ? [{ label: 'Team', href: '#administration' }] : []),
     ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `${linkBase}/fees` }] : []),
     { label: 'Contact', href: '#contact' },
   ];
@@ -406,8 +419,57 @@ export default function SchoolSite() {
             background: `linear-gradient(145deg, ${primary} 0%, ${primary}e0 40%, ${primary}b0 100%)`,
           } : undefined}
         >
-          {/* Background */}
-          {cfg.hero_image_url ? (
+          {/* Background — slideshow, single image, or gradient */}
+          {heroSlides.length > 0 ? (
+            <>
+              {heroSlides.map((slide, i) => (
+                <div
+                  key={i}
+                  className="absolute inset-0 transition-opacity duration-1000"
+                  style={{ opacity: slideIndex === i ? 1 : 0 }}
+                >
+                  <img src={slide.image_url} alt="" className="h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/30" />
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(145deg, ${primary}70 0%, transparent 60%)` }} />
+                </div>
+              ))}
+              {/* Prev / Next arrows */}
+              {heroSlides.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSlideIndex((i) => (i - 1 + heroSlides.length) % heroSlides.length)}
+                    className="absolute left-4 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/25"
+                    aria-label="Previous slide"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSlideIndex((i) => (i + 1) % heroSlides.length)}
+                    className="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/25"
+                    aria-label="Next slide"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  {/* Dots indicator */}
+                  <div className="absolute bottom-16 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
+                    {heroSlides.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSlideIndex(i)}
+                        className={`rounded-full transition-all duration-300 ${
+                          slideIndex === i ? 'h-2 w-8 bg-white' : 'h-2 w-2 bg-white/40 hover:bg-white/60'
+                        }`}
+                        aria-label={`Go to slide ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          ) : cfg.hero_image_url ? (
             <>
               <div className="absolute inset-0">
                 <img src={cfg.hero_image_url} alt="School campus" className="h-full w-full object-cover" />
@@ -539,9 +601,14 @@ export default function SchoolSite() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:items-center">
+            <div className="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:items-start">
               {/* Text side */}
               <div className="space-y-6">
+                {/* School identity badge */}
+                <div className="flex items-center gap-2">
+                  <div className="h-px w-10 rounded-full" style={{ backgroundColor: secondary }} />
+                  <span className="text-sm font-semibold" style={{ color: primary }}>{school.name}</span>
+                </div>
                 <p className="text-base leading-8 text-gray-600 sm:text-lg">{aboutText}</p>
 
                 {cfg.mission_text && (
@@ -582,6 +649,9 @@ export default function SchoolSite() {
                     <div>
                       <p className="text-sm italic leading-7 text-gray-500">"{cfg.principal_message}"</p>
                       <p className="mt-2 text-xs font-bold text-gray-800">— {school.principal_name || 'The Principal'}</p>
+                      {cfg.principal_title && (
+                        <p className="text-xs text-gray-400">{cfg.principal_title}</p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -739,6 +809,72 @@ export default function SchoolSite() {
                   <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                     {img.caption && (
                       <p className="p-3 text-xs font-medium text-white">{img.caption}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== ADMINISTRATION ===== */}
+      {hasStaff && (
+        <section id="administration" className="bg-white px-5 py-20 sm:px-8 sm:py-28">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-14 text-center">
+              <SectionLabel text="Our Leadership" color={secondary} />
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
+                Meet Our Administration
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-base text-gray-500">
+                Our dedicated leadership team committed to educational excellence.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {(cfg.staff ?? []).map((member, i) => (
+                <div
+                  key={i}
+                  className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+                >
+                  {/* Top gradient accent strip */}
+                  <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
+
+                  <div className="p-6 text-center">
+                    {/* Photo with gradient ring */}
+                    <div className="relative mx-auto mb-4 h-24 w-24">
+                      <div
+                        className="absolute inset-0 rounded-full"
+                        style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
+                      />
+                      <div className="absolute inset-[3px] overflow-hidden rounded-full bg-white">
+                        {member.photo_url ? (
+                          <img
+                            src={member.photo_url}
+                            alt={member.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="flex h-full w-full items-center justify-center"
+                            style={{ backgroundColor: primary + '15' }}
+                          >
+                            <Users className="h-9 w-9" style={{ color: primary }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-gray-900">{member.name}</h3>
+                    <span
+                      className="mt-2 inline-block rounded-full px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white"
+                      style={{ backgroundColor: primary }}
+                    >
+                      {member.role}
+                    </span>
+                    {member.bio && (
+                      <p className="mt-3 text-xs leading-relaxed text-gray-500">{member.bio}</p>
                     )}
                   </div>
                 </div>

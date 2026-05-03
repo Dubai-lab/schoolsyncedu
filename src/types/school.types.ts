@@ -76,15 +76,21 @@ export interface TranscriptConfig {
 /** Flexible site design configuration stored as JSONB */
 export interface SiteConfig {
   hero_image_url?: string;
+  /** Multiple hero background images — rendered as an auto-advancing slideshow */
+  hero_slides?: Array<{ image_url: string; caption?: string }>;
   building_image_url?: string;
   gallery_images?: Array<{ url: string; caption: string }>;
   stats?: Array<{ label: string; value: string; icon: string }>;
   programs?: Array<{ name: string; description: string; icon: string }>;
   announcements?: Array<{ title: string; date: string; excerpt: string }>;
+  /** Administration / leadership team shown in the Meet Our Team section */
+  staff?: Array<{ name: string; role: string; photo_url?: string; bio?: string }>;
   mission_text?: string;
   vision_text?: string;
   principal_message?: string;
   principal_image_url?: string;
+  /** Title shown below principal's name in the welcome quote, e.g. "B.Sc., Principal" */
+  principal_title?: string;
   social_links?: {
     facebook?: string;
     twitter?: string;

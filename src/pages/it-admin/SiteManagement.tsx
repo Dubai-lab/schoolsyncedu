@@ -65,11 +65,16 @@ export default function SiteManagement() {
   const [buildingUploading, setBuildingUploading] = useState(false);
   const [principalUploading, setPrincipalUploading] = useState(false);
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [slideUploading, setSlideUploading] = useState(false);
+  const [staffPhotoUploadingIdx, setStaffPhotoUploadingIdx] = useState<number | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
   const buildingInputRef = useRef<HTMLInputElement>(null);
   const principalInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const slideInputRef = useRef<HTMLInputElement>(null);
+  const staffPhotoInputRef = useRef<HTMLInputElement>(null);
+  const staffPhotoUploadIdxRef = useRef<number | null>(null);
 
   const merged = { ...school, ...form } as School | undefined;
   const existingConfig: SiteConfig = school?.site_config ?? {};
@@ -352,6 +357,7 @@ export default function SiteManagement() {
             { key: 'campus', label: 'Campus / Building', icon: Building2 },
             { key: 'announcements', label: 'Announcements', icon: Megaphone },
             { key: 'gallery', label: 'Photo Gallery', icon: Image },
+            { key: 'administration', label: 'Administration Team', icon: Users },
             { key: 'contact', label: 'Contact Info', icon: MessageSquare },
           ].map((s) => (
             <button
@@ -517,6 +523,81 @@ export default function SiteManagement() {
         </div>
       </Card>
 
+      {/* ==================== HERO SLIDESHOW ==================== */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <Image className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Hero Slideshow</h2>
+          </div>
+          <div>
+            <input
+              ref={slideInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !schoolId) return;
+                e.target.value = '';
+                setSlideUploading(true);
+                try {
+                  const url = await uploadSchoolSiteImage(schoolId, file, 'slide');
+                  const slides = [...(mergedConfig.hero_slides ?? []), { image_url: url, caption: '' }];
+                  setConfig('hero_slides', slides);
+                  notify.success('Slide added');
+                } catch (err) {
+                  notify.error(err instanceof Error ? err.message : 'Upload failed');
+                } finally {
+                  setSlideUploading(false);
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => slideInputRef.current?.click()}
+              disabled={slideUploading}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {slideUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {slideUploading ? 'Uploading...' : 'Add Slide'}
+            </button>
+          </div>
+        </div>
+        <p className="text-sm text-slate-500 mb-4">
+          Add multiple hero background images — the site will cycle through them automatically every 5 seconds.
+          When slides are added they take priority over the single Hero Background Image above.
+          Recommended: 1920×800 px or larger.
+        </p>
+        {(mergedConfig.hero_slides ?? []).length === 0 ? (
+          <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center">
+            <Image className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-2 text-sm text-slate-400">No slides yet. Click "Add Slide" to start building your slideshow.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {(mergedConfig.hero_slides ?? []).map((slide, i) => (
+              <div key={i} className="group relative">
+                <img src={slide.image_url} alt={`Slide ${i + 1}`} className="h-32 w-full rounded-lg object-cover border border-slate-200" />
+                <div className="absolute inset-0 flex flex-col items-end justify-between rounded-lg bg-gradient-to-t from-black/50 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const slides = (mergedConfig.hero_slides ?? []).filter((_, idx) => idx !== i);
+                      setConfig('hero_slides', slides);
+                    }}
+                    className="rounded bg-red-500/80 p-1 text-white hover:bg-red-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="text-xs font-semibold text-white">Slide {i + 1}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* ==================== ABOUT / MISSION / VISION ==================== */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -550,6 +631,11 @@ export default function SiteManagement() {
             <textarea className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" rows={3}
               placeholder="A welcome message from the principal..."
               value={mergedConfig.principal_message ?? ''} onChange={(e) => setConfig('principal_message', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Principal's Title / Credentials</label>
+            <Input placeholder="e.g. B.Ed., Principal" value={mergedConfig.principal_title ?? ''} onChange={(e) => setConfig('principal_title', e.target.value)} />
+            <p className="mt-1 text-xs text-slate-400">Shown below the principal's name on the website, e.g. "B.Ed., Principal" or "M.A., School Director".</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Principal Photo</label>
@@ -817,6 +903,136 @@ export default function SiteManagement() {
                     </button>
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* ==================== ADMINISTRATION TEAM ==================== */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Administration Team</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const staff = [...(mergedConfig.staff ?? []), { name: '', role: '', photo_url: '', bio: '' }];
+              setConfig('staff', staff);
+            }}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Plus className="h-4 w-4" /> Add Member
+          </button>
+        </div>
+        <p className="text-sm text-slate-500 mb-4">
+          Add your school's leadership team — principal, vice principal, registrar, and any other key staff.
+          Enable the <strong>Administration Team</strong> section in Section Visibility above to show it on your site.
+        </p>
+
+        {/* Hidden file input for staff photos */}
+        <input
+          ref={staffPhotoInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            const idx = staffPhotoUploadIdxRef.current;
+            if (!file || !schoolId || idx === null) return;
+            e.target.value = '';
+            setStaffPhotoUploadingIdx(idx);
+            try {
+              const url = await uploadSchoolSiteImage(schoolId, file, 'staff');
+              const staff = [...(mergedConfig.staff ?? [])];
+              staff[idx] = { ...staff[idx], photo_url: url };
+              setConfig('staff', staff);
+              notify.success('Photo uploaded');
+            } catch (err) {
+              notify.error(err instanceof Error ? err.message : 'Upload failed');
+            } finally {
+              setStaffPhotoUploadingIdx(null);
+              staffPhotoUploadIdxRef.current = null;
+            }
+          }}
+        />
+
+        {(mergedConfig.staff ?? []).length === 0 ? (
+          <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center">
+            <Users className="mx-auto h-8 w-8 text-slate-300" />
+            <p className="mt-2 text-sm text-slate-400">No team members yet. Click "Add Member" to get started.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {(mergedConfig.staff ?? []).map((member, i) => (
+              <div key={i} className="flex items-start gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                {/* Photo */}
+                <div className="shrink-0">
+                  <div
+                    className="relative h-16 w-16 cursor-pointer overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100 hover:opacity-90"
+                    onClick={() => { staffPhotoUploadIdxRef.current = i; staffPhotoInputRef.current?.click(); }}
+                    title="Click to upload photo"
+                  >
+                    {staffPhotoUploadingIdx === i ? (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                      </div>
+                    ) : member.photo_url ? (
+                      <img src={member.photo_url} alt={member.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-0.5">
+                        <Upload className="h-4 w-4 text-slate-300" />
+                        <span className="text-[9px] text-slate-300">Photo</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fields */}
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Full Name"
+                    value={member.name}
+                    onChange={(e) => {
+                      const staff = [...(mergedConfig.staff ?? [])];
+                      staff[i] = { ...member, name: e.target.value };
+                      setConfig('staff', staff);
+                    }}
+                  />
+                  <Input
+                    placeholder="Role (e.g. Principal)"
+                    value={member.role}
+                    onChange={(e) => {
+                      const staff = [...(mergedConfig.staff ?? [])];
+                      staff[i] = { ...member, role: e.target.value };
+                      setConfig('staff', staff);
+                    }}
+                  />
+                  <div className="sm:col-span-2">
+                    <Input
+                      placeholder="Short bio (optional)"
+                      value={member.bio ?? ''}
+                      onChange={(e) => {
+                        const staff = [...(mergedConfig.staff ?? [])];
+                        staff[i] = { ...member, bio: e.target.value };
+                        setConfig('staff', staff);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const staff = (mergedConfig.staff ?? []).filter((_, idx) => idx !== i);
+                    setConfig('staff', staff);
+                  }}
+                  className="mt-1 shrink-0 rounded p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             ))}
           </div>

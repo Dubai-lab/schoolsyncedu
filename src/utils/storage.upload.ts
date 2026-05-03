@@ -42,7 +42,7 @@ export async function uploadSchoolLogo(schoolId: string, file: File): Promise<st
 export async function uploadSchoolSiteImage(
   schoolId: string,
   file: File,
-  category: 'hero' | 'building' | 'gallery' | 'principal' | 'auth-bg',
+  category: 'hero' | 'building' | 'gallery' | 'principal' | 'auth-bg' | 'staff' | 'slide',
 ): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
   const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
@@ -56,7 +56,7 @@ export async function uploadSchoolSiteImage(
   }
 
   const uniqueName =
-    category === 'gallery'
+    category === 'gallery' || category === 'staff' || category === 'slide'
       ? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       : `${category}.${ext}`;
 
