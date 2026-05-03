@@ -104,9 +104,15 @@ export default function SiteManagement() {
     });
   };
 
-  const siteUrl = merged?.slug
-    ? `${window.location.origin}/school/${merged.slug}`
-    : null;
+  const defaultUrl = merged?.slug ? `${window.location.origin}/school/${merged.slug}` : null;
+  const subdomainLive =
+    merged?.subdomain_active &&
+    merged?.subdomain &&
+    merged?.subdomain_paid_until &&
+    new Date(merged.subdomain_paid_until).getTime() > Date.now() - 24 * 60 * 60 * 1000;
+  const siteUrl = subdomainLive
+    ? `https://${merged!.subdomain}.schoolsyncedu.com`
+    : defaultUrl;
 
   // ==================== IMAGE UPLOAD HANDLERS ====================
   const handleImageUpload = async (
@@ -197,11 +203,19 @@ export default function SiteManagement() {
         <Card className="p-4">
           <div className="flex items-center gap-3">
             <Globe className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">School Website URL</p>
-              <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-slate-900">School Website URL</p>
+                {subdomainLive && (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Custom Subdomain</span>
+                )}
+              </div>
+              <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all">
                 {siteUrl}
               </a>
+              {subdomainLive && (
+                <p className="mt-1 text-xs text-slate-400">Default URL is hidden. Use the Custom Subdomain control below to revert.</p>
+              )}
             </div>
           </div>
         </Card>
