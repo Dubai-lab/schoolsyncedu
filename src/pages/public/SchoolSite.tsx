@@ -92,6 +92,72 @@ const SectionLabel = ({ text, color }: { text: string; color: string }) => (
   </div>
 );
 
+// ==================== ANIMATION HELPERS ====================
+function useInView(threshold = 0.12) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, visible] as const;
+}
+
+function useCountUp(target: number, active: boolean, duration = 1400) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!active || !target) return;
+    let frame: number;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - (1 - p) ** 3;
+      setCount(Math.floor(eased * target));
+      if (p < 1) { frame = requestAnimationFrame(tick); }
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [active, target, duration]);
+  return count;
+}
+
+function StatValue({ raw, active }: { raw: string; active: boolean }) {
+  const numeric = parseInt(raw.replace(/\D/g, ''), 10) || 0;
+  const suffix  = raw.replace(/[\d,]+/, '');
+  const count   = useCountUp(numeric, active);
+  return <>{active && numeric > 0 ? `${count.toLocaleString()}${suffix}` : raw}</>;
+}
+
+const fadeUp = (delay: number, visible: boolean) => ({
+  opacity: visible ? 1 : 0,
+  transform: visible ? 'none' : 'translateY(30px)',
+  transition: `opacity 0.65s ease ${delay}ms, transform 0.65s ease ${delay}ms`,
+});
+
+const scaleUp = (delay: number, visible: boolean) => ({
+  opacity: visible ? 1 : 0,
+  transform: visible ? 'none' : 'scale(0.88)',
+  transition: `opacity 0.55s ease ${delay}ms, transform 0.55s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms`,
+});
+
+const slideLeft = (delay: number, visible: boolean) => ({
+  opacity: visible ? 1 : 0,
+  transform: visible ? 'none' : 'translateX(-44px)',
+  transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+});
+
+const slideRight = (delay: number, visible: boolean) => ({
+  opacity: visible ? 1 : 0,
+  transform: visible ? 'none' : 'translateX(44px)',
+  transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+});
+
 export default function SchoolSite() {
   const { slug: slugParam } = useParams<{ slug: string }>();
   const { isCustomDomain, schoolSlug: domainSlug } = useDomainContext();
@@ -104,6 +170,15 @@ export default function SchoolSite() {
   const [showBackTop, setShowBackTop] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   const heroRef = useRef<HTMLElement>(null);
+
+  const [statsRef,  statsVisible]  = useInView();
+  const [aboutRef,  aboutVisible]  = useInView();
+  const [progsRef,  progsVisible]  = useInView();
+  const [newsRef,   newsVisible]   = useInView();
+  const [gallRef,   gallVisible]   = useInView();
+  const [staffRef,  staffVisible]  = useInView();
+  const [ctaRef,    ctaVisible]    = useInView();
+  const [contRef,   contVisible]   = useInView();
 
   // On custom domain/subdomain, restore the clean URL (hide /school/slug from address bar)
   useEffect(() => {
@@ -271,6 +346,41 @@ export default function SchoolSite() {
   ];
 
   return (
+    <>
+    <style>{`
+      @keyframes ssScaleIn {
+        from { opacity: 0; transform: scale(0.55); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      @keyframes ssFloat {
+        0%, 100% { transform: translateY(0px); }
+        50%       { transform: translateY(-14px); }
+      }
+      @keyframes ssFadeDown {
+        from { opacity: 0; transform: translateY(-18px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes ssFadeUp {
+        from { opacity: 0; transform: translateY(36px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes ssFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @keyframes ssPulseRing {
+        0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.25); }
+        70%  { box-shadow: 0 0 0 16px rgba(255,255,255,0); }
+        100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+      }
+      .ss-logo-wrap   { animation: ssScaleIn 0.9s cubic-bezier(0.34,1.56,0.64,1) both; }
+      .ss-logo-img    { animation: ssFloat 5s ease-in-out 1.1s infinite; }
+      .ss-hero-badge  { animation: ssFadeDown 0.6s ease 0.3s both; }
+      .ss-hero-h1     { animation: ssFadeUp 0.75s ease 0.45s both; }
+      .ss-hero-sub    { animation: ssFadeUp 0.75s ease 0.65s both; }
+      .ss-hero-btns   { animation: ssFadeUp 0.7s ease 0.85s both; }
+      .ss-hero-hours  { animation: ssFadeIn 0.6s ease 1.1s both; }
+    `}</style>
     <div className="min-h-screen bg-white antialiased" style={{ '--school-primary': primary, '--school-secondary': secondary } as React.CSSProperties}>
 
       {/* ===== NAVBAR ===== */}
@@ -496,11 +606,11 @@ export default function SchoolSite() {
 
               {/* School crest — large, left column on desktop */}
               {school.logo_url && (
-                <div className="shrink-0 flex justify-center">
+                <div className="ss-logo-wrap shrink-0 flex justify-center">
                   <img
                     src={school.logo_url}
                     alt={school.name}
-                    className="h-52 w-52 object-contain drop-shadow-2xl sm:h-64 sm:w-64 lg:h-72 lg:w-72"
+                    className="ss-logo-img h-52 w-52 object-contain drop-shadow-2xl sm:h-64 sm:w-64 lg:h-72 lg:w-72"
                   />
                 </div>
               )}
@@ -509,7 +619,7 @@ export default function SchoolSite() {
               <div className="flex-1 text-center lg:text-left">
                 {/* Badge */}
                 {(school.founded_year || school.county) && (
-                  <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                  <div className="ss-hero-badge mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
                     <Award className="h-3.5 w-3.5 opacity-80" />
                     {school.founded_year && `Est. ${school.founded_year}`}
                     {school.founded_year && school.county && ' · '}
@@ -517,15 +627,15 @@ export default function SchoolSite() {
                   </div>
                 )}
 
-                <h1 className="text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
+                <h1 className="ss-hero-h1 text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
                   {heroHeadline}
                 </h1>
 
-                <p className="mt-5 text-base leading-relaxed text-white/70 sm:text-lg">
+                <p className="ss-hero-sub mt-5 text-base leading-relaxed text-white/70 sm:text-lg">
                   {heroSubtext}
                 </p>
 
-                <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+                <div className="ss-hero-btns mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
                   <Link
                     to={`${linkBase}/apply`}
                     className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl sm:text-base"
@@ -542,7 +652,7 @@ export default function SchoolSite() {
                 </div>
 
                 {cfg.school_hours && (
-                  <p className="mt-5 inline-flex items-center gap-1.5 text-xs text-white/40">
+                  <p className="ss-hero-hours mt-5 inline-flex items-center gap-1.5 text-xs text-white/40">
                     <Clock className="h-3.5 w-3.5" /> {cfg.school_hours}
                   </p>
                 )}
@@ -560,10 +670,9 @@ export default function SchoolSite() {
       {/* ===== STATS ===== */}
       {show('stats') && (cfg.stats ?? []).length > 0 && (
         <section className="relative bg-white">
-          {/* Top divider wave */}
           <div className="absolute -top-px left-0 right-0 h-1" style={{ backgroundColor: secondary }} />
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <div
+            <div ref={statsRef}
               className="grid divide-x divide-gray-100"
               style={{ gridTemplateColumns: `repeat(${Math.min((cfg.stats ?? []).length, 5)}, minmax(0, 1fr))` }}
             >
@@ -571,15 +680,17 @@ export default function SchoolSite() {
                 const Icon = getIcon(s.icon);
                 const accent = i % 2 === 0 ? primary : secondary;
                 return (
-                  <div key={i} className="group flex flex-col items-center py-10 px-4 transition-colors hover:bg-gray-50/60">
+                  <div key={i} className="group flex flex-col items-center py-10 px-4 transition-colors hover:bg-gray-50/60"
+                    style={fadeUp(i * 80, statsVisible)}
+                  >
                     <div
                       className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl transition-transform group-hover:scale-110"
                       style={{ backgroundColor: accent + '15' }}
                     >
                       <Icon className="h-5 w-5" style={{ color: accent }} />
                     </div>
-                    <p className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl" style={{ color: primary }}>
-                      {s.value}
+                    <p className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: primary }}>
+                      <StatValue raw={s.value} active={statsVisible} />
                     </p>
                     <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">{s.label}</p>
                   </div>
@@ -601,9 +712,9 @@ export default function SchoolSite() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:items-start">
+            <div ref={aboutRef} className="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:items-start">
               {/* Text side */}
-              <div className="space-y-6">
+              <div className="space-y-6" style={slideLeft(0, aboutVisible)}>
                 {/* School identity badge */}
                 <div className="flex items-center gap-2">
                   <div className="h-px w-10 rounded-full" style={{ backgroundColor: secondary }} />
@@ -658,7 +769,7 @@ export default function SchoolSite() {
               </div>
 
               {/* Visual side */}
-              <div>
+              <div style={slideRight(100, aboutVisible)}>
                 {cfg.building_image_url ? (
                   <div className="relative">
                     <div className="absolute -inset-4 rounded-3xl opacity-30 blur-2xl" style={{ backgroundColor: primary }} />
@@ -708,13 +819,14 @@ export default function SchoolSite() {
               <SectionLabel text="What We Offer" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Academic Programs</h2>
             </div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div ref={progsRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {(cfg.programs ?? []).map((prog, i) => {
                 const Icon = getIcon(prog.icon);
                 return (
                   <div
                     key={i}
                     className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+                    style={fadeUp(i * 100, progsVisible)}
                   >
                     {/* Gradient top accent */}
                     <div
@@ -748,13 +860,14 @@ export default function SchoolSite() {
               <SectionLabel text="Stay Informed" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">News & Announcements</h2>
             </div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div ref={newsRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {(cfg.announcements ?? []).slice(0, 6).map((item, i) => {
                 const d = new Date(item.date);
                 return (
                   <article
                     key={i}
                     className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                    style={fadeUp(i * 90, newsVisible)}
                   >
                     {/* Date band */}
                     <div className="flex items-center gap-3 px-5 py-3.5" style={{ backgroundColor: primary + '08' }}>
@@ -797,9 +910,11 @@ export default function SchoolSite() {
               <SectionLabel text="School Life" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Photo Gallery</h2>
             </div>
-            <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
+            <div ref={gallRef} className="columns-2 gap-3 sm:columns-3 lg:columns-4">
               {(cfg.gallery_images ?? []).map((img, i) => (
-                <div key={i} className="group relative mb-3 overflow-hidden rounded-2xl break-inside-avoid shadow-sm">
+                <div key={i} className="group relative mb-3 overflow-hidden rounded-2xl break-inside-avoid shadow-sm"
+                  style={scaleUp(i * 60, gallVisible)}
+                >
                   <img
                     src={img.url}
                     alt={img.caption || `School life ${i + 1}`}
@@ -832,11 +947,12 @@ export default function SchoolSite() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div ref={staffRef} className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {(cfg.staff ?? []).map((member, i) => (
                 <div
                   key={i}
                   className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+                  style={scaleUp(i * 100, staffVisible)}
                 >
                   {/* Top gradient accent strip */}
                   <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
@@ -891,21 +1007,23 @@ export default function SchoolSite() {
       >
         <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full opacity-10 blur-3xl" style={{ backgroundColor: secondary }} />
         <div className="absolute bottom-0 left-10 h-40 w-40 rounded-full opacity-10 blur-2xl" style={{ backgroundColor: secondary }} />
-        <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
-          <div>
+        <div ref={ctaRef} className="relative mx-auto flex max-w-5xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
+          <div style={slideLeft(0, ctaVisible)}>
             <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-1">Join Our Community</p>
             <h2 className="text-2xl font-extrabold text-white sm:text-3xl lg:text-4xl">
               Ready to Join {school.name}?
             </h2>
             <p className="mt-1.5 text-sm text-white/60">Applications are open. Start your journey with us today.</p>
           </div>
-          <Link
-            to={`${linkBase}/apply`}
-            className="inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-sm font-extrabold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl whitespace-nowrap sm:text-base"
-            style={{ backgroundColor: secondary }}
-          >
-            Apply Now <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div style={slideRight(200, ctaVisible)}>
+            <Link
+              to={`${linkBase}/apply`}
+              className="inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-sm font-extrabold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl whitespace-nowrap sm:text-base"
+              style={{ backgroundColor: secondary }}
+            >
+              Apply Now <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -917,13 +1035,14 @@ export default function SchoolSite() {
               <SectionLabel text="Get In Touch" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Contact Us</h2>
             </div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div ref={contRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {school.address && (
                 <a
                   href={`https://maps.google.com/?q=${encodeURIComponent(school.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
+                  style={fadeUp(0, contVisible)}
                 >
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: primary + '12' }}>
                     <MapPin className="h-6 w-6" style={{ color: primary }} />
@@ -936,6 +1055,7 @@ export default function SchoolSite() {
                 <a
                   href={`tel:${school.phone}`}
                   className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
+                  style={fadeUp(80, contVisible)}
                 >
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: secondary + '15' }}>
                     <Phone className="h-6 w-6" style={{ color: secondary }} />
@@ -948,6 +1068,7 @@ export default function SchoolSite() {
                 <a
                   href={`mailto:${school.principal_email || school.proprietor_email}`}
                   className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
+                  style={fadeUp(160, contVisible)}
                 >
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: '#16a34a12' }}>
                     <Mail className="h-6 w-6 text-green-600" />
@@ -957,7 +1078,9 @@ export default function SchoolSite() {
                 </a>
               )}
               {cfg.school_hours && (
-                <div className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:border-gray-200 hover:shadow-lg">
+                <div className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:border-gray-200 hover:shadow-lg"
+                  style={fadeUp(240, contVisible)}
+                >
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: '#9333ea12' }}>
                     <Clock className="h-6 w-6 text-purple-600" />
                   </div>
@@ -1106,5 +1229,6 @@ export default function SchoolSite() {
         </button>
       )}
     </div>
+    </>
   );
 }
