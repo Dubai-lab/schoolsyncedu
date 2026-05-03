@@ -359,7 +359,7 @@ export default function SchoolSite() {
     ...(hasPrograms ? [{ label: 'Programs', href: '#programs' }] : []),
     ...(hasGallery ? [{ label: 'Gallery', href: '#gallery' }] : []),
     ...(hasStaff ? [{ label: 'Team', href: '#administration' }] : []),
-    ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `${linkBase}/fees` }] : []),
+    ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `/school/${slug}/fees` }] : []),
     { label: 'Contact', href: '#contact' },
   ];
 

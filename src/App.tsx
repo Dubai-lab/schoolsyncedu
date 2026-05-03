@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { useEffect } from 'react';
@@ -243,12 +243,12 @@ function isPublicSchoolPath(pathname: string) {
 function CustomDomainGateway() {
   const { isCustomDomain, schoolSlug, isLoading, notFound } = useDomainContext();
   const navigate = useNavigate();
-  const pathname = window.location.pathname;
-  const isPublic = isPublicSchoolPath(pathname);
+  const location = useLocation();
+  const isPublic = isPublicSchoolPath(location.pathname);
 
   useEffect(() => {
     if (!isCustomDomain || isLoading || !schoolSlug) return;
-    const path = window.location.pathname;
+    const path = location.pathname;
     if (path === '/' || path === '') {
       navigate(`/school/${schoolSlug}`, { replace: true });
     } else if (path === '/login') {
@@ -260,7 +260,7 @@ function CustomDomainGateway() {
     } else if (path === '/fees') {
       navigate(`/school/${schoolSlug}/fees`, { replace: true });
     }
-  }, [isCustomDomain, schoolSlug, isLoading, navigate]);
+  }, [isCustomDomain, schoolSlug, isLoading, navigate, location.pathname]);
 
   // Only block rendering for public school-site paths.
   // Dashboard / authenticated pages load immediately — domain lookup runs in background.
