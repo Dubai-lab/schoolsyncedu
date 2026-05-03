@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { useDomainContext } from '@/context/DomainContext';
@@ -94,18 +94,27 @@ const SectionLabel = ({ text, color }: { text: string; color: string }) => (
 
 // ==================== ANIMATION HELPERS ====================
 function useInView(threshold = 0.12) {
-  const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
+  const obsRef = useRef<IntersectionObserver | null>(null);
+
+  // Callback ref fires whenever the DOM element mounts/unmounts, including
+  // after async data loads — avoids the stale-ref bug with useEffect+[].
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (obsRef.current) { obsRef.current.disconnect(); obsRef.current = null; }
     if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+    obsRef.current = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          obsRef.current?.disconnect();
+          obsRef.current = null;
+        }
+      },
       { threshold },
     );
-    obs.observe(el);
-    return () => obs.disconnect();
+    obsRef.current.observe(el);
   }, [threshold]);
+
   return [ref, visible] as const;
 }
 
