@@ -610,15 +610,18 @@ serve(async (req) => {
       const renewUrl = `${appUrl}/proprietor/settings`;
       const displayName = resolvedName ?? resolvedEmail;
 
-      await billingTransporter.sendMail({
-        from: `"SchoolSync Billing" <${billingFrom}>`,
+      // Use the standard transporter (authenticated as SMTP_USER / fromAddress).
+      // billingTransporter sends FROM billing@ which can differ from the SMTP auth user,
+      // causing many providers to reject the message. The plain transporter always matches.
+      await transporter.sendMail({
+        from: `"SchoolSync" <${fromAddress}>`,
         to: resolvedEmail,
         subject: `Payment Confirmed — ${subdomain}.schoolsyncedu.com is active`,
         html: buildSubdomainReceiptEmail(
           schoolRow.name, displayName,
           subdomain, plan ?? 'monthly', amountDisplay, paidUntilFormatted, renewUrl,
         ),
-        text: `Hi ${displayName},\n\nYour subdomain ${subdomain}.schoolsyncedu.com has been activated.\nPlan: ${plan === 'yearly' ? 'Annual' : 'Monthly'}\nAmount: ${amountDisplay}\nActive until: ${paidUntilFormatted}\n\nManage it at ${renewUrl}\n\nSchoolSync Billing`,
+        text: `Hi ${displayName},\n\nYour subdomain ${subdomain}.schoolsyncedu.com has been activated.\nPlan: ${plan === 'yearly' ? 'Annual' : 'Monthly'}\nAmount: ${amountDisplay}\nActive until: ${paidUntilFormatted}\n\nManage it at ${renewUrl}\n\nSchoolSync`,
       });
 
       await supabase.from('notification_logs').insert({

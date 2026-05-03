@@ -113,7 +113,21 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
       if (rpcError) throw new Error(rpcError.message);
       if (!result?.success) throw new Error(result?.error ?? 'Activation failed');
 
-      // Receipt email is sent server-side by stripe-webhook (reliable, uses service role key).
+      // Fire receipt email — non-blocking so UI isn't delayed if email is slow
+      supabase.functions.invoke('process-subscription-notifications', {
+        body: {
+          trigger:     'subdomain_payment_confirmed',
+          school_id:   schoolId,
+          owner_email: (await supabase.auth.getUser()).data.user?.email ?? null,
+          subdomain,
+          amount_usd:  amountUsd,
+          plan,
+          paid_until:  result.paid_until,
+        },
+      }).then(({ error: fnErr }) => {
+        if (fnErr) console.warn('Subdomain receipt email error:', fnErr.message);
+      }).catch((e) => console.warn('Subdomain receipt invoke failed:', e));
+
       onSuccess(result.paid_until as string);
     } catch (err) {
       setCardError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
