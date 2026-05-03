@@ -113,15 +113,19 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
       if (rpcError) throw new Error(rpcError.message);
       if (!result?.success) throw new Error(result?.error ?? 'Activation failed');
 
+      // Get current user's email to pass directly — avoids a role-based DB lookup in the edge function
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
       // Fire receipt email non-blocking — don't let email failure block the UI
       supabase.functions.invoke('process-subscription-notifications', {
         body: {
-          trigger:    'subdomain_payment_confirmed',
-          school_id:  schoolId,
+          trigger:     'subdomain_payment_confirmed',
+          school_id:   schoolId,
+          owner_email: currentUser?.email ?? null,
           subdomain,
-          amount_usd: amountUsd,
+          amount_usd:  amountUsd,
           plan,
-          paid_until: result.paid_until,
+          paid_until:  result.paid_until,
         },
       }).catch((e) => { console.warn('Subdomain receipt email failed (non-fatal):', e); });
 

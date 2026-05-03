@@ -554,9 +554,9 @@ serve(async (req) => {
     }
 
     if (body?.trigger === 'subdomain_payment_confirmed') {
-      const { school_id, subdomain, amount_usd, plan, paid_until } = body as {
+      const { school_id, subdomain, amount_usd, plan, paid_until, owner_email: bodyOwnerEmail } = body as {
         school_id?: string; subdomain?: string; amount_usd?: number;
-        plan?: string; paid_until?: string;
+        plan?: string; paid_until?: string; owner_email?: string;
       };
 
       if (!school_id || !subdomain || !amount_usd || !paid_until) {
@@ -565,21 +565,39 @@ serve(async (req) => {
         });
       }
 
-      // Look up school name + proprietor email from DB
+      // Look up school name from DB
       const { data: schoolRow } = await supabase
         .from('schools')
         .select('name')
         .eq('id', school_id)
         .single();
 
-      const { data: ownerRow } = await supabase
-        .from('users')
-        .select('full_name, email')
-        .eq('school_id', school_id)
-        .eq('role', 'proprietor')
-        .single();
+      // Use owner_email from payload if provided (most reliable).
+      // Fall back to DB lookup by role='proprietor' if not.
+      let resolvedEmail: string | null = bodyOwnerEmail ?? null;
+      let resolvedName: string | null = null;
 
-      if (!ownerRow?.email || !schoolRow?.name) {
+      if (!resolvedEmail) {
+        const { data: ownerRow } = await supabase
+          .from('users')
+          .select('full_name, email')
+          .eq('school_id', school_id)
+          .eq('role', 'proprietor')
+          .maybeSingle();
+        resolvedEmail = ownerRow?.email ?? null;
+        resolvedName  = ownerRow?.full_name ?? null;
+      } else {
+        // Try to get the display name; non-fatal if missing
+        const { data: ownerRow } = await supabase
+          .from('users')
+          .select('full_name')
+          .eq('email', resolvedEmail)
+          .maybeSingle();
+        resolvedName = ownerRow?.full_name ?? null;
+      }
+
+      if (!resolvedEmail || !schoolRow?.name) {
+        console.error('subdomain_payment_confirmed: could not resolve owner email or school name', { school_id, resolvedEmail, schoolName: schoolRow?.name });
         return new Response(JSON.stringify({ error: 'Could not resolve school owner' }), {
           status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -590,26 +608,27 @@ serve(async (req) => {
       });
       const amountDisplay = `$${Number(amount_usd).toFixed(2)} USD`;
       const renewUrl = `${appUrl}/proprietor/settings`;
+      const displayName = resolvedName ?? resolvedEmail;
 
       await billingTransporter.sendMail({
         from: `"SchoolSync Billing" <${billingFrom}>`,
-        to: ownerRow.email,
+        to: resolvedEmail,
         subject: `Payment Confirmed — ${subdomain}.schoolsyncedu.com is active`,
         html: buildSubdomainReceiptEmail(
-          schoolRow.name, ownerRow.full_name ?? ownerRow.email,
+          schoolRow.name, displayName,
           subdomain, plan ?? 'monthly', amountDisplay, paidUntilFormatted, renewUrl,
         ),
-        text: `Hi ${ownerRow.full_name ?? ownerRow.email},\n\nYour subdomain ${subdomain}.schoolsyncedu.com has been activated.\nPlan: ${plan === 'yearly' ? 'Annual' : 'Monthly'}\nAmount: ${amountDisplay}\nActive until: ${paidUntilFormatted}\n\nManage it at ${renewUrl}\n\nSchoolSync Billing`,
+        text: `Hi ${displayName},\n\nYour subdomain ${subdomain}.schoolsyncedu.com has been activated.\nPlan: ${plan === 'yearly' ? 'Annual' : 'Monthly'}\nAmount: ${amountDisplay}\nActive until: ${paidUntilFormatted}\n\nManage it at ${renewUrl}\n\nSchoolSync Billing`,
       });
 
       await supabase.from('notification_logs').insert({
         school_id,
         event_type: 'subdomain_payment_confirmed',
-        recipient_email: ownerRow.email,
+        recipient_email: resolvedEmail,
         metadata: { subdomain, amount_usd, plan, paid_until },
-      });
+      }).catch((e: unknown) => { console.warn('notification_logs insert failed (non-fatal):', e); });
 
-      console.log(`Subdomain receipt sent to ${ownerRow.email} for ${subdomain}.schoolsyncedu.com`);
+      console.log(`Subdomain receipt sent to ${resolvedEmail} for ${subdomain}.schoolsyncedu.com`);
 
       return new Response(JSON.stringify({ success: true, trigger: 'subdomain_payment_confirmed' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
