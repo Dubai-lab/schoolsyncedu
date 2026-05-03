@@ -69,19 +69,80 @@ serve(async (req) => {
     }
 
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    const { school_id, subscription_id, tx_ref } = paymentIntent.metadata;
+    const { school_id, subscription_id, tx_ref, plan_name, subdomain, subdomain_plan } = paymentIntent.metadata;
+    const amountUsd = paymentIntent.amount / 100;
 
-    if (!school_id || !subscription_id) {
-      console.error('Missing school_id or subscription_id in PaymentIntent metadata:', paymentIntent.id);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const adminClient = createClient(supabaseUrl, serviceKey);
+
+    if (!school_id) {
+      console.error('Missing school_id in PaymentIntent metadata:', paymentIntent.id);
       return new Response(
         JSON.stringify({ received: true, action: 'missing_metadata' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const adminClient = createClient(supabaseUrl, serviceKey);
+    // ── Subdomain add-on payment ──────────────────────────────────────────────
+    // The browser already called activate_subdomain_addon. We send the receipt email
+    // server-side here using the service role key — same reliable pattern as subscriptions.
+    if (plan_name === 'subdomain-addon') {
+      try {
+        const [{ data: schoolRow }, { data: ownerRow }] = await Promise.all([
+          adminClient.from('schools').select('name, subdomain, subdomain_paid_until').eq('id', school_id).maybeSingle(),
+          adminClient.from('users').select('full_name, email').eq('school_id', school_id).eq('role', 'proprietor').maybeSingle(),
+        ]);
+
+        const ownerEmail = (ownerRow as any)?.email as string | undefined;
+        const schoolName = (schoolRow as any)?.name as string | undefined;
+        const resolvedSubdomain = subdomain || (schoolRow as any)?.subdomain || '';
+        const dbPaidUntil = (schoolRow as any)?.subdomain_paid_until as string | undefined;
+        const plan = subdomain_plan || 'monthly';
+
+        // Use DB paid_until (set by activate_subdomain_addon) or compute from plan
+        const computedPaidUntil = new Date(
+          Date.now() + (plan === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000
+        ).toISOString();
+        const paidUntil = dbPaidUntil || computedPaidUntil;
+
+        if (ownerEmail && schoolName && resolvedSubdomain) {
+          const notifyUrl = `${supabaseUrl}/functions/v1/process-subscription-notifications`;
+          await fetch(notifyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}` },
+            body: JSON.stringify({
+              trigger:     'subdomain_payment_confirmed',
+              school_id,
+              owner_email: ownerEmail,
+              subdomain:   resolvedSubdomain,
+              amount_usd:  amountUsd,
+              plan,
+              paid_until:  paidUntil,
+            }),
+          });
+          console.log(`Subdomain receipt email dispatched to ${ownerEmail} for ${resolvedSubdomain}.schoolsyncedu.com`);
+        } else {
+          console.warn(`Subdomain receipt: missing owner/school data for school ${school_id}`, { ownerEmail, schoolName, resolvedSubdomain });
+        }
+      } catch (err) {
+        console.warn('Subdomain receipt dispatch failed (non-fatal):', err instanceof Error ? err.message : err);
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, action: 'subdomain_payment_handled' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // ── Regular subscription payment ──────────────────────────────────────────
+    if (!subscription_id) {
+      console.error('Missing subscription_id in PaymentIntent metadata:', paymentIntent.id);
+      return new Response(
+        JSON.stringify({ received: true, action: 'missing_metadata' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     // Idempotency — check if this payment_intent was already recorded
     const { data: existing } = await adminClient
@@ -97,8 +158,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
-
-    const amountUsd = paymentIntent.amount / 100;
 
     const { data: rpcResult, error: rpcError } = await adminClient.rpc(
       'record_subscription_payment',

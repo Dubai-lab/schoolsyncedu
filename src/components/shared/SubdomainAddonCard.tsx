@@ -89,7 +89,7 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
       const txRef = generateTxRef(schoolId);
       const { data: piData, error: piError } = await supabase.functions.invoke(
         'create-stripe-payment-intent',
-        { body: { amount_usd: amountUsd, school_id: schoolId, plan_name: 'subdomain-addon', tx_ref: txRef } },
+        { body: { amount_usd: amountUsd, school_id: schoolId, plan_name: 'subdomain-addon', tx_ref: txRef, subdomain, subdomain_plan: plan } },
       );
       if (piError) throw new Error(piError.message);
       if (piData?.error) throw new Error(String(piData.error));
@@ -113,22 +113,7 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
       if (rpcError) throw new Error(rpcError.message);
       if (!result?.success) throw new Error(result?.error ?? 'Activation failed');
 
-      // Get current user's email to pass directly — avoids a role-based DB lookup in the edge function
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-      // Fire receipt email non-blocking — don't let email failure block the UI
-      supabase.functions.invoke('process-subscription-notifications', {
-        body: {
-          trigger:     'subdomain_payment_confirmed',
-          school_id:   schoolId,
-          owner_email: currentUser?.email ?? null,
-          subdomain,
-          amount_usd:  amountUsd,
-          plan,
-          paid_until:  result.paid_until,
-        },
-      }).catch((e) => { console.warn('Subdomain receipt email failed (non-fatal):', e); });
-
+      // Receipt email is sent server-side by stripe-webhook (reliable, uses service role key).
       onSuccess(result.paid_until as string);
     } catch (err) {
       setCardError(err instanceof Error ? err.message : 'Payment failed. Please try again.');

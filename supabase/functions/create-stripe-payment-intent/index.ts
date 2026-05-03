@@ -54,12 +54,14 @@ serve(async (req) => {
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
 
     const body = await req.json();
-    const { amount_usd, school_id, subscription_id, plan_name, tx_ref } = body as {
+    const { amount_usd, school_id, subscription_id, plan_name, tx_ref, subdomain, subdomain_plan } = body as {
       amount_usd: number;
       school_id: string;
       subscription_id?: string;
       plan_name?: string;
       tx_ref?: string;
+      subdomain?: string;
+      subdomain_plan?: string;
     };
 
     if (!amount_usd || !school_id) {
@@ -89,6 +91,8 @@ serve(async (req) => {
         plan_name: plan_name || '',
         tx_ref: tx_ref || '',
         platform: 'schoolsync',
+        subdomain: subdomain || '',
+        subdomain_plan: subdomain_plan || '',
       },
     });
 
