@@ -109,6 +109,18 @@ function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCa
       if (rpcError) throw new Error(rpcError.message);
       if (!result?.success) throw new Error(result?.error ?? 'Activation failed');
 
+      // Fire receipt email non-blocking — don't let email failure block the UI
+      supabase.functions.invoke('process-subscription-notifications', {
+        body: {
+          trigger:    'subdomain_payment_confirmed',
+          school_id:  schoolId,
+          subdomain,
+          amount_usd: amountUsd,
+          plan,
+          paid_until: result.paid_until,
+        },
+      }).catch(() => { /* non-fatal */ });
+
       onSuccess(result.paid_until as string);
     } catch (err) {
       setCardError(err instanceof Error ? err.message : 'Payment failed. Please try again.');

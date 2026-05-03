@@ -236,6 +236,89 @@ function buildPaymentPendingEmail(schoolName: string, ownerName: string, planNam
     </div>`, new Date().getFullYear());
 }
 
+function buildSubdomainReceiptEmail(schoolName: string, ownerName: string, subdomain: string, plan: string, amount: string, paidUntil: string, renewUrl: string) {
+  const planLabel = plan === 'yearly' ? 'Annual' : 'Monthly';
+  return emailWrapper(`
+    ${headerBlock('Subdomain Payment Confirmed', schoolName, '#16a34a')}
+    <div style="padding:36px 32px;">
+      <p style="margin:0 0 16px;font-size:16px;color:#1f2937;">Hi <strong>${escapeHtml(ownerName)}</strong>,</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#4b5563;line-height:1.7;">
+        Your branded subdomain is now active. Here are your payment details:
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin:0 0 24px;">
+        ${[
+          ['Subdomain', `${escapeHtml(subdomain)}.schoolsyncedu.com`],
+          ['Plan', planLabel],
+          ['Amount Paid', amount],
+          ['Active Until', paidUntil],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:10px 12px;background:#f9fafb;color:#6b7280;border-bottom:1px solid #e5e7eb;font-weight:500;width:40%;">${label}</td>
+          <td style="padding:10px 12px;color:#1f2937;border-bottom:1px solid #e5e7eb;font-weight:600;">${value}</td>
+        </tr>`).join('')}
+      </table>
+      <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">
+        Your school site is now accessible at:
+        <a href="https://${escapeHtml(subdomain)}.schoolsyncedu.com" style="color:#1e40af;text-decoration:underline;">https://${escapeHtml(subdomain)}.schoolsyncedu.com</a>
+      </p>
+      <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">
+        To manage your subdomain, visit your school settings in the proprietor dashboard.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
+        Keep this email as your receipt. Questions? <a href="mailto:billing@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">billing@schoolsyncedu.com</a>
+      </p>
+    </div>`, new Date().getFullYear());
+}
+
+function buildSubdomainExpiryReminderEmail(schoolName: string, ownerName: string, subdomain: string, daysLeft: number, renewUrl: string) {
+  const urgent = daysLeft <= 1;
+  return emailWrapper(`
+    ${headerBlock(
+      urgent ? 'Your subdomain expires tomorrow!' : `Subdomain expiring in ${daysLeft} days`,
+      schoolName,
+      urgent ? '#dc2626' : '#d97706'
+    )}
+    <div style="padding:36px 32px;">
+      <p style="margin:0 0 16px;font-size:16px;color:#1f2937;">Hi <strong>${escapeHtml(ownerName)}</strong>,</p>
+      ${alertBox(
+        urgent
+          ? `Your branded subdomain <strong>${escapeHtml(subdomain)}.schoolsyncedu.com</strong> expires <strong>tomorrow</strong>. Renew now to avoid your school site going offline.`
+          : `Your branded subdomain <strong>${escapeHtml(subdomain)}.schoolsyncedu.com</strong> will expire in <strong>${daysLeft} days</strong>. Renew early to stay uninterrupted.`,
+        urgent ? '#fee2e2' : '#fef3c7',
+        urgent ? '#dc2626' : '#f59e0b',
+        urgent ? '#991b1b' : '#92400e'
+      )}
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To renew, log in to your proprietor dashboard and go to <a href="${renewUrl}" style="color:#1e40af;text-decoration:underline;">School Settings → Custom Subdomain</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
+        Questions? <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
+      </p>
+    </div>`, new Date().getFullYear());
+}
+
+function buildSubdomainGraceEmail(schoolName: string, ownerName: string, subdomain: string, graceEndsAt: string, renewUrl: string) {
+  return emailWrapper(`
+    ${headerBlock('Subdomain Expired — 24-Hour Grace Period', schoolName, '#d97706')}
+    <div style="padding:36px 32px;">
+      <p style="margin:0 0 16px;font-size:16px;color:#1f2937;">Hi <strong>${escapeHtml(ownerName)}</strong>,</p>
+      ${alertBox(
+        `Your subdomain <strong>${escapeHtml(subdomain)}.schoolsyncedu.com</strong> has expired, but your school site is still accessible for a <strong>24-hour grace period</strong> ending at <strong>${escapeHtml(graceEndsAt)}</strong>. Renew before then to avoid any downtime.`
+      )}
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;line-height:1.7;">
+        After the grace period ends, your subdomain will be deactivated and visitors will no longer be able to reach your school site via
+        <strong>${escapeHtml(subdomain)}.schoolsyncedu.com</strong>.
+        Your data is safe — renewing will restore it immediately.
+      </p>
+      <p style="margin:16px 0;font-size:14px;color:#4b5563;">
+        To renew, log in to your proprietor dashboard and go to <a href="${renewUrl}" style="color:#1e40af;text-decoration:underline;">School Settings → Custom Subdomain</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
+        Questions? <a href="mailto:support@schoolsyncedu.com" style="color:#1e40af;text-decoration:none;">support@schoolsyncedu.com</a>
+      </p>
+    </div>`, new Date().getFullYear());
+}
+
 function buildPaymentConfirmedEmail(schoolName: string, ownerName: string, planName: string, amount: string, invoiceNumber: string, expiresAt: string, loginUrl: string) {
   return emailWrapper(`
     ${headerBlock('Payment Confirmed', schoolName, '#16a34a')}
@@ -470,6 +553,69 @@ serve(async (req) => {
       });
     }
 
+    if (body?.trigger === 'subdomain_payment_confirmed') {
+      const { school_id, subdomain, amount_usd, plan, paid_until } = body as {
+        school_id?: string; subdomain?: string; amount_usd?: number;
+        plan?: string; paid_until?: string;
+      };
+
+      if (!school_id || !subdomain || !amount_usd || !paid_until) {
+        return new Response(JSON.stringify({ error: 'school_id, subdomain, amount_usd, paid_until required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Look up school name + proprietor email from DB
+      const { data: schoolRow } = await supabase
+        .from('schools')
+        .select('name')
+        .eq('id', school_id)
+        .single();
+
+      const { data: ownerRow } = await supabase
+        .from('users')
+        .select('full_name, email')
+        .eq('school_id', school_id)
+        .eq('role', 'proprietor')
+        .single();
+
+      if (!ownerRow?.email || !schoolRow?.name) {
+        return new Response(JSON.stringify({ error: 'Could not resolve school owner' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const paidUntilFormatted = new Date(paid_until).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric',
+      });
+      const amountDisplay = `$${Number(amount_usd).toFixed(2)} USD`;
+      const renewUrl = `${appUrl}/proprietor/settings`;
+
+      await billingTransporter.sendMail({
+        from: `"SchoolSync Billing" <${billingFrom}>`,
+        to: ownerRow.email,
+        subject: `Payment Confirmed — ${subdomain}.schoolsyncedu.com is active`,
+        html: buildSubdomainReceiptEmail(
+          schoolRow.name, ownerRow.full_name ?? ownerRow.email,
+          subdomain, plan ?? 'monthly', amountDisplay, paidUntilFormatted, renewUrl,
+        ),
+        text: `Hi ${ownerRow.full_name ?? ownerRow.email},\n\nYour subdomain ${subdomain}.schoolsyncedu.com has been activated.\nPlan: ${plan === 'yearly' ? 'Annual' : 'Monthly'}\nAmount: ${amountDisplay}\nActive until: ${paidUntilFormatted}\n\nManage it at ${renewUrl}\n\nSchoolSync Billing`,
+      });
+
+      await supabase.from('notification_logs').insert({
+        school_id,
+        event_type: 'subdomain_payment_confirmed',
+        recipient_email: ownerRow.email,
+        metadata: { subdomain, amount_usd, plan, paid_until },
+      });
+
+      console.log(`Subdomain receipt sent to ${ownerRow.email} for ${subdomain}.schoolsyncedu.com`);
+
+      return new Response(JSON.stringify({ success: true, trigger: 'subdomain_payment_confirmed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // ── Fetch all non-expired subscriptions with plan + school + owner ─────────
     const { data: subscriptions, error: subError } = await supabase
       .from('subscriptions')
@@ -700,13 +846,115 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Notification run complete: ${sentCount} sent, ${skippedCount} skipped, ${errors.length} errors`);
+    console.log(`Subscription notifications: ${sentCount} sent, ${skippedCount} skipped, ${errors.length} errors`);
+
+    // ── Subdomain renewal reminders ───────────────────────────────────────────
+    // Fetch active subdomains expiring within 7 days OR already in grace (within 24h past expiry)
+    const graceCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const warnCutoff  = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: subdomainSchools } = await supabase
+      .from('schools')
+      .select('id, name, subdomain, subdomain_paid_until')
+      .eq('subdomain_active', true)
+      .gt('subdomain_paid_until', graceCutoff)   // still within grace or not yet expired
+      .lt('subdomain_paid_until', warnCutoff);   // expires within 7 days (or already past)
+
+    let subSentCount = 0;
+
+    for (const school of (subdomainSchools ?? [])) {
+      if (!school.subdomain || !school.subdomain_paid_until) continue;
+
+      const owner = ownerMap.get(school.id);
+      if (!owner) continue;
+
+      const paidUntil     = new Date(school.subdomain_paid_until);
+      const msUntilExpiry = paidUntil.getTime() - now.getTime();
+      const daysLeft      = Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24));
+      const renewUrl      = `${appUrl}/proprietor/settings`;
+
+      try {
+        if (msUntilExpiry < 0) {
+          // In grace period — fire once per grace window
+          const graceEnd = new Date(paidUntil.getTime() + 24 * 60 * 60 * 1000);
+          const graceEndsFormatted = graceEnd.toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          });
+
+          const { data: alreadySent } = await supabase.rpc('notification_already_sent', {
+            p_school_id:    school.id,
+            p_event_type:   'subdomain_grace_start',
+            p_within_hours: 24,
+          });
+
+          if (!alreadySent) {
+            await transporter.sendMail({
+              from: `"SchoolSync" <${fromAddress}>`,
+              to: owner.email,
+              subject: `⚠️ Your subdomain has expired — 24-hour grace period active (${school.subdomain}.schoolsyncedu.com)`,
+              html: buildSubdomainGraceEmail(school.name, owner.full_name, school.subdomain, graceEndsFormatted, renewUrl),
+              text: `Hi ${owner.full_name},\n\nYour subdomain ${school.subdomain}.schoolsyncedu.com has expired but is still accessible until ${graceEndsFormatted}.\n\nRenew at ${renewUrl} to avoid downtime.\n\nSchoolSync Team`,
+            });
+            await supabase.from('notification_logs').insert({
+              school_id: school.id,
+              event_type: 'subdomain_grace_start',
+              recipient_email: owner.email,
+              metadata: { subdomain: school.subdomain, paid_until: school.subdomain_paid_until, grace_ends: graceEnd.toISOString() },
+            });
+            console.log(`[SENT] subdomain_grace_start → ${owner.email} (${school.subdomain})`);
+            subSentCount++;
+          } else {
+            console.log(`[SKIP] subdomain_grace_start already sent for ${school.subdomain}`);
+          }
+        } else if ([7, 3, 1].includes(daysLeft)) {
+          // Expiry reminder
+          const eventType = `subdomain_expiry_${daysLeft}`;
+          const { data: alreadySent } = await supabase.rpc('notification_already_sent', {
+            p_school_id:    school.id,
+            p_event_type:   eventType,
+            p_within_hours: 20,
+          });
+
+          if (!alreadySent) {
+            const paidUntilFormatted = paidUntil.toLocaleDateString('en-US', {
+              year: 'numeric', month: 'long', day: 'numeric',
+            });
+            await transporter.sendMail({
+              from: `"SchoolSync" <${fromAddress}>`,
+              to: owner.email,
+              subject: daysLeft <= 1
+                ? `⚠️ Your subdomain expires tomorrow — ${school.subdomain}.schoolsyncedu.com`
+                : `Your subdomain expires in ${daysLeft} days — ${school.subdomain}.schoolsyncedu.com`,
+              html: buildSubdomainExpiryReminderEmail(school.name, owner.full_name, school.subdomain, daysLeft, renewUrl),
+              text: `Hi ${owner.full_name},\n\nYour subdomain ${school.subdomain}.schoolsyncedu.com expires in ${daysLeft} day(s) on ${paidUntilFormatted}.\n\nRenew at ${renewUrl}\n\nSchoolSync Team`,
+            });
+            await supabase.from('notification_logs').insert({
+              school_id: school.id,
+              event_type: eventType,
+              recipient_email: owner.email,
+              metadata: { subdomain: school.subdomain, days_left: daysLeft, paid_until: school.subdomain_paid_until },
+            });
+            console.log(`[SENT] ${eventType} → ${owner.email} (${school.subdomain})`);
+            subSentCount++;
+          } else {
+            console.log(`[SKIP] ${eventType} already sent for ${school.subdomain}`);
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[ERROR] Subdomain reminder failed for school ${school.id}:`, msg);
+        errors.push(`subdomain:${school.id} — ${msg}`);
+      }
+    }
+
+    console.log(`Subdomain reminders: ${subSentCount} sent`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed: subscriptions.length,
-        sent: sentCount,
+        subscriptions_processed: subscriptions.length,
+        subscription_emails_sent: sentCount,
+        subdomain_emails_sent: subSentCount,
         skipped: skippedCount,
         errors,
       }),
