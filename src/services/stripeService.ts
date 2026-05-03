@@ -28,6 +28,7 @@ export interface PaymentPageData {
     student_limit: number;
     features: Record<string, boolean>;
     trial_days: number;
+    yearly_discount_percent: number;
   };
 }
 
