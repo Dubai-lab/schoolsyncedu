@@ -47,6 +47,15 @@ export const subdomainAddonService = {
     return data as { success: boolean; paid_until?: string; error?: string };
   },
 
+  async rename(schoolId: string, newSubdomain: string): Promise<{ success: boolean; subdomain?: string; error?: string }> {
+    const { data, error } = await supabase.rpc('rename_subdomain_addon', {
+      p_school_id: schoolId,
+      p_new_subdomain: newSubdomain,
+    });
+    if (error) throw error;
+    return data as { success: boolean; subdomain?: string; error?: string };
+  },
+
   /** Calculates yearly price from monthly price and discount percent */
   calcYearlyPrice(monthlyPrice: number, discountPercent: number): number {
     return +(monthlyPrice * 12 * (1 - discountPercent / 100)).toFixed(2);

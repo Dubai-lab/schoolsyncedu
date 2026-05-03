@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
   Receipt,
+  Pencil,
 } from 'lucide-react';
 import type { School } from '@/types/school.types';
 
@@ -345,11 +346,15 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
   const [nameInput,    setNameInput]    = useState(school.subdomain ?? '');
   const [nameError,    setNameError]    = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [showPayForm,  setShowPayForm]  = useState(false);
-  const [showUpgrade,  setShowUpgrade]  = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
-  const [reactivating, setReactivating] = useState(false);
-  const [checking,     setChecking]     = useState(false);
+  const [showPayForm,    setShowPayForm]    = useState(false);
+  const [showUpgrade,    setShowUpgrade]    = useState(false);
+  const [deactivating,   setDeactivating]   = useState(false);
+  const [reactivating,   setReactivating]   = useState(false);
+  const [checking,       setChecking]       = useState(false);
+  const [showRenameForm, setShowRenameForm] = useState(false);
+  const [renameInput,    setRenameInput]    = useState('');
+  const [renameError,    setRenameError]    = useState('');
+  const [renaming,       setRenaming]       = useState(false);
 
   // Normalize: lowercase, strip non-allowed chars
   const sanitize = (v: string) => v.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -417,6 +422,39 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
       notify.error(err instanceof Error ? err.message : 'Failed to re-activate');
     } finally {
       setReactivating(false);
+    }
+  };
+
+  const openRenameForm = () => {
+    setRenameInput(school.subdomain ?? '');
+    setRenameError('');
+    setShowRenameForm(true);
+  };
+
+  const handleRenameInputChange = (v: string) => {
+    const s = sanitize(v);
+    setRenameInput(s);
+    setRenameError(validateName(s));
+  };
+
+  const handleRename = async () => {
+    if (renameInput === school.subdomain) {
+      setRenameError('This is already your current subdomain name.');
+      return;
+    }
+    const err = validateName(renameInput);
+    if (err) { setRenameError(err); return; }
+    setRenaming(true);
+    try {
+      const result = await subdomainAddonService.rename(schoolId, renameInput);
+      if (!result.success) throw new Error(result.error ?? 'Rename failed');
+      notify.success(`Subdomain renamed to ${result.subdomain}.${PLATFORM_APEX}`);
+      setShowRenameForm(false);
+      onRefresh();
+    } catch (e) {
+      setRenameError(e instanceof Error ? e.message : 'Rename failed. Please try again.');
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -523,8 +561,8 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
           )}
         </div>
 
-        {/* Renew / Upgrade buttons */}
-        {!showPayForm && !showUpgrade && (
+        {/* Renew / Upgrade / Manage buttons */}
+        {!showPayForm && !showUpgrade && !showRenameForm && (
           <div className="flex flex-wrap gap-2">
             {(expiringSoon || expiresToday) && (
               <button
@@ -548,6 +586,14 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
             )}
             <button
               type="button"
+              onClick={openRenameForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Change Name
+            </button>
+            <button
+              type="button"
               onClick={handleDeactivate}
               disabled={deactivating}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
@@ -555,6 +601,54 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
               {deactivating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
               Revert to Default URL
             </button>
+          </div>
+        )}
+
+        {/* Rename form */}
+        {showRenameForm && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Change Subdomain Name</p>
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={renameInput}
+                onChange={(e) => handleRenameInputChange(e.target.value)}
+                placeholder="newname"
+                maxLength={30}
+                className="flex-1 rounded-l-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <span className="rounded-r-lg border border-l-0 border-slate-300 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 font-mono whitespace-nowrap">
+                .{PLATFORM_APEX}
+              </span>
+            </div>
+            {renameError && (
+              <p className="flex items-center gap-1 text-xs text-red-600">
+                <AlertCircle className="h-3 w-3 shrink-0" /> {renameError}
+              </p>
+            )}
+            {renameInput && !renameError && renameInput !== school.subdomain && (
+              <p className="flex items-center gap-1 text-xs text-emerald-600">
+                <Globe className="h-3 w-3" /> New URL: <span className="font-mono">https://{renameInput}.{PLATFORM_APEX}</span>
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleRename}
+                disabled={renaming || !!renameError || !renameInput || renameInput === school.subdomain}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {renaming ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</> : <><Pencil className="h-3.5 w-3.5" /> Save New Name</>}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRenameForm(false)}
+                disabled={renaming}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -621,16 +715,76 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleReactivate}
-          disabled={reactivating}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50"
-        >
-          {reactivating
-            ? <><Loader2 className="h-4 w-4 animate-spin" /> Re-activating...</>
-            : <><Unlock className="h-4 w-4" /> Re-activate Subdomain — Free</>}
-        </button>
+        {!showRenameForm && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleReactivate}
+              disabled={reactivating}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50"
+            >
+              {reactivating
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Re-activating...</>
+                : <><Unlock className="h-4 w-4" /> Re-activate Subdomain — Free</>}
+            </button>
+            <button
+              type="button"
+              onClick={openRenameForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Change Name
+            </button>
+          </div>
+        )}
+
+        {/* Rename form */}
+        {showRenameForm && (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Change Subdomain Name</p>
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={renameInput}
+                onChange={(e) => handleRenameInputChange(e.target.value)}
+                placeholder="newname"
+                maxLength={30}
+                className="flex-1 rounded-l-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <span className="rounded-r-lg border border-l-0 border-slate-300 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 font-mono whitespace-nowrap">
+                .{PLATFORM_APEX}
+              </span>
+            </div>
+            {renameError && (
+              <p className="flex items-center gap-1 text-xs text-red-600">
+                <AlertCircle className="h-3 w-3 shrink-0" /> {renameError}
+              </p>
+            )}
+            {renameInput && !renameError && renameInput !== school.subdomain && (
+              <p className="flex items-center gap-1 text-xs text-emerald-600">
+                <Globe className="h-3 w-3" /> New URL: <span className="font-mono">https://{renameInput}.{PLATFORM_APEX}</span>
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleRename}
+                disabled={renaming || !!renameError || !renameInput || renameInput === school.subdomain}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {renaming ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</> : <><Pencil className="h-3.5 w-3.5" /> Save New Name</>}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRenameForm(false)}
+                disabled={renaming}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <PaymentHistory schoolId={schoolId} />
       </div>
