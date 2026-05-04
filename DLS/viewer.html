@@ -135,16 +135,24 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;mi
 .team-ov-btn{background:none;border:none;color:#e6edf3;font-weight:700;cursor:pointer;padding:0;font-size:.8rem;text-align:left;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .team-ov-btn:hover{color:#00c853;text-decoration:underline}
 
-/* Team overview modal */
-.team-ov-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9998;display:flex;align-items:flex-end;justify-content:center}
-.team-ov-box{background:#0d1117;border-top:2px solid #30363d;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px 16px 36px;max-height:80vh;overflow-y:auto}
-.team-ov-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.team-ov-name{font-size:1rem;font-weight:800;color:#e6edf3;text-transform:uppercase;letter-spacing:2px;flex:1}
-.team-ov-close{background:#161b22;border:1px solid #30363d;border-radius:50%;width:30px;height:30px;color:#8b949e;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center}
-.ov-section-title{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:10px}
-/* Form circles in overview */
-.ov-form-row{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
-.ov-fb{width:40px;height:40px;border-radius:50%;font-size:.9rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* ── Team overview FULL SCREEN PAGE ── */
+.team-ov-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:#0d1117;z-index:9998;overflow-y:auto;display:none}
+.team-ov-topbar{display:flex;align-items:center;background:#0f1923;border-bottom:1px solid #21262d;padding:14px 16px;position:sticky;top:0;z-index:10}
+.team-ov-back{background:none;border:none;color:#00c853;font-size:.9rem;font-weight:700;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:5px;width:60px;flex-shrink:0}
+.team-ov-name{flex:1;text-align:center;font-size:.88rem;font-weight:800;color:#e6edf3;text-transform:uppercase;letter-spacing:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
+.team-ov-spacer{width:60px;flex-shrink:0}
+.team-ov-hero{background:linear-gradient(135deg,#0f2027,#0d1117);border-bottom:1px solid #21262d;padding:24px 16px 20px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.team-ov-badge-lg{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#1c2128,#21262d);border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:800;color:#e6edf3}
+.team-ov-hero-name{font-size:1.1rem;font-weight:800;color:#e6edf3;letter-spacing:1px;text-align:center}
+.team-ov-hero-pos{font-size:.75rem;color:#8b949e}
+.team-ov-hero-pos strong{color:#00c853}
+.team-ov-body{padding:16px;max-width:640px;margin:0 auto}
+.ov-section-title{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:10px;margin-top:20px}
+.ov-section-title:first-child{margin-top:0}
+/* Form circles */
+.ov-form-row{display:flex;gap:10px;margin-bottom:4px}
+.ov-fb{width:48px;height:48px;border-radius:50%;font-size:1rem;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1.1}
+.ov-fb-score{font-size:.48rem;font-weight:600;opacity:.85;margin-top:1px}
 .ov-fb-w{background:#28a745;color:#fff}
 .ov-fb-d{background:#6c757d;color:#fff}
 .ov-fb-l{background:#dc3545;color:#fff}
@@ -154,11 +162,22 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;mi
 .nxt-fix-label{font-size:.65rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;font-weight:700;text-align:center;margin-bottom:14px}
 .nxt-fix-teams{display:flex;align-items:center;gap:6px}
 .nxt-fix-team{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
-.nxt-fix-badge{width:52px;height:52px;border-radius:50%;background:#21262d;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:#e6edf3;text-align:center;line-height:1.2}
+.nxt-fix-badge{width:56px;height:56px;border-radius:50%;background:#21262d;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#e6edf3;text-align:center;line-height:1.2}
+.nxt-fix-badge.my-team{border-color:#00c853;box-shadow:0 0 10px rgba(0,200,83,.3)}
 .nxt-fix-tname{font-size:.78rem;font-weight:700;color:#e6edf3;text-align:center;word-break:break-word}
-.nxt-fix-mid{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;padding:0 4px}
+.nxt-fix-mid{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;padding:0 4px}
 .nxt-fix-vs{font-size:.65rem;font-weight:800;color:#8b949e;text-transform:uppercase;letter-spacing:2px}
-.nxt-fix-md{font-size:1.1rem;font-weight:800;color:#e6edf3}
+/* All results list */
+.ov-result-list{display:flex;flex-direction:column;gap:6px}
+.ov-result-item{display:flex;align-items:center;background:#161b22;border:1px solid #21262d;border-radius:8px;padding:10px 12px;gap:10px}
+.ov-res-badge{width:34px;height:34px;border-radius:50%;font-size:.78rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ov-res-w{background:rgba(40,167,69,.18);color:#4ade80;border:1px solid rgba(40,167,69,.4)}
+.ov-res-d{background:rgba(108,117,125,.18);color:#adb5bd;border:1px solid rgba(108,117,125,.4)}
+.ov-res-l{background:rgba(220,53,69,.18);color:#f87171;border:1px solid rgba(220,53,69,.4)}
+.ov-res-info{flex:1;min-width:0}
+.ov-res-vs{font-size:.82rem;font-weight:700;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-res-md{font-size:.65rem;color:#8b949e;margin-top:2px}
+.ov-res-score{font-size:1rem;font-weight:800;color:#00c853;flex-shrink:0}
 
 /* ── CL Group tables ── */
 .groups-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
@@ -300,7 +319,7 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   .lg-table th, .lg-table td{ padding:7px 4px }
 
   /* Smaller overview circles on tiny screens */
-  .ov-fb{ width:32px; height:32px; font-size:.78rem }
+  .ov-fb{ width:40px; height:40px; font-size:.88rem }
 }
 </style>
 </head>
@@ -413,13 +432,15 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   </div>
 </div>
 
-<!-- ═══════ TEAM OVERVIEW MODAL ═══════ -->
-<div id="team-overview-modal" class="team-ov-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-  <div class="team-ov-box">
-    <div class="team-ov-hdr">
-      <span class="team-ov-name" id="team-ov-name"></span>
-      <button class="team-ov-close" onclick="document.getElementById('team-overview-modal').style.display='none'">&#10005;</button>
-    </div>
+<!-- ═══════ TEAM OVERVIEW PAGE ═══════ -->
+<div id="team-overview-modal" class="team-ov-modal">
+  <div class="team-ov-topbar">
+    <button class="team-ov-back" onclick="document.getElementById('team-overview-modal').style.display='none'">&#8592; Back</button>
+    <span class="team-ov-name" id="team-ov-name"></span>
+    <div class="team-ov-spacer"></div>
+  </div>
+  <div id="team-ov-hero" class="team-ov-hero"></div>
+  <div class="team-ov-body">
     <div id="team-ov-content"></div>
   </div>
 </div>
@@ -669,66 +690,107 @@ function getPrizePoolHTML(){
 // ── Escape HTML ──
 function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
 
-// ── Team Overview Modal ──
+// ── Team Overview Full-Screen Page ──
 function showTeamOverview(teamName){
   const pub = currentComp==='league1'?leaguePub:currentComp==='league2'?league2Pub:currentComp==='league3'?league3Pub:null;
   if(!pub||!pub.allMatchdays) return;
 
   function initials(name){ return (name||'').split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,3)||'?'; }
 
-  // Last 5 results
-  const results=[];
+  const accentColor = currentComp==='league1'?'#00c853':currentComp==='league2'?'#4fc3f7':'#ab47bc';
+
+  // Table position + points
+  const tableRow = (pub.table||[]).find(r=>r.team===teamName);
+  const pos = tableRow ? tableRow.pos : '–';
+  const pts = tableRow ? tableRow.pts : 0;
+  const wins = tableRow ? tableRow.w : 0;
+  const draws = tableRow ? tableRow.d : 0;
+  const losses = tableRow ? tableRow.l : 0;
+
+  // Collect all played results (chronological order)
+  const allResults=[];
   for(const md of pub.allMatchdays){
     md.matches.forEach(m=>{
       if(!m.played) return;
-      if(m.home===teamName) results.push({r:m.hs>m.as?'W':m.hs===m.as?'D':'L',vs:m.away,score:`${m.hs}-${m.as}`});
-      else if(m.away===teamName) results.push({r:m.as>m.hs?'W':m.as===m.hs?'D':'L',vs:m.home,score:`${m.as}-${m.hs}`});
+      if(m.home===teamName) allResults.push({r:m.hs>m.as?'W':m.hs===m.as?'D':'L',vs:m.away,score:`${m.hs}-${m.as}`,day:md.day,isHome:true});
+      else if(m.away===teamName) allResults.push({r:m.as>m.hs?'W':m.as===m.hs?'D':'L',vs:m.home,score:`${m.as}-${m.hs}`,day:md.day,isHome:false});
     });
   }
-  const last5 = results.slice(-5);
+  const last5 = allResults.slice(-5);
 
-  // Next fixture
+  // Next fixture only (first unplayed match)
   let nextFix=null;
-  for(const md of pub.allMatchdays){
-    if(nextFix) break;
+  outer: for(const md of pub.allMatchdays){
     for(const m of md.matches){
-      if(!m.played&&(m.home===teamName||m.away===teamName)){ nextFix={home:m.home,away:m.away,day:md.day}; break; }
+      if(!m.played&&(m.home===teamName||m.away===teamName)){ nextFix={home:m.home,away:m.away,day:md.day}; break outer; }
     }
   }
 
-  // Form circles
-  let formHTML=`<div class="ov-section-title">Last ${last5.length||0} Results</div><div class="ov-form-row">`;
+  // Hero section
+  document.getElementById('team-ov-hero').innerHTML=`
+    <div class="team-ov-badge-lg" style="border-color:${accentColor}">${initials(teamName)}</div>
+    <div class="team-ov-hero-name">${esc(teamName)}</div>
+    <div class="team-ov-hero-pos">Position <strong style="color:${accentColor}">#${pos}</strong> &nbsp;&middot;&nbsp; <strong style="color:${accentColor}">${pts} pts</strong></div>
+    <div style="display:flex;gap:18px;margin-top:6px">
+      <div style="text-align:center"><div style="font-size:1.1rem;font-weight:800;color:#4ade80">${wins}</div><div style="font-size:.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px">Won</div></div>
+      <div style="text-align:center"><div style="font-size:1.1rem;font-weight:800;color:#adb5bd">${draws}</div><div style="font-size:.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px">Draw</div></div>
+      <div style="text-align:center"><div style="font-size:1.1rem;font-weight:800;color:#f87171">${losses}</div><div style="font-size:.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px">Lost</div></div>
+    </div>`;
+
+  // Form circles (last 5 with score underneath)
+  let formHTML=`<div class="ov-section-title">Last ${Math.min(last5.length,5)||0} Results</div><div class="ov-form-row">`;
   for(let i=0;i<5-last5.length;i++) formHTML+=`<div class="ov-fb ov-fb-none">–</div>`;
-  last5.forEach(r=>{ formHTML+=`<div class="ov-fb ov-fb-${r.r.toLowerCase()}" title="${r.r} vs ${esc(r.vs)} (${r.score})">${r.r}</div>`; });
+  last5.forEach(r=>{
+    formHTML+=`<div class="ov-fb ov-fb-${r.r.toLowerCase()}">${r.r}<span class="ov-fb-score">${r.score}</span></div>`;
+  });
   formHTML+='</div>';
 
   // Next fixture card
   let nextHTML='';
   if(nextFix){
-    nextHTML=`<div class="nxt-fix-card">
-      <div class="nxt-fix-label">&#128197; Upcoming Fixture</div>
+    nextHTML=`<div class="ov-section-title">Upcoming Match</div>
+    <div class="nxt-fix-card">
+      <div class="nxt-fix-label">&#128197; Matchday ${nextFix.day}</div>
       <div class="nxt-fix-teams">
         <div class="nxt-fix-team">
-          <div class="nxt-fix-badge">${initials(nextFix.home)}</div>
+          <div class="nxt-fix-badge${nextFix.home===teamName?' my-team':''}">${initials(nextFix.home)}</div>
           <div class="nxt-fix-tname">${esc(nextFix.home)}</div>
         </div>
         <div class="nxt-fix-mid">
-          <div class="nxt-fix-vs">MD</div>
-          <div class="nxt-fix-md">${nextFix.day}</div>
+          <div class="nxt-fix-vs">VS</div>
         </div>
         <div class="nxt-fix-team">
-          <div class="nxt-fix-badge">${initials(nextFix.away)}</div>
+          <div class="nxt-fix-badge${nextFix.away===teamName?' my-team':''}">${initials(nextFix.away)}</div>
           <div class="nxt-fix-tname">${esc(nextFix.away)}</div>
         </div>
       </div>
     </div>`;
+  }
+
+  // All results list (most recent first)
+  let histHTML=`<div class="ov-section-title">All Results (${allResults.length})</div>`;
+  if(allResults.length){
+    histHTML+=`<div class="ov-result-list">`;
+    [...allResults].reverse().forEach(r=>{
+      histHTML+=`<div class="ov-result-item">
+        <div class="ov-res-badge ov-res-${r.r.toLowerCase()}">${r.r}</div>
+        <div class="ov-res-info">
+          <div class="ov-res-vs">vs ${esc(r.vs)}</div>
+          <div class="ov-res-md">Matchday ${r.day} &middot; ${r.isHome?'Home':'Away'}</div>
+        </div>
+        <div class="ov-res-score">${r.score}</div>
+      </div>`;
+    });
+    histHTML+=`</div>`;
   } else {
-    nextHTML=`<div style="text-align:center;color:#8b949e;font-size:.8rem;padding:12px">No upcoming fixtures</div>`;
+    histHTML+=`<div style="text-align:center;color:#8b949e;font-size:.8rem;padding:20px 0">No results yet this season</div>`;
   }
 
   document.getElementById('team-ov-name').textContent=teamName;
-  document.getElementById('team-ov-content').innerHTML=formHTML+nextHTML;
-  document.getElementById('team-overview-modal').style.display='flex';
+  document.getElementById('team-ov-content').innerHTML=formHTML+nextHTML+histHTML;
+  const modal=document.getElementById('team-overview-modal');
+  modal.style.display='block';
+  modal.scrollTop=0;
 }
 
 // ── WhatsApp team link ──
