@@ -91,7 +91,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;mi
 
 /* ── League Table ── */
 .table-wrap{overflow-x:auto;margin-bottom:24px}
-.lg-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:380px}
+.lg-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:420px}
 .lg-table th{background:#0d1117;color:#8b949e;padding:8px 6px;text-align:center;font-size:.68rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #21262d;white-space:nowrap}
 .lg-table th:nth-child(2){text-align:left;padding-left:8px}
 .lg-table td{padding:8px 6px;text-align:center;border-bottom:1px solid #161b22}
@@ -289,9 +289,9 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   .header h1{font-size:1.3rem;letter-spacing:2px}
 
   /* ── Mobile table fixes ── */
-  /* Hide Draws column (col 5) on small screens */
-  .lg-table th:nth-child(5),
-  .lg-table td:nth-child(5){ display:none }
+  /* Hide D and GD on small screens — GF/GA tell the full story */
+  .lg-table th:nth-child(5),.lg-table td:nth-child(5),
+  .lg-table th:nth-child(9),.lg-table td:nth-child(9){ display:none }
 
   /* Give team name more breathing room */
   .lg-table td:nth-child(2){ max-width:none; width:auto }
@@ -840,6 +840,7 @@ function renderLeague(pub, label, accent){
       <td class="pos-num">${r.pos}</td>
       <td><button class="team-ov-btn" onclick="showTeamOverview(this.getAttribute('data-team'))" data-team="${esc(r.team)}">${esc(r.team)}</button></td>
       <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
+      <td>${r.gf}</td><td>${r.ga}</td>
       <td class="${gdCls}">${gd}</td>
       <td class="pts">${r.pts}</td>
     </tr>`;
@@ -884,7 +885,7 @@ function renderLeague(pub, label, accent){
       <table class="lg-table">
         <thead><tr>
           <th>#</th><th style="text-align:left">Team</th>
-          <th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+          <th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
