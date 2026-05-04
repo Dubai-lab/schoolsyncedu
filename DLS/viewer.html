@@ -301,15 +301,9 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   .header h1{font-size:1.3rem;letter-spacing:2px}
 
   /* ── Mobile table fixes ── */
-  /* Hide D and GD on small screens — GF/GA tell the full story */
-  .lg-table th:nth-child(5),.lg-table td:nth-child(5),
-  .lg-table th:nth-child(9),.lg-table td:nth-child(9){ display:none }
-
-  /* Give team name more breathing room */
-  .lg-table td:nth-child(2){ max-width:none; width:auto }
-
-  /* Tighten cell padding */
+  /* Tighten cell padding — let table scroll horizontally, hide nothing */
   .lg-table th, .lg-table td{ padding:7px 4px }
+  .lg-table td:nth-child(2){ max-width:none; width:auto }
 
   /* Smaller overview circles on tiny screens */
   .ov-fb{ width:40px; height:40px; font-size:.88rem }
@@ -903,10 +897,9 @@ function renderLeague(pub, label, accent){
     tableRows += `<tr class="${rc}">
       <td class="pos-num">${r.pos}</td>
       <td><button class="team-ov-btn" onclick="showTeamOverview(this.getAttribute('data-team'))" data-team="${esc(r.team)}" style="display:inline-flex;align-items:center;gap:5px">${logoEl}${esc(r.team)}</button></td>
-      <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
+      <td>${r.p}</td><td class="${gdCls}">${gd}</td><td class="pts">${r.pts}</td>
+      <td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
       <td>${r.gf}</td><td>${r.ga}</td>
-      <td class="${gdCls}">${gd}</td>
-      <td class="pts">${r.pts}</td>
     </tr>`;
   });
 
@@ -920,7 +913,7 @@ function renderLeague(pub, label, accent){
       <table class="lg-table">
         <thead><tr>
           <th>#</th><th style="text-align:left">Team</th>
-          <th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
+          <th>P</th><th>GD</th><th>Pts</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
