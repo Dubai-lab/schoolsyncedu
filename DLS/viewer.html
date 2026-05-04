@@ -719,9 +719,10 @@ function showTeamOverview(teamName){
   }
   const last5 = allResults.slice(-5);
 
-  // Next fixture only (first unplayed match)
+  // Next fixture only — use allMatchdays if available, else fall back to current matchday
   let nextFix=null;
-  outer: for(const md of allMDs){
+  const mdsToSearch = allMDs.length ? allMDs : (pub.matchday ? [pub.matchday] : []);
+  outer: for(const md of mdsToSearch){
     for(const m of md.matches){
       if(!m.played&&(m.home===teamName||m.away===teamName)){ nextFix={home:m.home,away:m.away,day:md.day}; break outer; }
     }
