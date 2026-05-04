@@ -749,23 +749,24 @@ function showTeamOverview(teamName){
   formHTML+='</div>';
 
   // Next fixture card
+  const ovLogos = pub.logos || {};
   let nextHTML='';
   if(nextFix){
+    const hIsMe = nextFix.home===teamName, aIsMe = nextFix.away===teamName;
+    const hBorder = hIsMe?accentColor:'#30363d', aBorder = aIsMe?accentColor:'#30363d';
+    const homeBadge = ovLogos[nextFix.home]
+      ? `<img src="${ovLogos[nextFix.home]}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid ${hBorder};box-shadow:${hIsMe?`0 0 10px rgba(0,200,83,.3)`:'none'}">`
+      : `<div class="nxt-fix-badge${hIsMe?' my-team':''}">${initials(nextFix.home)}</div>`;
+    const awayBadge = ovLogos[nextFix.away]
+      ? `<img src="${ovLogos[nextFix.away]}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid ${aBorder};box-shadow:${aIsMe?`0 0 10px rgba(0,200,83,.3)`:'none'}">`
+      : `<div class="nxt-fix-badge${aIsMe?' my-team':''}">${initials(nextFix.away)}</div>`;
     nextHTML=`<div class="ov-section-title">Upcoming Match</div>
     <div class="nxt-fix-card">
       <div class="nxt-fix-label">&#128197; Matchday ${nextFix.day}</div>
       <div class="nxt-fix-teams">
-        <div class="nxt-fix-team">
-          <div class="nxt-fix-badge${nextFix.home===teamName?' my-team':''}">${initials(nextFix.home)}</div>
-          <div class="nxt-fix-tname">${esc(nextFix.home)}</div>
-        </div>
-        <div class="nxt-fix-mid">
-          <div class="nxt-fix-vs">VS</div>
-        </div>
-        <div class="nxt-fix-team">
-          <div class="nxt-fix-badge${nextFix.away===teamName?' my-team':''}">${initials(nextFix.away)}</div>
-          <div class="nxt-fix-tname">${esc(nextFix.away)}</div>
-        </div>
+        <div class="nxt-fix-team">${homeBadge}<div class="nxt-fix-tname">${esc(nextFix.home)}</div></div>
+        <div class="nxt-fix-mid"><div class="nxt-fix-vs">VS</div></div>
+        <div class="nxt-fix-team">${awayBadge}<div class="nxt-fix-tname">${esc(nextFix.away)}</div></div>
       </div>
     </div>`;
   }
@@ -870,18 +871,20 @@ function renderLeague(pub, label, accent){
   let fixHTML = '<div class="fixtures-list">';
   const lgPhones = pub.phones || {};
   matchday.matches.forEach(m => {
+    const hLogo = logos[m.home]?`<img src="${logos[m.home]}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0">`:'';
+    const aLogo = logos[m.away]?`<img src="${logos[m.away]}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0">`:'';
     if(m.played){
       const hWin = m.hs > m.as, aWin = m.as > m.hs;
       fixHTML += `<div class="fix-card played">
-        <div class="fix-team home ${hWin?'winner':aWin?'loser':''}">${teamLink(m.home,lgPhones)}</div>
+        <div class="fix-team home ${hWin?'winner':aWin?'loser':''}" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${teamLink(m.home,lgPhones)}${hLogo}</div>
         <div class="fix-score">${m.hs} &ndash; ${m.as}</div>
-        <div class="fix-team away ${aWin?'winner':hWin?'loser':''}">${teamLink(m.away,lgPhones)}</div>
+        <div class="fix-team away ${aWin?'winner':hWin?'loser':''}" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${aLogo}${teamLink(m.away,lgPhones)}</div>
       </div>`;
     } else {
       fixHTML += `<div class="fix-card pending">
-        <div class="fix-team home">${teamLink(m.home,lgPhones)}</div>
+        <div class="fix-team home" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${teamLink(m.home,lgPhones)}${hLogo}</div>
         <div class="fix-vs">vs</div>
-        <div class="fix-team away">${teamLink(m.away,lgPhones)}</div>
+        <div class="fix-team away" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${aLogo}${teamLink(m.away,lgPhones)}</div>
       </div>`;
     }
   });
