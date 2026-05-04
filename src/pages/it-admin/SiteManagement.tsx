@@ -358,6 +358,7 @@ export default function SiteManagement() {
             { key: 'announcements', label: 'Announcements', icon: Megaphone },
             { key: 'gallery', label: 'Photo Gallery', icon: Image },
             { key: 'administration', label: 'Administration Team', icon: Users },
+            { key: 'testimonials', label: 'Testimonials', icon: MessageSquare },
             { key: 'contact', label: 'Contact Info', icon: MessageSquare },
           ].map((s) => (
             <button
@@ -1033,6 +1034,107 @@ export default function SiteManagement() {
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* ==================== TESTIMONIALS ==================== */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Testimonials</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const items = [...(mergedConfig.testimonials ?? []), { name: '', role: '', quote: '', rating: 5 }];
+              setConfig('testimonials', items);
+            }}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Plus className="h-4 w-4" /> Add Testimonial
+          </button>
+        </div>
+        <p className="text-sm text-slate-500 mb-4">
+          Add parent, student, or community reviews to build trust with prospective families.
+          Enable <strong>Testimonials</strong> in Section Visibility above to show them on the site.
+        </p>
+
+        {(mergedConfig.testimonials ?? []).length === 0 ? (
+          <div className="rounded-lg border-2 border-dashed border-slate-200 p-6 text-center">
+            <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
+            <p className="mt-2 text-sm text-slate-400">No testimonials yet. Click "Add Testimonial" to get started.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {(mergedConfig.testimonials ?? []).map((t, i) => (
+              <div key={i} className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                      placeholder="Name (e.g. Mary Johnson)"
+                      value={t.name}
+                      onChange={(e) => {
+                        const items = [...(mergedConfig.testimonials ?? [])];
+                        items[i] = { ...t, name: e.target.value };
+                        setConfig('testimonials', items);
+                      }}
+                    />
+                    <Input
+                      placeholder="Role (e.g. Parent of Grade 7)"
+                      value={t.role}
+                      onChange={(e) => {
+                        const items = [...(mergedConfig.testimonials ?? [])];
+                        items[i] = { ...t, role: e.target.value };
+                        setConfig('testimonials', items);
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const items = (mergedConfig.testimonials ?? []).filter((_, idx) => idx !== i);
+                      setConfig('testimonials', items);
+                    }}
+                    className="mt-1 shrink-0 rounded p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <textarea
+                  rows={2}
+                  placeholder="What they said about your school..."
+                  value={t.quote}
+                  onChange={(e) => {
+                    const items = [...(mergedConfig.testimonials ?? [])];
+                    items[i] = { ...t, quote: e.target.value };
+                    setConfig('testimonials', items);
+                  }}
+                  className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+
+                {/* Star rating picker */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-slate-500 mr-1">Rating:</span>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => {
+                        const items = [...(mergedConfig.testimonials ?? [])];
+                        items[i] = { ...t, rating: star };
+                        setConfig('testimonials', items);
+                      }}
+                      className={`text-2xl leading-none transition-transform hover:scale-125 ${star <= (t.rating ?? 5) ? 'text-amber-400' : 'text-slate-200'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
