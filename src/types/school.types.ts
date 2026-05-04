@@ -107,6 +107,8 @@ export interface SiteConfig {
   auth_page?: AuthPageConfig;
   /** Transcript visual & signing configuration */
   transcript_config?: TranscriptConfig;
+  /** WhatsApp contact number (international format, e.g. +231770123456) — shows a floating button on the school site */
+  whatsapp_number?: string;
 }
 
 /** Customisable school-branded login page */
