@@ -693,7 +693,8 @@ function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').r
 // ── Team Overview Full-Screen Page ──
 function showTeamOverview(teamName){
   const pub = currentComp==='league1'?leaguePub:currentComp==='league2'?league2Pub:currentComp==='league3'?league3Pub:null;
-  if(!pub||!pub.allMatchdays) return;
+  if(!pub) return;
+  const allMDs = pub.allMatchdays || [];
 
   function initials(name){ return (name||'').split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,3)||'?'; }
 
@@ -709,7 +710,7 @@ function showTeamOverview(teamName){
 
   // Collect all played results (chronological order)
   const allResults=[];
-  for(const md of pub.allMatchdays){
+  for(const md of allMDs){
     md.matches.forEach(m=>{
       if(!m.played) return;
       if(m.home===teamName) allResults.push({r:m.hs>m.as?'W':m.hs===m.as?'D':'L',vs:m.away,score:`${m.hs}-${m.as}`,day:md.day,isHome:true});
@@ -720,7 +721,7 @@ function showTeamOverview(teamName){
 
   // Next fixture only (first unplayed match)
   let nextFix=null;
-  outer: for(const md of pub.allMatchdays){
+  outer: for(const md of allMDs){
     for(const m of md.matches){
       if(!m.played&&(m.home===teamName||m.away===teamName)){ nextFix={home:m.home,away:m.away,day:md.day}; break outer; }
     }
