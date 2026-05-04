@@ -101,21 +101,41 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;mi
 .pts{font-weight:800;color:#00c853}
 .gd-p{color:#4ade80}
 .gd-n{color:#f87171}
-.rank1 td:first-child{border-left:3px solid #FFD700}
-.ranktop td:first-child{border-left:3px solid #00c853}
 .rankbot td:first-child{border-left:3px solid #dc3545}
-
-/* Form */
-.form-row{display:flex;gap:2px;justify-content:center}
-.fb{width:16px;height:16px;border-radius:2px;font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center}
-.fb-w{background:#28a745;color:#fff}
-.fb-d{background:#6c757d;color:#fff}
-.fb-l{background:#dc3545;color:#fff}
 
 /* Legend */
 .tbl-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
 .leg-item{display:flex;align-items:center;gap:5px;font-size:.68rem;color:#8b949e}
 .leg-line{width:3px;height:12px;border-radius:2px}
+
+/* Team overview button in table */
+.team-ov-btn{background:none;border:none;color:#e6edf3;font-weight:700;cursor:pointer;padding:0;font-size:.8rem;text-align:left;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-ov-btn:hover{color:#00c853;text-decoration:underline}
+
+/* Team overview modal */
+.team-ov-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9998;display:flex;align-items:flex-end;justify-content:center}
+.team-ov-box{background:#0d1117;border-top:2px solid #30363d;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px 16px 36px;max-height:80vh;overflow-y:auto}
+.team-ov-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.team-ov-name{font-size:1rem;font-weight:800;color:#e6edf3;text-transform:uppercase;letter-spacing:2px;flex:1}
+.team-ov-close{background:#161b22;border:1px solid #30363d;border-radius:50%;width:30px;height:30px;color:#8b949e;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.ov-section-title{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:10px}
+/* Form circles in overview */
+.ov-form-row{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.ov-fb{width:40px;height:40px;border-radius:50%;font-size:.9rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ov-fb-w{background:#28a745;color:#fff}
+.ov-fb-d{background:#6c757d;color:#fff}
+.ov-fb-l{background:#dc3545;color:#fff}
+.ov-fb-none{background:#1c2128;color:#4a5568}
+/* Next fixture card */
+.nxt-fix-card{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:16px 12px}
+.nxt-fix-label{font-size:.65rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;font-weight:700;text-align:center;margin-bottom:14px}
+.nxt-fix-teams{display:flex;align-items:center;gap:6px}
+.nxt-fix-team{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
+.nxt-fix-badge{width:52px;height:52px;border-radius:50%;background:#21262d;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:#e6edf3;text-align:center;line-height:1.2}
+.nxt-fix-tname{font-size:.78rem;font-weight:700;color:#e6edf3;text-align:center;word-break:break-word}
+.nxt-fix-mid{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;padding:0 4px}
+.nxt-fix-vs{font-size:.65rem;font-weight:800;color:#8b949e;text-transform:uppercase;letter-spacing:2px}
+.nxt-fix-md{font-size:1.1rem;font-weight:800;color:#e6edf3}
 
 /* ── CL Group tables ── */
 .groups-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
@@ -246,13 +266,9 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   .header h1{font-size:1.3rem;letter-spacing:2px}
 
   /* ── Mobile table fixes ── */
-  /* Hide Draws column (col 5) — least important stat, frees space */
+  /* Hide Draws column (col 5) on small screens */
   .lg-table th:nth-child(5),
   .lg-table td:nth-child(5){ display:none }
-
-  /* Shrink form badges so they don't crush the team name */
-  .fb{ width:13px; height:13px; font-size:.55rem }
-  .form-row{ gap:1px }
 
   /* Give team name more breathing room */
   .lg-table td:nth-child(2){ max-width:none; width:auto }
@@ -260,8 +276,8 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   /* Tighten cell padding */
   .lg-table th, .lg-table td{ padding:7px 4px }
 
-  /* Smaller badge text next to team names */
-  .lg-table td:nth-child(2) span[style]{ font-size:.52rem; padding:1px 3px }
+  /* Smaller overview circles on tiny screens */
+  .ov-fb{ width:32px; height:32px; font-size:.78rem }
 }
 </style>
 </head>
@@ -371,6 +387,17 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
     </div>
 
     <button class="rules-close-btn" onclick="document.getElementById('rules-overlay').classList.remove('show')">&#10005; Close Rules</button>
+  </div>
+</div>
+
+<!-- ═══════ TEAM OVERVIEW MODAL ═══════ -->
+<div id="team-overview-modal" class="team-ov-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="team-ov-box">
+    <div class="team-ov-hdr">
+      <span class="team-ov-name" id="team-ov-name"></span>
+      <button class="team-ov-close" onclick="document.getElementById('team-overview-modal').style.display='none'">&#10005;</button>
+    </div>
+    <div id="team-ov-content"></div>
   </div>
 </div>
 
@@ -619,6 +646,68 @@ function getPrizePoolHTML(){
 // ── Escape HTML ──
 function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
 
+// ── Team Overview Modal ──
+function showTeamOverview(teamName){
+  const pub = currentComp==='league1'?leaguePub:currentComp==='league2'?league2Pub:currentComp==='league3'?league3Pub:null;
+  if(!pub||!pub.allMatchdays) return;
+
+  function initials(name){ return (name||'').split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,3)||'?'; }
+
+  // Last 5 results
+  const results=[];
+  for(const md of pub.allMatchdays){
+    md.matches.forEach(m=>{
+      if(!m.played) return;
+      if(m.home===teamName) results.push({r:m.hs>m.as?'W':m.hs===m.as?'D':'L',vs:m.away,score:`${m.hs}-${m.as}`});
+      else if(m.away===teamName) results.push({r:m.as>m.hs?'W':m.as===m.hs?'D':'L',vs:m.home,score:`${m.as}-${m.hs}`});
+    });
+  }
+  const last5 = results.slice(-5);
+
+  // Next fixture
+  let nextFix=null;
+  for(const md of pub.allMatchdays){
+    if(nextFix) break;
+    for(const m of md.matches){
+      if(!m.played&&(m.home===teamName||m.away===teamName)){ nextFix={home:m.home,away:m.away,day:md.day}; break; }
+    }
+  }
+
+  // Form circles
+  let formHTML=`<div class="ov-section-title">Last ${last5.length||0} Results</div><div class="ov-form-row">`;
+  for(let i=0;i<5-last5.length;i++) formHTML+=`<div class="ov-fb ov-fb-none">–</div>`;
+  last5.forEach(r=>{ formHTML+=`<div class="ov-fb ov-fb-${r.r.toLowerCase()}" title="${r.r} vs ${esc(r.vs)} (${r.score})">${r.r}</div>`; });
+  formHTML+='</div>';
+
+  // Next fixture card
+  let nextHTML='';
+  if(nextFix){
+    nextHTML=`<div class="nxt-fix-card">
+      <div class="nxt-fix-label">&#128197; Upcoming Fixture</div>
+      <div class="nxt-fix-teams">
+        <div class="nxt-fix-team">
+          <div class="nxt-fix-badge">${initials(nextFix.home)}</div>
+          <div class="nxt-fix-tname">${esc(nextFix.home)}</div>
+        </div>
+        <div class="nxt-fix-mid">
+          <div class="nxt-fix-vs">MD</div>
+          <div class="nxt-fix-md">${nextFix.day}</div>
+        </div>
+        <div class="nxt-fix-team">
+          <div class="nxt-fix-badge">${initials(nextFix.away)}</div>
+          <div class="nxt-fix-tname">${esc(nextFix.away)}</div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    nextHTML=`<div style="text-align:center;color:#8b949e;font-size:.8rem;padding:12px">No upcoming fixtures</div>`;
+  }
+
+  document.getElementById('team-ov-name').textContent=teamName;
+  document.getElementById('team-ov-content').innerHTML=formHTML+nextHTML;
+  document.getElementById('team-overview-modal').style.display='flex';
+}
+
 // ── WhatsApp team link ──
 // If a phone number exists for this team, wraps the name in a wa.me link
 function teamLink(name, phones){
@@ -720,31 +809,20 @@ function renderLeague(pub, label, accent){
 
   let tableRows = '';
   table.forEach((r,i)=>{
-    let rc = i===0?'rank1':i<CL_SPOTS?'ranktop':(REL_SPOTS>0&&i>=n-REL_SPOTS)?'rankbot':'';
-    if(i===CL_SPOTS) rc += ' cut-cl';
+    let rc = (REL_SPOTS>0&&i>=n-REL_SPOTS)?'rankbot':'';
     if(REL_SPOTS>0 && i===n-REL_SPOTS) rc += ' cut-rel';
     const gd = r.gd>0?'+'+r.gd:r.gd;
     const gdCls = r.gd>0?'gd-p':r.gd<0?'gd-n':'';
-    const form = (r.form||[]).slice(-5);
-    const formHTML = form.map(f=>`<div class="fb fb-${f.toLowerCase()}">${f}</div>`).join('');
-    let badge = '';
-    if(i<CL_SPOTS) badge=`<span style="font-size:.58rem;background:rgba(255,215,0,.12);color:#FFD700;border:1px solid rgba(255,215,0,.25);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle">${i===0?'CHAMP':'CL'}</span>`;
-    else if(REL_SPOTS>0&&i>=n-REL_SPOTS) badge=`<span style="font-size:.58rem;background:rgba(220,53,69,.12);color:#f87171;border:1px solid rgba(220,53,69,.25);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle">REL</span>`;
     tableRows += `<tr class="${rc}">
       <td class="pos-num">${r.pos}</td>
-      <td>${teamLink(r.team,lgPhones)}${badge}</td>
+      <td><button class="team-ov-btn" onclick="showTeamOverview(this.getAttribute('data-team'))" data-team="${esc(r.team)}">${esc(r.team)}</button></td>
       <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
       <td class="${gdCls}">${gd}</td>
       <td class="pts">${r.pts}</td>
-      <td><div class="form-row">${formHTML}</div></td>
     </tr>`;
   });
 
-  let legendHTML = `<div class="tbl-legend">
-    <div class="leg-item"><div class="leg-line" style="background:#FFD700"></div>Champion</div>
-    <div class="leg-item"><div class="leg-line" style="background:#00c853"></div>Top ${CL_SPOTS} → Champions League</div>
-    ${REL_SPOTS>0?`<div class="leg-item"><div class="leg-line" style="background:#dc3545"></div>Bottom ${REL_SPOTS} → Relegated</div>`:''}
-  </div>`;
+  const legendHTML = REL_SPOTS>0?`<div class="tbl-legend"><div class="leg-item"><div class="leg-line" style="background:#dc3545"></div>Bottom ${REL_SPOTS} — Relegation zone</div></div>`:'';
 
   // results history — all completed matchdays before current
   let histHTML = '';
@@ -783,7 +861,7 @@ function renderLeague(pub, label, accent){
       <table class="lg-table">
         <thead><tr>
           <th>#</th><th style="text-align:left">Team</th>
-          <th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th><th>Form</th>
+          <th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
