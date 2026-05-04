@@ -101,9 +101,30 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;mi
 .pts{font-weight:800;color:#00c853}
 .gd-p{color:#4ade80}
 .gd-n{color:#f87171}
-.rank1 td:first-child{border-left:3px solid #FFD700}
-.ranktop td:first-child{border-left:3px solid #00c853}
-.rankbot td:first-child{border-left:3px solid #dc3545}
+.rank1 td:first-child,
+.ranktop td:first-child,
+.rankbot td:first-child{position:relative;padding-left:10px}
+
+.rank1 td:first-child::before,
+.ranktop td:first-child::before,
+.rankbot td:first-child::before{
+  content:'';position:absolute;left:2px;top:50%;
+  transform:translateY(-50%);
+  width:4px;height:60%;min-height:16px;
+  border-radius:4px;
+}
+.rank1 td:first-child::before{
+  background:linear-gradient(180deg,#FFE566,#FFD700,#E6AC00);
+  box-shadow:0 0 7px 1px rgba(255,215,0,.55);
+}
+.ranktop td:first-child::before{
+  background:linear-gradient(180deg,#33e87a,#00c853,#009940);
+  box-shadow:0 0 7px 1px rgba(0,200,83,.5);
+}
+.rankbot td:first-child::before{
+  background:linear-gradient(180deg,#f16674,#dc3545,#b52233);
+  box-shadow:0 0 7px 1px rgba(220,53,69,.5);
+}
 
 /* Legend */
 .tbl-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
