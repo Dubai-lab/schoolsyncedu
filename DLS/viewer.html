@@ -299,6 +299,12 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 .cl-sub-btn.active{color:#FFD700;border-bottom-color:#FFD700;background:rgba(255,215,0,.04)}
 .cl-sub-section{display:none}
 .cl-sub-section.active{display:block}
+/* ── MD navigation (group stage viewer) ── */
+.cl-md-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.cl-md-tab{padding:6px 16px;border-radius:20px;border:1px solid #30363d;background:#0d1117;color:#8b949e;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px}
+.cl-md-tab.active{background:#FFD700;color:#0d1117;border-color:#FFD700}
+.cl-md-sec{display:none}
+.cl-md-sec.active{display:block}
 
 @media(max-width:480px){
   .groups-grid{grid-template-columns:1fr}
@@ -930,6 +936,7 @@ function renderLeague(pub, label, accent){
 // ══════════════════════════════
 
 let clActiveTab = 'groups';
+let clViewMD = 0; // 0 = auto-follow pub.activeMD
 
 function showCLTab(id){
   clActiveTab = id;
@@ -939,6 +946,16 @@ function showCLTab(id){
   const sec = document.getElementById('cl-sub-'+id);
   if(btn) btn.classList.add('active');
   if(sec) sec.classList.add('active');
+}
+
+function showCLMD(n){
+  clViewMD = n;
+  document.querySelectorAll('.cl-md-sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.cl-md-tab').forEach(b=>b.classList.remove('active'));
+  const sec = document.getElementById('cl-md-sec-'+n);
+  const btn = document.getElementById('cl-md-btn-'+n);
+  if(sec) sec.classList.add('active');
+  if(btn) btn.classList.add('active');
 }
 
 function renderCL(pub, label){
@@ -962,6 +979,14 @@ function renderCL(pub, label){
 
   // ── Build Group Stage HTML ──
   const clPhones = pub.phones || {};
+  // Merge logos from all league sources so teams imported from leagues show their logos
+  const clLogos = {
+    ...(leaguePub?.logos  || {}),
+    ...(league2Pub?.logos || {}),
+    ...(league3Pub?.logos || {}),
+    ...(pub.logos || {}),
+  };
+  const clLogo = (team,sz=18) => { const s=clLogos[team]; return s?`<img src="${s}" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<span style="width:${sz}px;height:${sz}px;border-radius:50%;background:#21262d;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#4a5568;flex-shrink:0">${(team[0]||'?').toUpperCase()}</span>`; };
   let groupsHTML = '';
   groupsHTML += `<div class="s-title">&#9898; Group Stage</div>`;
   groupsHTML += '<div class="groups-grid">';
@@ -971,7 +996,7 @@ function renderCL(pub, label){
     st.forEach((r,i)=>{
       const cls = i<2?'q-row':'e-row';
       rows += `<tr class="${cls}">
-        <td>${teamLink(r.team,clPhones)}</td>
+        <td><div style="display:flex;align-items:center;gap:5px">${clLogo(r.team)}${teamLink(r.team,clPhones)}</div></td>
         <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td>
         <td class="g-pts">${r.pts}</td>
       </tr>`;
@@ -986,30 +1011,52 @@ function renderCL(pub, label){
   });
   groupsHTML += '</div>';
   groupsHTML += `<div class="s-title">&#128197; Fixtures</div>`;
+  const pubMD = pub.activeMD || 1;
+  // Normalize fixtures: assign md by index if missing (0,1→MD1 · 2,3→MD2 · 4,5→MD3)
+  const normFx = {};
   ['A','B','C','D'].forEach(g=>{
-    const fx = pub.fixtures[g] || [];
-    if(!fx.length) return;
-    groupsHTML += `<div style="margin-bottom:14px">
-      <div style="font-size:.75rem;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px">Group ${g}</div>
-      <div class="fixtures-list">`;
-    fx.forEach(m=>{
-      if(m.played){
-        const hWin=m.hs>m.as, aWin=m.as>m.hs;
-        groupsHTML+=`<div class="fix-card played">
-          <div class="fix-team home ${hWin?'winner':aWin?'loser':''}">${teamLink(m.home,clPhones)}</div>
-          <div class="fix-score">${m.hs} &ndash; ${m.as}</div>
-          <div class="fix-team away ${aWin?'winner':hWin?'loser':''}">${teamLink(m.away,clPhones)}</div>
-        </div>`;
-      } else {
-        groupsHTML+=`<div class="fix-card pending">
-          <div class="fix-team home">${teamLink(m.home,clPhones)}</div>
-          <div class="fix-vs">vs</div>
-          <div class="fix-team away">${teamLink(m.away,clPhones)}</div>
-        </div>`;
-      }
-    });
-    groupsHTML += '</div></div>';
+    normFx[g]=(pub.fixtures[g]||[]).map((f,i)=>f.md?f:{...f,md:i<2?1:i<4?2:3});
   });
+  // Clamp viewer MD to what's been published
+  if(clViewMD===0||clViewMD>pubMD) clViewMD=pubMD;
+
+  // MD tab buttons
+  let mdTabsHTML='<div class="cl-md-tabs">';
+  for(let n=1;n<=pubMD;n++){
+    mdTabsHTML+=`<button id="cl-md-btn-${n}" class="cl-md-tab${n===clViewMD?' active':''}" onclick="showCLMD(${n})">Matchday ${n}</button>`;
+  }
+  mdTabsHTML+='</div>';
+  groupsHTML+=mdTabsHTML;
+
+  // One section per MD
+  for(let md=1;md<=pubMD;md++){
+    groupsHTML+=`<div id="cl-md-sec-${md}" class="cl-md-sec${md===clViewMD?' active':''}">`;
+    ['A','B','C','D'].forEach(g=>{
+      const fx=normFx[g].filter(f=>f.md===md);
+      if(!fx.length) return;
+      groupsHTML+=`<div style="margin-bottom:14px">
+        <div style="font-size:.75rem;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px">Group ${g}</div>
+        <div class="fixtures-list">`;
+      fx.forEach(m=>{
+        if(m.played){
+          const hWin=m.hs>m.as,aWin=m.as>m.hs;
+          groupsHTML+=`<div class="fix-card played">
+            <div class="fix-team home ${hWin?'winner':aWin?'loser':''}" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${teamLink(m.home,clPhones)}${clLogo(m.home)}</div>
+            <div class="fix-score">${m.hs} &ndash; ${m.as}</div>
+            <div class="fix-team away ${aWin?'winner':hWin?'loser':''}" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${clLogo(m.away)}${teamLink(m.away,clPhones)}</div>
+          </div>`;
+        } else {
+          groupsHTML+=`<div class="fix-card pending">
+            <div class="fix-team home" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${teamLink(m.home,clPhones)}${clLogo(m.home)}</div>
+            <div class="fix-vs">vs</div>
+            <div class="fix-team away" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${clLogo(m.away)}${teamLink(m.away,clPhones)}</div>
+          </div>`;
+        }
+      });
+      groupsHTML+='</div></div>';
+    });
+    groupsHTML+='</div>';
+  }
 
   // ── Build Knockout HTML ──
   let knockoutHTML = '';
@@ -1022,7 +1069,7 @@ function renderCL(pub, label){
     </div>`;
   } else {
     knockoutHTML += `<div class="s-title">&#127942; Knockout Stage</div>`;
-    knockoutHTML += buildBracketHTML(pub.ko, clPhones);
+    knockoutHTML += buildBracketHTML(pub.ko, clPhones, clLogos);
   }
 
   // ── Assemble with sub-tabs ──
@@ -1039,7 +1086,14 @@ function renderCL(pub, label){
   `;
 }
 
-function buildBracketHTML(ko, phones){
+function buildBracketHTML(ko, phones, logos){
+  logos = logos || {};
+  const bLogo = (team, sz=16) => {
+    if(!team) return '';
+    const s = logos[team];
+    return s ? `<img src="${s}" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0;margin-right:4px">`
+             : `<span style="width:${sz}px;height:${sz}px;border-radius:50%;background:#21262d;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#4a5568;flex-shrink:0;margin-right:4px">${(team[0]||'?').toUpperCase()}</span>`;
+  };
   function mc(m){
     if(!m) m={home:null,away:null,hs:null,as:null,winner:null};
     const hWin = m.winner && m.winner===m.home;
@@ -1048,11 +1102,11 @@ function buildBracketHTML(ko, phones){
     const as = (m.as!==null&&m.as!==undefined) ? m.as : '';
     return `<div class="b-match">
       <div class="b-team ${!m.home?'tbd':hWin?'winner':''}">
-        <span class="b-name">${m.home?teamLink(m.home,phones):'TBD'}</span>
+        <span class="b-name" style="display:flex;align-items:center">${m.home?bLogo(m.home):''}${m.home?teamLink(m.home,phones):'TBD'}</span>
         <span class="b-score">${hs}</span>
       </div>
       <div class="b-team ${!m.away?'tbd':aWin?'winner':''}">
-        <span class="b-name">${m.away?teamLink(m.away,phones):'TBD'}</span>
+        <span class="b-name" style="display:flex;align-items:center">${m.away?bLogo(m.away):''}${m.away?teamLink(m.away,phones):'TBD'}</span>
         <span class="b-score">${as}</span>
       </div>
     </div>`;
@@ -1061,7 +1115,7 @@ function buildBracketHTML(ko, phones){
   const champion = ko.final && ko.final.winner;
   const champHTML = `<div class="b-champ-card${champion?' show':''}">
     <span class="champ-trophy">&#127942;</span>
-    <div class="champ-name">${champion?teamLink(champion,phones):'TBD'}</div>
+    ${champion?`<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px">${bLogo(champion,28)}<div class="champ-name">${teamLink(champion,phones)}</div></div>`:`<div class="champ-name">TBD</div>`}
     ${champion?'<div style="font-size:.65rem;color:#8b949e;text-transform:uppercase;letter-spacing:2px;margin-top:4px">DLS Champion</div>':''}
   </div>`;
 

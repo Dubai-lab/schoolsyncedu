@@ -314,6 +314,7 @@ const FIREBASE_URL = 'https://dls-hub-62226-default-rtdb.firebaseio.com';
 // ═══════════════════════════════════════════
 
 const editingFix = new Set();
+let editingTeam = null;
 
 function defaultLS(){
   return { teams:[], phones:{}, logos:{}, matchdays:[], generated:false, currentDay:0 };
@@ -396,21 +397,52 @@ function renderTeams(){
       <p>No teams yet. Add teams above to get started.</p>
     </div>`;
   } else {
-    list.innerHTML = LS.teams.map((t,i)=>`
-      <div class="team-item">
+    list.innerHTML = LS.teams.map((t,i)=>{
+      if(editingTeam === i){
+        return `<div class="team-item" style="flex-direction:column;align-items:stretch;gap:8px;border-color:#4fc3f7">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="team-pos">${i+1}</span>
+            <input id="edit-name-${i}" value="${esc(t)}" maxlength="32" placeholder="Team name"
+              style="flex:1;background:#0d1117;border:1px solid #4fc3f7;border-radius:6px;padding:7px 10px;color:#e6edf3;font-size:.88rem;outline:none">
+          </div>
+          <input id="edit-phone-${i}" value="${esc(LS.phones[t]||'')}" placeholder="&#128242; WhatsApp number"
+            style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:7px 10px;color:#8b949e;font-size:.78rem;outline:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:#21262d;border:2px solid #30363d;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+              <img id="logo-preview-${i}" src="${LS.logos[t]||''}" style="width:100%;height:100%;object-fit:cover;display:${LS.logos[t]?'block':'none'}">
+              <span style="font-size:.55rem;color:#4a5568;display:${LS.logos[t]?'none':'block'}">IMG</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.62rem;color:#8b949e;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Team Logo</div>
+              <div style="display:flex;gap:6px">
+                <input type="file" id="edit-logo-file-${i}" accept="image/*" style="display:none" onchange="previewLogo(${i})">
+                <button type="button" onclick="document.getElementById('edit-logo-file-${i}').click()" style="background:#21262d;border:1px solid #30363d;border-radius:5px;padding:5px 9px;color:#8b949e;font-size:.68rem;cursor:pointer;white-space:nowrap">&#128247; Upload</button>
+                <input id="edit-logo-url-${i}" placeholder="or paste image URL..." value="${LS.logos[t]&&LS.logos[t].startsWith('http')?LS.logos[t].replace(/"/g,'&quot;'):''}" style="flex:1;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:5px 8px;color:#8b949e;font-size:.68rem;outline:none;min-width:0">
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="edit-logo-b64-${i}" value="">
+          <div style="display:flex;gap:6px">
+            <button onclick="saveTeamEdit(${i})" style="flex:1;background:linear-gradient(135deg,#4fc3f7,#0288d1);border:none;border-radius:6px;padding:7px;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:1px">&#10003; Save</button>
+            <button onclick="cancelTeamEdit()" style="background:#21262d;border:1px solid #30363d;border-radius:6px;padding:7px 12px;color:#8b949e;font-size:.78rem;cursor:pointer">&#10005;</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="team-item">
         <div class="team-item-left">
           <span class="team-pos">${i+1}</span>
-          <label for="logo-inp-${i}" title="Click to set logo" style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:#21262d;border:1px solid #30363d;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">
-            ${LS.logos[t]?`<img src="${LS.logos[t]}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:.65rem;font-weight:700;color:#4a5568;pointer-events:none">${(t[0]||'?').toUpperCase()}</span>`}
-          </label>
-          <input type="file" id="logo-inp-${i}" accept="image/*" style="display:none" onchange="setLogoFromFile(${i})">
+          ${LS.logos[t]?`<img src="${LS.logos[t]}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid #30363d;flex-shrink:0">`:`<div style="width:32px;height:32px;border-radius:50%;background:#21262d;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#4a5568;flex-shrink:0">${(t[0]||'?').toUpperCase()}</div>`}
           <div>
             <div class="team-name">${esc(t)}</div>
             ${LS.phones[t]?`<div style="font-size:.7rem;color:#8b949e;margin-top:2px">&#128242; ${esc(LS.phones[t])}</div>`:''}
           </div>
         </div>
-        <button class="team-remove" onclick="removeTeam(${i})" title="Remove team">&#10005;</button>
-      </div>`).join('');
+        <div style="display:flex;gap:4px">
+          <button onclick="editTeam(${i})" title="Edit team" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:.9rem;padding:2px 6px;border-radius:4px;transition:all .2s" onmouseover="this.style.background='rgba(79,195,247,.15)';this.style.color='#4fc3f7'" onmouseout="this.style.background='none';this.style.color='#4a5568'">&#9998;</button>
+          <button class="team-remove" onclick="removeTeam(${i})" title="Remove team">&#10005;</button>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   const n = LS.teams.length;
@@ -421,11 +453,40 @@ function renderTeams(){
   } else {
     const days = n % 2 === 0 ? n - 1 : n;
     const gamesPerDay = Math.floor(n / 2);
-    const total = n % 2 === 0 ? n*(n-1)/2 : n*(n-1)/2;
+    const total = n*(n-1)/2;
     genInfo.innerHTML = `<strong>${n} teams</strong> → <strong>${days} matchdays</strong>, ${gamesPerDay} games/day, ${total} total matches.`;
   }
 
   warn.classList.toggle('show', LS.generated && n >= 2);
+}
+
+function editTeam(idx){ editingTeam = idx; renderTeams(); }
+function cancelTeamEdit(){ editingTeam = null; renderTeams(); }
+
+function saveTeamEdit(idx){
+  const nameEl = document.getElementById('edit-name-'+idx);
+  const phoneEl = document.getElementById('edit-phone-'+idx);
+  const newName = nameEl?.value.trim();
+  const newPhone = (phoneEl?.value||'').replace(/[^\d+]/g,'').trim();
+  if(!newName){ toast('Team name cannot be empty!','error'); return; }
+  if(LS.teams.some((t,i)=> i !== idx && t === newName)){ toast('That name is already taken!','error'); return; }
+  const oldName = LS.teams[idx];
+  LS.teams[idx] = newName;
+  delete LS.phones[oldName];
+  if(newPhone) LS.phones[newName] = newPhone;
+  const b64Logo = document.getElementById('edit-logo-b64-'+idx)?.value||'';
+  const urlLogo = (document.getElementById('edit-logo-url-'+idx)?.value||'').trim();
+  if(oldName !== newName){ if(LS.logos[oldName]) LS.logos[newName]=LS.logos[oldName]; delete LS.logos[oldName]; }
+  if(b64Logo||urlLogo) LS.logos[newName]=b64Logo||urlLogo;
+  if(oldName !== newName){
+    LS.matchdays.forEach(md=>{
+      md.matches.forEach(m=>{ if(m.home===oldName) m.home=newName; if(m.away===oldName) m.away=newName; });
+      if(md.byeTeam===oldName) md.byeTeam=newName;
+    });
+  }
+  editingTeam = null;
+  saveLS(); renderTeams(); renderFixtures(); renderTable();
+  toast(oldName!==newName?`Renamed to ${esc(newName)}!`:'Contact updated!');
 }
 
 function addTeam(){
@@ -917,13 +978,16 @@ function resizeImageToBase64(file,size=48){
     reader.readAsDataURL(file);
   });
 }
-async function setLogoFromFile(idx){
-  const file=document.getElementById('logo-inp-'+idx)?.files?.[0];
+async function previewLogo(idx){
+  const file=document.getElementById('edit-logo-file-'+idx)?.files[0];
   if(!file) return;
   const b64=await resizeImageToBase64(file);
-  LS.logos[LS.teams[idx]]=b64;
-  saveLS(); renderTeams();
-  toast('Logo saved!');
+  const hidden=document.getElementById('edit-logo-b64-'+idx);
+  if(hidden) hidden.value=b64;
+  const preview=document.getElementById('logo-preview-'+idx);
+  if(preview){ preview.src=b64; preview.style.display='block'; }
+  const span=preview?.parentElement?.querySelector('span');
+  if(span) span.style.display='none';
 }
 
 // ═══════════════════════════════════════════

@@ -107,6 +107,18 @@ table.standings tr.eliminated td:first-child{border-left:3px solid #dc3545}
 .fix-cancel{padding:5px 9px;background:#21262d;border:1px solid #30363d;border-radius:5px;color:#8b949e;font-size:.78rem;cursor:pointer;flex-shrink:0}
 .fix-cancel:hover{color:#e6edf3}
 
+/* ── MD control panel ── */
+.md-control{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:15px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.md-pills{display:flex;gap:6px}
+.md-pill{padding:5px 13px;border-radius:20px;font-size:.72rem;font-weight:700;letter-spacing:1px;border:1px solid #30363d;color:#8b949e;background:#0d1117}
+.md-pill.md-active{background:#ff7043;color:#fff;border-color:#ff7043}
+.md-pill.md-done{background:rgba(40,167,69,.15);color:#28a745;border-color:rgba(40,167,69,.4)}
+.md-sec-head{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding:9px 2px 4px;display:flex;align-items:center;gap:6px}
+.md-sec-head.md-open{color:#ff7043}
+.md-sec-head.md-done{color:#28a745}
+.md-sec-head.md-locked{color:#4a5568}
+.md-sec-badge{font-size:.6rem;padding:1px 7px;border-radius:8px;border:1px solid currentColor;letter-spacing:1px;font-weight:600}
+
 /* ── Stats bar ── */
 .stats-row{display:flex;gap:14px;margin-bottom:22px}
 .stat-box{flex:1;background:#161b22;border:1px solid #21262d;border-radius:8px;padding:14px;text-align:center}
@@ -276,6 +288,9 @@ function checkLock(){
     &nbsp;
     <button class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:13px 22px;border-radius:8px;font-weight:700;font-size:.85rem;letter-spacing:1px;cursor:pointer" onclick="resetTeams()">Reset Names</button>
   </div>
+  <div style="text-align:center;margin-top:10px">
+    <button onclick="openImportModal()" style="background:linear-gradient(135deg,#1a1a2e,#0f2027);border:1px solid rgba(255,112,67,.4);border-radius:8px;padding:10px 22px;color:#ff7043;font-size:.82rem;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .2s" onmouseover="this.style.borderColor='#ff7043'" onmouseout="this.style.borderColor='rgba(255,112,67,.4)'">&#128229; Import Qualifying Teams from League</button>
+  </div>
 
   <div class="draw-result" id="draw-result">
     <div style="text-align:center;margin-bottom:18px">
@@ -414,7 +429,8 @@ function defaultState(){
       qf:[null,null,null,null].map(()=>({home:null,away:null,hs:null,as:null,winner:null})),
       sf:[null,null].map(()=>({home:null,away:null,hs:null,as:null,winner:null})),
       final:{home:null,away:null,hs:null,as:null,winner:null}
-    }
+    },
+    activeMD: 1
   };
 }
 
@@ -424,6 +440,7 @@ function loadState(){
     const s = raw ? JSON.parse(raw) : defaultState();
     if(!s.phones) s.phones = {};
     if(!s.logos) s.logos = {};
+    if(!('activeMD' in s)) s.activeMD = 1;
     return s;
   }catch(e){return defaultState();}
 }
@@ -487,6 +504,7 @@ function renderSetup(){
   const g=document.getElementById('teams-grid');
   g.innerHTML='';
   S.teams.forEach((t,i)=>{
+    const existingLogo=S.logos[t]||'';
     g.innerHTML+=`
     <div class="team-card">
       <label>Team ${i+1} <span class="edit-hint">&#9998; click to edit</span></label>
@@ -494,6 +512,15 @@ function renderSetup(){
       <input type="tel" id="phone-${i}" value="${esc(S.phones[t]||'')}" placeholder="&#128242; WhatsApp number"
         style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:7px 10px;color:#8b949e;font-size:.78rem;outline:none;margin-top:5px;transition:border-color .25s"
         onfocus="this.style.borderColor='#ff7043'" onblur="this.style.borderColor='#30363d'">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+        <div id="logo-circle-${i}" style="width:34px;height:34px;border-radius:50%;overflow:hidden;background:#21262d;border:1px solid #30363d;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          ${existingLogo?`<img src="${existingLogo}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:.6rem;font-weight:700;color:#4a5568">${(t[0]||'?').toUpperCase()}</span>`}
+        </div>
+        <input type="file" id="logo-file-${i}" accept="image/*" style="display:none" onchange="previewTeamLogo(${i})">
+        <button type="button" onclick="document.getElementById('logo-file-${i}').click()" style="background:#21262d;border:1px solid #30363d;border-radius:5px;padding:4px 8px;color:#8b949e;font-size:.65rem;cursor:pointer;white-space:nowrap">&#128247; Logo</button>
+        <input id="logo-url-${i}" placeholder="or paste URL..." value="${existingLogo.startsWith('http')?existingLogo.replace(/"/g,'&quot;'):''}" style="flex:1;min-width:0;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:4px 7px;color:#8b949e;font-size:.65rem;outline:none">
+        <input type="hidden" id="logo-b64-${i}" value="">
+      </div>
     </div>`;
   });
   if(S.groups.A.length > 0) showDrawResult();
@@ -521,6 +548,15 @@ function updateTeamNames(){
 
   function ren(name){ return (name && renameMap.hasOwnProperty(name)) ? renameMap[name] : name; }
 
+  // Transfer logos (applying renames) then overlay any newly uploaded ones
+  const newLogos={};
+  for(const [oldN,logo] of Object.entries(S.logos)) newLogos[ren(oldN)]=logo;
+  for(let i=0;i<16;i++){
+    const b64=(document.getElementById('logo-b64-'+i)?.value||'').trim();
+    const url=(document.getElementById('logo-url-'+i)?.value||'').trim();
+    if(b64||url) newLogos[newTeams[i]]=b64||url;
+  }
+  S.logos=newLogos;
   S.teams = [...newTeams];
   S.phones = readPhoneInputs(newTeams);
 
@@ -560,6 +596,7 @@ function drawGroups(){
   const unique=new Set(S.teams);
   if(unique.size<16){toast('All team names must be unique!','error');return;}
   S.phones=readPhoneInputs(S.teams);
+  S.logos=readLogoInputs(S.teams);
   const arr=[...S.teams];
   for(let i=arr.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
@@ -595,15 +632,20 @@ function showDrawResult(){
 }
 
 function generateAllFixtures(){
+  // Round-robin schedule for 4 teams: each team plays exactly once per matchday
+  // MD1: t0vt3, t1vt2 | MD2: t0vt2, t3vt1 | MD3: t0vt1, t2vt3
   ['A','B','C','D'].forEach(g=>{
-    const teams=S.groups[g]; const fx=[]; let id=0;
-    for(let i=0;i<teams.length;i++){
-      for(let j=i+1;j<teams.length;j++){
-        fx.push({id:id++,home:teams[i],away:teams[j],hs:null,as:null,played:false});
-      }
-    }
-    S.fixtures[g]=fx;
+    const t=S.groups[g];
+    S.fixtures[g]=[
+      {id:0,home:t[0],away:t[3],hs:null,as:null,played:false,md:1},
+      {id:1,home:t[1],away:t[2],hs:null,as:null,played:false,md:1},
+      {id:2,home:t[0],away:t[2],hs:null,as:null,played:false,md:2},
+      {id:3,home:t[3],away:t[1],hs:null,as:null,played:false,md:2},
+      {id:4,home:t[0],away:t[1],hs:null,as:null,played:false,md:3},
+      {id:5,home:t[2],away:t[3],hs:null,as:null,played:false,md:3},
+    ];
   });
+  S.activeMD = 1;
 }
 
 function startGroupStage(){
@@ -625,7 +667,24 @@ function renderGroups(){
     document.getElementById('advance-ko-btn').style.display='none';
     return;
   }
-  noticeWrap.innerHTML='';
+
+  const mdDone=[1,2,3].map(n=>['A','B','C','D'].every(g=>S.fixtures[g].filter(f=>f.md===n).every(f=>f.played)));
+  const canUnlock=S.activeMD<3&&mdDone[S.activeMD-1];
+  const pills=[1,2,3].map(n=>{
+    const cls=n<S.activeMD?'md-done':n===S.activeMD?'md-active':'';
+    return `<div class="md-pill ${cls}">MD${n}</div>`;
+  }).join('');
+  const unlockMsg=S.activeMD===3&&mdDone[2]?'All matchdays complete &#10003;':`Complete all MD${S.activeMD} matches to unlock next`;
+  noticeWrap.innerHTML=`<div class="md-control">
+    <div>
+      <div style="font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px">Group Stage — Matchdays</div>
+      <div class="md-pills">${pills}</div>
+    </div>
+    ${canUnlock
+      ?`<button class="btn btn-sm" style="background:linear-gradient(135deg,#28a745,#1e7e34);color:#fff;border:none;cursor:pointer;border-radius:8px;padding:9px 18px;font-weight:700;font-size:.8rem;letter-spacing:1px" onclick="unlockNextMD()">&#128275; Unlock Matchday ${S.activeMD+1}</button>`
+      :`<span style="font-size:.75rem;color:#4a5568">${unlockMsg}</span>`}
+  </div>`;
+
   ['A','B','C','D'].forEach(g=>grid.innerHTML+=buildGroupCard(g));
   const all=allFixturesPlayed();
   document.getElementById('advance-ko-btn').style.display=all?'block':'none';
@@ -634,24 +693,45 @@ function renderGroups(){
 function buildGroupCard(g){
   const standings=calcStandings(g);
   const fixtures=S.fixtures[g];
-  const played=fixtures.filter(f=>f.played).length;
-  const complete=played===fixtures.length;
+  const complete=fixtures.every(f=>f.played);
+
+  const lgos=S.logos||{};
+  const aLogo=(team,sz=16)=>{const s=lgos[team];return s?`<img src="${s}" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<span style="width:${sz}px;height:${sz}px;border-radius:50%;background:#21262d;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#4a5568;flex-shrink:0">${(team[0]||'?').toUpperCase()}</span>`;};
+
   let standRows='';
   standings.forEach((row,i)=>{
     const cls=i<2?'qualify':'eliminated';
-    standRows+=`<tr class="${cls}"><td>${esc(row.team)}</td><td>${row.p}</td><td>${row.w}</td><td>${row.d}</td><td>${row.l}</td><td>${row.gf}</td><td>${row.ga}</td><td>${row.gd>=0?'+':''}${row.gd}</td><td class="pts">${row.pts}</td></tr>`;
+    standRows+=`<tr class="${cls}"><td><div style="display:flex;align-items:center;gap:5px">${aLogo(row.team)}${esc(row.team)}</div></td><td>${row.p}</td><td>${row.w}</td><td>${row.d}</td><td>${row.l}</td><td>${row.gf}</td><td>${row.ga}</td><td>${row.gd>=0?'+':''}${row.gd}</td><td class="pts">${row.pts}</td></tr>`;
   });
+
+  const hasMD=fixtures.some(f=>f.md);
   let fixHTML='';
-  fixtures.forEach(f=>{
-    const isEditing = editingFix.has(`${g}-${f.id}`);
-    if(f.played && !isEditing){
-      fixHTML+=`<div class="fixture played"><div class="fix-team home">${esc(f.home)}</div><div class="fix-result">${f.hs} – ${f.as}</div><div class="fix-team away">${esc(f.away)}</div><span class="fix-check">&#10003;</span><button class="fix-edit" onclick="editGroupScore('${g}',${f.id})">&#9998;</button></div>`;
-    } else {
-      const prefillH = (isEditing && f.hs!==null) ? f.hs : '';
-      const prefillA = (isEditing && f.as!==null) ? f.as : '';
-      fixHTML+=`<div class="fixture${isEditing?' editing':''}" id="fx-${g}-${f.id}"><div class="fix-team home">${esc(f.home)}</div><div class="fix-score"><input class="s-input" id="hs-${g}-${f.id}" type="number" min="0" max="99" placeholder="0" value="${prefillH}"><span class="s-sep">–</span><input class="s-input" id="as-${g}-${f.id}" type="number" min="0" max="99" placeholder="0" value="${prefillA}"></div><div class="fix-team away">${esc(f.away)}</div><button class="fix-btn" onclick="submitScore('${g}',${f.id})">Save</button>${isEditing?`<button class="fix-cancel" onclick="cancelGroupEdit('${g}',${f.id})">&#10005;</button>`:''}</div>`;
+  if(!hasMD){
+    fixtures.forEach(f=>{fixHTML+=buildFixRow(g,f,aLogo);});
+    fixHTML=`<div class="md-sec-head md-open">&#128197; Fixtures</div>`+fixHTML;
+  } else {
+    for(let md=1;md<=3;md++){
+      const mdFx=fixtures.filter(f=>f.md===md);
+      const locked=md>S.activeMD;
+      const mdAllDone=mdFx.every(f=>f.played);
+      const headCls=locked?'md-locked':mdAllDone?'md-done':'md-open';
+      const badge=locked?`<span class="md-sec-badge">&#128274; Locked</span>`
+                 :mdAllDone?`<span class="md-sec-badge">&#10003; Complete</span>`:'';
+      fixHTML+=`<div class="md-sec-head ${headCls}">&#128197; Matchday ${md} ${badge}</div>`;
+      mdFx.forEach(f=>{
+        if(locked){
+          fixHTML+=`<div class="fixture" style="opacity:.35;pointer-events:none">
+            <div class="fix-team home" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${esc(f.home)}${aLogo(f.home)}</div>
+            <div class="fix-score"><span style="color:#4a5568;font-size:.85rem">vs</span></div>
+            <div class="fix-team away" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${aLogo(f.away)}${esc(f.away)}</div>
+          </div>`;
+        } else {
+          fixHTML+=buildFixRow(g,f,aLogo);
+        }
+      });
     }
-  });
+  }
+
   return `<div class="group-card">
     <div class="group-head"><span class="group-title">GROUP ${g}</span><span class="group-complete-badge ${complete?'show':''}">&#10003; Complete</span></div>
     <div class="group-body">
@@ -659,10 +739,19 @@ function buildGroupCard(g){
         <div class="qualify-legend"><div class="q-line"></div><span>Green border = qualifies</span></div>
         <table class="standings"><thead><tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead><tbody>${standRows}</tbody></table>
       </div>
-      <div class="fixtures-label">Fixtures</div>
       ${fixHTML}
     </div>
   </div>`;
+}
+
+function buildFixRow(g,f,aLogo){
+  const isEditing=editingFix.has(`${g}-${f.id}`);
+  if(f.played&&!isEditing){
+    return `<div class="fixture played"><div class="fix-team home" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${esc(f.home)}${aLogo(f.home)}</div><div class="fix-result">${f.hs} – ${f.as}</div><div class="fix-team away" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${aLogo(f.away)}${esc(f.away)}</div><span class="fix-check">&#10003;</span><button class="fix-edit" onclick="editGroupScore('${g}',${f.id})">&#9998;</button></div>`;
+  }
+  const prefillH=(isEditing&&f.hs!==null)?f.hs:'';
+  const prefillA=(isEditing&&f.as!==null)?f.as:'';
+  return `<div class="fixture${isEditing?' editing':''}" id="fx-${g}-${f.id}"><div class="fix-team home" style="display:flex;align-items:center;justify-content:flex-end;gap:5px">${esc(f.home)}${aLogo(f.home)}</div><div class="fix-score"><input class="s-input" id="hs-${g}-${f.id}" type="number" min="0" max="99" placeholder="0" value="${prefillH}"><span class="s-sep">–</span><input class="s-input" id="as-${g}-${f.id}" type="number" min="0" max="99" placeholder="0" value="${prefillA}"></div><div class="fix-team away" style="display:flex;align-items:center;justify-content:flex-start;gap:5px">${aLogo(f.away)}${esc(f.away)}</div><button class="fix-btn" onclick="submitScore('${g}',${f.id})">Save</button>${isEditing?`<button class="fix-cancel" onclick="cancelGroupEdit('${g}',${f.id})">&#10005;</button>`:''}</div>`;
 }
 
 function submitScore(g,id){
@@ -696,6 +785,16 @@ function calcStandings(g){
 
 function allFixturesPlayed(){
   return ['A','B','C','D'].every(g=>S.fixtures[g].every(f=>f.played));
+}
+
+function unlockNextMD(){
+  if(S.activeMD>=3){toast('All matchdays are already unlocked!','info');return;}
+  const allDone=['A','B','C','D'].every(g=>S.fixtures[g].filter(f=>f.md===S.activeMD).every(f=>f.played));
+  if(!allDone){toast('Complete all Matchday '+S.activeMD+' matches first!','error');return;}
+  S.activeMD++;
+  saveState();
+  renderGroups();
+  toast('Matchday '+S.activeMD+' is now unlocked! &#128275;');
 }
 
 function updateStats(){
@@ -759,6 +858,10 @@ function renderBracketMatch(round,idx,m){
   const elId=round==='final'?'m-final':`m-${round}${idx}`;
   const el=document.getElementById(elId);
   if(!el) return;
+
+  const lgos=S.logos||{};
+  const bLogo=(team,sz=16)=>{if(!team)return'';const s=lgos[team];return s?`<img src="${s}" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0;margin-right:4px">`:`<span style="width:${sz}px;height:${sz}px;border-radius:50%;background:#21262d;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#4a5568;flex-shrink:0;margin-right:4px">${(team[0]||'?').toUpperCase()}</span>`;};
+
   if(!m||!m.home){
     el.innerHTML=`<div class="b-team tbd"><span class="b-name">TBD</span></div><div class="b-team tbd"><span class="b-name">TBD</span></div>`;
     return;
@@ -772,8 +875,8 @@ function renderBracketMatch(round,idx,m){
     formHTML=`<div class="b-edit-wrap"><button class="b-edit" onclick="editKOScore('${round}',${idx})">&#9998; Edit Score</button></div>`;
   }
   el.innerHTML=`
-    <div class="b-team ${homeWin?'winner':''}"><span class="b-name">${esc(m.home||'TBD')}</span><span class="b-score">${m.hs!==null?m.hs:''}</span></div>
-    <div class="b-team ${awayWin?'winner':''}"><span class="b-name">${esc(m.away||'TBD')}</span><span class="b-score">${m.as!==null?m.as:''}</span></div>
+    <div class="b-team ${homeWin?'winner':''}"><span class="b-name" style="display:flex;align-items:center">${bLogo(m.home)}${esc(m.home||'TBD')}</span><span class="b-score">${m.hs!==null?m.hs:''}</span></div>
+    <div class="b-team ${awayWin?'winner':''}"><span class="b-name" style="display:flex;align-items:center">${bLogo(m.away)}${esc(m.away||'TBD')}</span><span class="b-score">${m.as!==null?m.as:''}</span></div>
     ${formHTML}`;
 }
 
@@ -830,9 +933,16 @@ function submitKOScore(round,idx){
 // ═══════════════════════════════════════════
 async function publishEuropa(){
   if(!S.groups.A || !S.groups.A.length){ toast('Draw groups first before publishing.','error'); return; }
+  // Capture any logos set/changed in setup inputs since last draw
+  S.logos = readLogoInputs(S.teams);
   const standings = {};
   ['A','B','C','D'].forEach(g => standings[g] = calcStandings(g));
-  const pub = { publishedAt: Date.now(), phase: S.phase, groups: S.groups, fixtures: S.fixtures, standings, ko: S.ko, phones: S.phones, logos: S.logos };
+  // Only publish fixtures up to the active matchday
+  const pubFixtures = {};
+  ['A','B','C','D'].forEach(g => {
+    pubFixtures[g] = S.fixtures[g].filter(f => (f.md||1) <= S.activeMD);
+  });
+  const pub = { publishedAt: Date.now(), phase: S.phase, groups: S.groups, fixtures: pubFixtures, standings, ko: S.ko, phones: S.phones, logos: S.logos, activeMD: S.activeMD };
   if(!FIREBASE_URL || FIREBASE_URL === 'YOUR_FIREBASE_URL'){ toast('Set your FIREBASE_URL first!','error'); return; }
   try {
     toast('Publishing...','info');
@@ -878,6 +988,158 @@ function notifyFixture(comp, compName, fixtureKey){
   }).catch(()=>{});
 }
 
+// ── Logo helpers ──
+function resizeImageToBase64(file,size=48){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas');
+        c.width=size; c.height=size;
+        const ctx=c.getContext('2d');
+        const ratio=Math.min(size/img.width,size/img.height);
+        const w=img.width*ratio,h=img.height*ratio;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        resolve(c.toDataURL('image/jpeg',.85));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function previewTeamLogo(idx){
+  const file=document.getElementById('logo-file-'+idx)?.files[0];
+  if(!file) return;
+  const b64=await resizeImageToBase64(file);
+  const hidden=document.getElementById('logo-b64-'+idx);
+  if(hidden) hidden.value=b64;
+  const circle=document.getElementById('logo-circle-'+idx);
+  if(circle) circle.innerHTML=`<img src="${b64}" style="width:100%;height:100%;object-fit:cover">`;
+}
+function readLogoInputs(teamNames){
+  const logos={...S.logos};
+  for(let i=0;i<16;i++){
+    const b64=(document.getElementById('logo-b64-'+i)?.value||'').trim();
+    const url=(document.getElementById('logo-url-'+i)?.value||'').trim();
+    if(b64||url) logos[teamNames[i]]=b64||url;
+  }
+  return logos;
+}
+
+// ── Import Qualifying Teams ──
+async function openImportModal(){
+  const modal=document.getElementById('import-modal');
+  modal.style.display='block';
+  document.body.style.overflow='hidden';
+  document.getElementById('import-content').innerHTML='<div style="text-align:center;padding:30px;color:#8b949e">&#9203; Loading league data from cloud...</div>';
+
+  try{
+    const [r2,r3]=await Promise.all([
+      fetch(FIREBASE_URL+'/dls_pub_league2.json').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(FIREBASE_URL+'/dls_pub_league3.json').then(r=>r.ok?r.json():null).catch(()=>null)
+    ]);
+
+    const l2Table=r2?.table||[];
+    const l3Table=r3?.table||[];
+    const l2Phones=r2?.phones||{};
+    const l3Phones=r3?.phones||{};
+    const l2Logos=r2?.logos||{};
+    const l3Logos=r3?.logos||{};
+
+    let sources=[];
+    let warningMsg='';
+
+    if(l2Table.length>=9 && l3Table.length>=8){
+      // Normal: L2 pos 9-16 + L3 top 8
+      sources=[
+        {label:'League 2 — Positions 9–16',teams:l2Table.slice(8,16),phones:l2Phones,logos:l2Logos,accent:'#4fc3f7'},
+        {label:'League 3 — Top 8 Qualifiers',teams:l3Table.slice(0,8),phones:l3Phones,logos:l3Logos,accent:'#ab47bc'}
+      ];
+    } else if(l2Table.length>=9){
+      // L3 missing — only L2 pos 9-16 (8 teams)
+      warningMsg='League 3 not found — only 8 teams from League 2 available. Fill remaining slots manually.';
+      sources=[{label:'League 2 — Positions 9–16',teams:l2Table.slice(8,16),phones:l2Phones,logos:l2Logos,accent:'#4fc3f7'}];
+    } else if(l3Table.length>=8){
+      // L2 missing — use L3 top 8 + try L1 pos 9-16 as fallback
+      const r1=await fetch(FIREBASE_URL+'/dls_pub_league.json').then(r=>r.ok?r.json():null).catch(()=>null);
+      const l1Table=r1?.table||[];
+      warningMsg='League 2 not found — using League 1 (pos 9–16) + League 3 (top 8) as fallback.';
+      sources=[];
+      if(l1Table.length>=9) sources.push({label:'League 1 — Positions 9–16 (fallback)',teams:l1Table.slice(8,16),phones:r1?.phones||{},logos:r1?.logos||{},accent:'#00c853'});
+      sources.push({label:'League 3 — Top 8 Qualifiers',teams:l3Table.slice(0,8),phones:l3Phones,logos:l3Logos,accent:'#ab47bc'});
+    } else {
+      // Nothing found — try L1 pos 9-16 only
+      const r1=await fetch(FIREBASE_URL+'/dls_pub_league.json').then(r=>r.ok?r.json():null).catch(()=>null);
+      const l1Table=r1?.table||[];
+      if(l1Table.length>=9){
+        warningMsg='League 2 and League 3 not found — using League 1 (pos 9–16) only.';
+        sources=[{label:'League 1 — Positions 9–16 (fallback)',teams:l1Table.slice(8,16),phones:r1?.phones||{},logos:r1?.logos||{},accent:'#00c853'}];
+      } else {
+        document.getElementById('import-content').innerHTML='<div style="text-align:center;padding:30px;color:#f87171">&#9888; No published league data found.<br><small style="color:#8b949e">Publish League 2 and/or League 3 first, then try again.</small></div>';
+        return;
+      }
+    }
+
+    let html=warningMsg?`<div style="background:rgba(255,112,67,.08);border:1px solid rgba(255,112,67,.35);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.78rem;color:#ff7043">&#9888; ${esc(warningMsg)}</div>`:'';
+    html+='<div style="font-size:.72rem;color:#8b949e;margin-bottom:12px">All qualifying teams are pre-selected. Uncheck any you want to skip.</div>';
+
+    sources.forEach(src=>{
+      html+=`<div style="margin-bottom:16px">
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:${src.accent};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #21262d">${esc(src.label)}</div>`;
+      src.teams.forEach(row=>{
+        const logo=src.logos[row.team]||'';
+        const phone=src.phones[row.team]||'';
+        const logoEl=logo?`<img src="${logo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:28px;height:28px;border-radius:50%;background:#21262d;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#4a5568;flex-shrink:0">${(row.team[0]||'?').toUpperCase()}</div>`;
+        html+=`<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:7px;margin-bottom:5px;cursor:pointer">
+          <input type="checkbox" class="import-chk" data-team="${esc(row.team)}" data-phone="${esc(phone)}" data-logo="${esc(logo)}" checked style="accent-color:${src.accent};width:16px;height:16px;flex-shrink:0">
+          <span style="width:20px;text-align:center;font-size:.7rem;font-weight:700;color:#8b949e;flex-shrink:0">${row.pos}</span>
+          ${logoEl}
+          <span style="flex:1;font-size:.82rem;font-weight:700;color:#e6edf3">${esc(row.team)}</span>
+          ${phone?`<span style="font-size:.68rem;color:#8b949e">&#128242; ${esc(phone)}</span>`:''}
+          <span style="font-size:.7rem;font-weight:800;color:${src.accent}">${row.pts}pts</span>
+        </label>`;
+      });
+      html+='</div>';
+    });
+
+    document.getElementById('import-content').innerHTML=html;
+  }catch(e){
+    document.getElementById('import-content').innerHTML=`<div style="text-align:center;padding:30px;color:#f87171">&#9888; Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeImportModal(){
+  document.getElementById('import-modal').style.display='none';
+  document.body.style.overflow='';
+}
+
+function confirmImport(){
+  const checks=document.querySelectorAll('.import-chk:checked');
+  if(!checks.length){ toast('No teams selected!','error'); return; }
+  const selected=Array.from(checks).map(c=>({team:c.dataset.team,phone:c.dataset.phone,logo:c.dataset.logo}));
+  if(selected.length>16){ toast('Too many teams selected (max 16)!','error'); return; }
+
+  const newTeams=[...selected.map(s=>s.team)];
+  while(newTeams.length<16) newTeams.push(`Team ${newTeams.length+1}`);
+
+  const newPhones={},newLogos={};
+  selected.forEach(s=>{ if(s.phone) newPhones[s.team]=s.phone; if(s.logo) newLogos[s.team]=s.logo; });
+
+  S.teams=newTeams;
+  S.phones=newPhones;
+  S.logos=newLogos;
+  S.groups={A:[],B:[],C:[],D:[]};
+  S.fixtures={A:[],B:[],C:[],D:[]};
+  S.ko={qf:[0,1,2,3].map(()=>({home:null,away:null,hs:null,as:null,winner:null})),sf:[0,1].map(()=>({home:null,away:null,hs:null,as:null,winner:null})),final:{home:null,away:null,hs:null,as:null,winner:null}};
+  S.phase='setup';
+  saveState();
+  closeImportModal();
+  renderSetup();
+  document.getElementById('draw-result').classList.remove('show');
+  toast(`${selected.length} teams imported! Now draw the groups.`);
+}
+
 function esc(str){
   if(!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -912,5 +1174,23 @@ function toast(msg,type='success'){
 })();
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+
+<!-- ═══ IMPORT QUALIFYING TEAMS MODAL ═══ -->
+<div id="import-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.93);z-index:9999;overflow-y:auto;padding:20px 16px">
+  <div style="max-width:600px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #21262d">
+      <span style="font-size:1.4rem">&#128229;</span>
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:#e6edf3;letter-spacing:1px">Import Qualifying Teams</div>
+        <div style="font-size:.72rem;color:#8b949e;margin-top:2px">Europa League — League 2 (pos 9–16) + League 3 (top 8)</div>
+      </div>
+    </div>
+    <div id="import-content" style="margin-bottom:16px"></div>
+    <div style="display:flex;gap:10px;position:sticky;bottom:0;background:rgba(13,17,23,.97);padding:12px 0">
+      <button onclick="confirmImport()" style="flex:1;background:linear-gradient(135deg,#ff7043,#d84315);border:none;border-radius:8px;padding:12px;color:#fff;font-size:.85rem;font-weight:800;cursor:pointer;letter-spacing:1px">&#10003; Import Selected Teams</button>
+      <button onclick="closeImportModal()" style="background:#21262d;border:1px solid #30363d;border-radius:8px;padding:12px 18px;color:#8b949e;font-size:.85rem;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
