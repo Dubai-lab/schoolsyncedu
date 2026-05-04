@@ -407,6 +407,7 @@ function defaultState(){
     phase:'setup',
     teams:[...DEFAULT_TEAMS],
     phones:{},
+    logos:{},
     groups:{A:[],B:[],C:[],D:[]},
     fixtures:{A:[],B:[],C:[],D:[]},
     ko:{
@@ -422,6 +423,7 @@ function loadState(){
     const raw=localStorage.getItem('dls_europa');
     const s = raw ? JSON.parse(raw) : defaultState();
     if(!s.phones) s.phones = {};
+    if(!s.logos) s.logos = {};
     return s;
   }catch(e){return defaultState();}
 }
@@ -830,7 +832,7 @@ async function publishEuropa(){
   if(!S.groups.A || !S.groups.A.length){ toast('Draw groups first before publishing.','error'); return; }
   const standings = {};
   ['A','B','C','D'].forEach(g => standings[g] = calcStandings(g));
-  const pub = { publishedAt: Date.now(), phase: S.phase, groups: S.groups, fixtures: S.fixtures, standings, ko: S.ko, phones: S.phones };
+  const pub = { publishedAt: Date.now(), phase: S.phase, groups: S.groups, fixtures: S.fixtures, standings, ko: S.ko, phones: S.phones, logos: S.logos };
   if(!FIREBASE_URL || FIREBASE_URL === 'YOUR_FIREBASE_URL'){ toast('Set your FIREBASE_URL first!','error'); return; }
   try {
     toast('Publishing...','info');

@@ -309,13 +309,14 @@ const FIREBASE_URL = 'https://dls-hub-62226-default-rtdb.firebaseio.com';
 const editingFix = new Set();
 
 function defaultLS(){
-  return { teams:[], phones:{}, matchdays:[], generated:false, currentDay:0 };
+  return { teams:[], phones:{}, logos:{}, matchdays:[], generated:false, currentDay:0 };
 }
 function loadLS(){
   try{
     const r=localStorage.getItem('dls_league3');
     const s = r ? JSON.parse(r) : defaultLS();
     if(!s.phones) s.phones = {};
+    if(!s.logos) s.logos = {};
     return s;
   }catch(e){ return defaultLS(); }
 }
@@ -386,6 +387,10 @@ function renderTeams(){
       <div class="team-item">
         <div class="team-item-left">
           <span class="team-pos">${i+1}</span>
+          <label for="logo-inp-${i}" title="Click to set logo" style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:#21262d;border:1px solid #30363d;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">
+            ${LS.logos[t]?`<img src="${LS.logos[t]}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:.65rem;font-weight:700;color:#4a5568;pointer-events:none">${(t[0]||'?').toUpperCase()}</span>`}
+          </label>
+          <input type="file" id="logo-inp-${i}" accept="image/*" style="display:none" onchange="setLogoFromFile(${i})">
           <div>
             <div class="team-name">${esc(t)}</div>
             ${LS.phones[t]?`<div style="font-size:.7rem;color:#8b949e;margin-top:2px">&#128242; ${esc(LS.phones[t])}</div>`:''}
@@ -426,6 +431,7 @@ function removeTeam(idx){
   const name = LS.teams[idx];
   LS.teams.splice(idx, 1);
   delete LS.phones[name];
+  delete LS.logos[name];
   saveLS(); renderTeams();
   toast(`${esc(name)} removed.`,'info');
 }
@@ -570,7 +576,7 @@ async function publishLeague(){
     publishedAt: Date.now(), totalTeams: LS.teams.length, totalMatchdays: LS.matchdays.length,
     currentMatchday: LS.currentDay + 1, matchday: LS.matchdays[LS.currentDay],
     allMatchdays: LS.matchdays,
-    table, season: { totalPlayed, totalMatches, totalGoals }, phones: LS.phones
+    table, season: { totalPlayed, totalMatches, totalGoals }, phones: LS.phones, logos: LS.logos
   };
   if(!FIREBASE_URL || FIREBASE_URL === 'YOUR_FIREBASE_URL'){ toast('Set your FIREBASE_URL first!','error'); return; }
   try {
@@ -661,7 +667,8 @@ function renderTable(){
     let badge = '';
     if(i < CL_SPOTS) badge = `<span style="font-size:.6rem;background:rgba(255,215,0,.15);color:#FFD700;border:1px solid rgba(255,215,0,.3);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">${i===0?'CHAMP':'CL'}</span>`;
     else if(REL_SPOTS > 0 && i >= n - REL_SPOTS) badge = `<span style="font-size:.6rem;background:rgba(220,53,69,.15);color:#f87171;border:1px solid rgba(220,53,69,.3);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">REL</span>`;
-    tableRows += `<tr class="${rowClass}"><td class="pos-cell">${r.pos}</td><td>${esc(r.team)}${badge}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td class="${gdClass}">${r.gd > 0 ? '+' : ''}${r.gd}</td><td class="pts-cell">${r.pts}</td><td><div class="form-badges">${formHTML}</div></td></tr>`;
+    const tLogoEl=LS.logos[r.team]?`<img src="${LS.logos[r.team]}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px">`:'';
+    tableRows += `<tr class="${rowClass}"><td class="pos-cell">${r.pos}</td><td>${tLogoEl}${esc(r.team)}${badge}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td class="${gdClass}">${r.gd > 0 ? '+' : ''}${r.gd}</td><td class="pts-cell">${r.pts}</td><td><div class="form-badges">${formHTML}</div></td></tr>`;
   });
   const totalGoals = LS.matchdays.reduce((s,md)=>s+md.matches.reduce((s2,m)=>s2+(m.played?m.hs+m.as:0),0),0);
   const pct = totalMatches ? Math.round(totalPlayed/totalMatches*100) : 0;
@@ -696,6 +703,35 @@ function notifyFixture(comp, compName, matchday){
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ comp, compName, matchday, secret: NOTIFY_SECRET })
   }).catch(()=>{});
+}
+
+// ── Logo helpers ──
+function resizeImageToBase64(file,size=48){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas');
+        c.width=size;c.height=size;
+        const ctx=c.getContext('2d');
+        const ratio=Math.min(size/img.width,size/img.height);
+        const w=img.width*ratio,h=img.height*ratio;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        resolve(c.toDataURL('image/jpeg',.85));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function setLogoFromFile(idx){
+  const file=document.getElementById('logo-inp-'+idx)?.files?.[0];
+  if(!file) return;
+  const b64=await resizeImageToBase64(file);
+  LS.logos[LS.teams[idx]]=b64;
+  saveLS(); renderTeams();
+  toast('Logo saved!');
 }
 
 function esc(str){

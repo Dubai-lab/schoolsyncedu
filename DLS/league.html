@@ -318,13 +318,14 @@ const editingFix = new Set(); // "day-idx" strings for in-edit fixtures
 let editingTeam = null;
 
 function defaultLS(){
-  return { teams:[], phones:{}, matchdays:[], generated:false, currentDay:0 };
+  return { teams:[], phones:{}, logos:{}, matchdays:[], generated:false, currentDay:0 };
 }
 function loadLS(){
   try{
     const r=localStorage.getItem('dls_league');
     const s = r ? JSON.parse(r) : defaultLS();
     if(!s.phones) s.phones = {};
+    if(!s.logos) s.logos = {};
     return s;
   }catch(e){ return defaultLS(); }
 }
@@ -412,6 +413,21 @@ function renderTeams(){
           </div>
           <input id="edit-phone-${i}" value="${esc(LS.phones[t]||'')}" placeholder="&#128242; WhatsApp number"
             style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:7px 10px;color:#8b949e;font-size:.78rem;outline:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:#21262d;border:2px solid #30363d;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+              <img id="logo-preview-${i}" src="${LS.logos[t]||''}" style="width:100%;height:100%;object-fit:cover;display:${LS.logos[t]?'block':'none'}">
+              <span style="font-size:.55rem;color:#4a5568;display:${LS.logos[t]?'none':'block'}">IMG</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.62rem;color:#8b949e;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Team Logo</div>
+              <div style="display:flex;gap:6px">
+                <input type="file" id="edit-logo-file-${i}" accept="image/*" style="display:none" onchange="previewLogo(${i})">
+                <button type="button" onclick="document.getElementById('edit-logo-file-${i}').click()" style="background:#21262d;border:1px solid #30363d;border-radius:5px;padding:5px 9px;color:#8b949e;font-size:.68rem;cursor:pointer;white-space:nowrap">&#128247; Upload</button>
+                <input id="edit-logo-url-${i}" placeholder="or paste image URL..." value="${LS.logos[t]&&LS.logos[t].startsWith('http')?LS.logos[t].replace(/"/g,'&quot;'):''}" style="flex:1;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:5px 8px;color:#8b949e;font-size:.68rem;outline:none;min-width:0">
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="edit-logo-b64-${i}" value="">
           <div style="display:flex;gap:6px">
             <button onclick="saveTeamEdit(${i})" style="flex:1;background:linear-gradient(135deg,#00c853,#00a844);border:none;border-radius:6px;padding:7px;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:1px">&#10003; Save</button>
             <button onclick="cancelTeamEdit()" style="background:#21262d;border:1px solid #30363d;border-radius:6px;padding:7px 12px;color:#8b949e;font-size:.78rem;cursor:pointer">&#10005;</button>
@@ -421,6 +437,7 @@ function renderTeams(){
       return `<div class="team-item">
         <div class="team-item-left">
           <span class="team-pos">${i+1}</span>
+          ${LS.logos[t]?`<img src="${LS.logos[t]}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid #30363d;flex-shrink:0">`:`<div style="width:32px;height:32px;border-radius:50%;background:#21262d;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#4a5568;flex-shrink:0">${(t[0]||'?').toUpperCase()}</div>`}
           <div>
             <div class="team-name">${esc(t)}</div>
             ${LS.phones[t]?`<div style="font-size:.7rem;color:#8b949e;margin-top:2px">&#128242; ${esc(LS.phones[t])}</div>`:''}
@@ -470,6 +487,7 @@ function removeTeam(idx){
   const name = LS.teams[idx];
   LS.teams.splice(idx, 1);
   delete LS.phones[name];
+  delete LS.logos[name];
   saveLS();
   renderTeams();
   toast(`${esc(name)} removed.`,'info');
@@ -489,6 +507,11 @@ function saveTeamEdit(idx){
   LS.teams[idx] = newName;
   delete LS.phones[oldName];
   if(newPhone) LS.phones[newName] = newPhone;
+  // Handle logo: transfer on rename, update if new one provided
+  const b64Logo = document.getElementById('edit-logo-b64-'+idx)?.value||'';
+  const urlLogo = (document.getElementById('edit-logo-url-'+idx)?.value||'').trim();
+  if(oldName !== newName){ if(LS.logos[oldName]) LS.logos[newName]=LS.logos[oldName]; delete LS.logos[oldName]; }
+  if(b64Logo||urlLogo) LS.logos[newName]=b64Logo||urlLogo;
   if(oldName !== newName){
     LS.matchdays.forEach(md=>{
       md.matches.forEach(m=>{ if(m.home===oldName) m.home=newName; if(m.away===oldName) m.away=newName; });
@@ -733,7 +756,8 @@ async function publishLeague(){
     allMatchdays: LS.matchdays,
     table,
     season: { totalPlayed, totalMatches, totalGoals },
-    phones: LS.phones
+    phones: LS.phones,
+    logos: LS.logos
   };
 
   if(!FIREBASE_URL || FIREBASE_URL === 'YOUR_FIREBASE_URL'){
@@ -861,9 +885,10 @@ function renderTable(){
     if(i < CL_SPOTS) badge = `<span style="font-size:.6rem;background:rgba(255,215,0,.15);color:#FFD700;border:1px solid rgba(255,215,0,.3);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">${i===0?'CHAMP':'CL'}</span>`;
     else if(REL_SPOTS > 0 && i >= n - REL_SPOTS) badge = `<span style="font-size:.6rem;background:rgba(220,53,69,.15);color:#f87171;border:1px solid rgba(220,53,69,.3);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">REL</span>`;
 
+    const tLogoEl = LS.logos[r.team]?`<img src="${LS.logos[r.team]}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px">`:'';
     tableRows += `<tr class="${rowClass}">
       <td class="pos-cell">${r.pos}</td>
-      <td>${esc(r.team)}${badge}</td>
+      <td>${tLogoEl}${esc(r.team)}${badge}</td>
       <td>${r.p}</td>
       <td>${r.w}</td>
       <td>${r.d}</td>
@@ -988,6 +1013,38 @@ function toast(msg, type='success'){
   void el.offsetWidth;
   el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'), 3200);
+}
+
+// ── Logo helpers ──
+function resizeImageToBase64(file,size=48){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas');
+        c.width=size;c.height=size;
+        const ctx=c.getContext('2d');
+        const ratio=Math.min(size/img.width,size/img.height);
+        const w=img.width*ratio,h=img.height*ratio;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        resolve(c.toDataURL('image/jpeg',.85));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function previewLogo(idx){
+  const file=document.getElementById('edit-logo-file-'+idx)?.files?.[0];
+  if(!file) return;
+  const b64=await resizeImageToBase64(file);
+  const hidden=document.getElementById('edit-logo-b64-'+idx);
+  if(hidden) hidden.value=b64;
+  const preview=document.getElementById('logo-preview-'+idx);
+  if(preview){preview.src=b64;preview.style.display='block';}
+  const urlInp=document.getElementById('edit-logo-url-'+idx);
+  if(urlInp) urlInp.value='';
 }
 
 // ═══════════════════════════════════════════
