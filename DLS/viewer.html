@@ -82,6 +82,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;mi
 .fix-vs{font-size:.78rem;color:#8b949e;min-width:24px;text-align:center;flex-shrink:0}
 .bye-fix{background:#161b22;border:1px dashed #21262d;border-radius:9px;padding:9px 14px;text-align:center;font-size:.78rem;color:#4a5568;font-style:italic}
 
+/* ── Results History ── */
+.hist-card{background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:8px;overflow:hidden}
+.hist-header{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;font-size:.83rem;font-weight:700;color:#e6edf3;-webkit-user-select:none;user-select:none}
+.hist-header:hover{background:#1c2128}
+.hist-arrow{color:#8b949e;font-size:.65rem;transition:transform .2s}
+.hist-body{padding:8px 10px 4px}
+
 /* ── League Table ── */
 .table-wrap{overflow-x:auto;margin-bottom:24px}
 .lg-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:380px}
@@ -739,6 +746,35 @@ function renderLeague(pub, label, accent){
     ${REL_SPOTS>0?`<div class="leg-item"><div class="leg-line" style="background:#dc3545"></div>Bottom ${REL_SPOTS} → Relegated</div>`:''}
   </div>`;
 
+  // results history — all completed matchdays before current
+  let histHTML = '';
+  const pastMDs = (pub.allMatchdays || [])
+    .filter(md => md.day < currentMatchday && md.matches.some(m => m.played))
+    .sort((a, b) => b.day - a.day);
+  if(pastMDs.length > 0){
+    histHTML += `<div class="s-title" style="margin-top:8px">&#128197; Results History</div>`;
+    pastMDs.forEach(md => {
+      const played = md.matches.filter(m => m.played);
+      const id = 'hist-md-' + md.day;
+      histHTML += `<div class="hist-card">
+        <div class="hist-header" onclick="var b=document.getElementById('${id}');var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.hist-arrow').style.transform=open?'':'rotate(180deg)'">
+          <span>Matchday ${md.day}</span>
+          <span style="color:#8b949e;font-size:.75rem;font-weight:400">${played.length} of ${md.matches.length} played</span>
+          <span class="hist-arrow" style="display:inline-block">&#9660;</span>
+        </div>
+        <div id="${id}" class="hist-body" style="display:none"><div class="fixtures-list">`;
+      played.forEach(m => {
+        const hWin = m.hs > m.as, aWin = m.as > m.hs;
+        histHTML += `<div class="fix-card played">
+          <div class="fix-team home ${hWin?'winner':aWin?'loser':''}">${teamLink(m.home,lgPhones)}</div>
+          <div class="fix-score">${m.hs} &ndash; ${m.as}</div>
+          <div class="fix-team away ${aWin?'winner':hWin?'loser':''}">${teamLink(m.away,lgPhones)}</div>
+        </div>`;
+      });
+      histHTML += `</div></div></div>`;
+    });
+  }
+
   wrap.innerHTML = getPrizePoolHTML() + statsHTML + progHTML +
     `<div class="s-title">&#128197; Matchday ${matchday.day} Fixtures <span class="s-badge">MD ${currentMatchday}/${totalMatchdays}</span></div>`
     + deadlineHTML + mdHTML + fixHTML +
@@ -751,7 +787,7 @@ function renderLeague(pub, label, accent){
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
-    </div>` + legendHTML;
+    </div>` + legendHTML + histHTML;
 }
 
 // ══════════════════════════════

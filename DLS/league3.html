@@ -568,6 +568,7 @@ async function publishLeague(){
   const pub = {
     publishedAt: Date.now(), totalTeams: LS.teams.length, totalMatchdays: LS.matchdays.length,
     currentMatchday: LS.currentDay + 1, matchday: LS.matchdays[LS.currentDay],
+    allMatchdays: LS.matchdays,
     table, season: { totalPlayed, totalMatches, totalGoals }, phones: LS.phones
   };
   if(!FIREBASE_URL || FIREBASE_URL === 'YOUR_FIREBASE_URL'){ toast('Set your FIREBASE_URL first!','error'); return; }
