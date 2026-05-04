@@ -427,6 +427,7 @@ function loadState(){
 }
 
 function saveState(){
+  S.savedAt = Date.now();
   localStorage.setItem('dls_europa',JSON.stringify(S));
   scheduleCloudSave();
 }
@@ -891,16 +892,16 @@ function toast(msg,type='success'){
 //  INIT
 // ═══════════════════════════════════════════
 (async function init(){
-  if(S.phase==='setup' && !S.groups.A.length){
+  if(FIREBASE_URL && FIREBASE_URL !== 'YOUR_FIREBASE_URL'){
     try{
       const res = await fetch(FIREBASE_URL+'/dls_admin_europa.json');
-      const data = res.ok ? await res.json() : null;
-      if(data && data.teams && data.teams.length){
-        S = data; if(!S.phones) S.phones = {};
+      const cloud = res.ok ? await res.json() : null;
+      if(cloud && cloud.teams && cloud.teams.length && (cloud.savedAt||0) > (S.savedAt||0)){
+        S = cloud; if(!S.phones) S.phones={};
         localStorage.setItem('dls_europa', JSON.stringify(S));
-        setCloudStatus('saved');
+        toast('Data synced from cloud ☁️','info');
       }
-    } catch(e){ /* silent — use local */ }
+    } catch(e){}
   }
   renderSetup();
   if(S.phase==='group') switchTab('groups');

@@ -327,6 +327,7 @@ function loadLS(){
   }catch(e){ return defaultLS(); }
 }
 function saveLS(){
+  LS.savedAt = Date.now();
   localStorage.setItem('dls_league2', JSON.stringify(LS));
   scheduleCloudSave();
 }
@@ -892,14 +893,14 @@ function toast(msg, type='success'){
 //  INIT
 // ═══════════════════════════════════════════
 (async function init(){
-  if(!LS.teams.length && FIREBASE_URL && FIREBASE_URL !== 'YOUR_FIREBASE_URL'){
+  if(FIREBASE_URL && FIREBASE_URL !== 'YOUR_FIREBASE_URL'){
     try{
       const res = await fetch(FIREBASE_URL+'/dls_admin_league2.json');
-      const data = res.ok ? await res.json() : null;
-      if(data && data.teams && data.teams.length){
-        LS = data; if(!LS.phones) LS.phones = {};
+      const cloud = res.ok ? await res.json() : null;
+      if(cloud && cloud.teams && cloud.teams.length && (cloud.savedAt||0) > (LS.savedAt||0)){
+        LS = cloud; if(!LS.phones) LS.phones={};
         localStorage.setItem('dls_league2', JSON.stringify(LS));
-        toast('Data restored from cloud backup! ☁️','info');
+        toast('Data synced from cloud ☁️','info');
       }
     } catch(e){}
   }
