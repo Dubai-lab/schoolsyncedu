@@ -978,6 +978,16 @@ function renderTable(){
 // ═══════════════════════════════════════════
 //  SEASON ARCHIVE & RESET
 // ═══════════════════════════════════════════
+async function recordTrophy(teamName, type){
+  try {
+    const url = FIREBASE_URL + '/dls_trophies.json';
+    const res = await fetch(url);
+    const data = (res.ok ? await res.json() : null) || {};
+    if(!data[teamName]) data[teamName] = {};
+    data[teamName][type] = (data[teamName][type] || 0) + 1;
+    await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+  } catch(e) {}
+}
 function archiveCurrentSeason(){
   if(!LS.generated || !LS.matchdays.length) return;
   if(!LS.seasons) LS.seasons = [];
@@ -989,6 +999,8 @@ function archiveCurrentSeason(){
     matchdays: JSON.parse(JSON.stringify(LS.matchdays)),
     teams: [...LS.teams]
   });
+  const champion = table[0] && table[0].team;
+  if(champion) recordTrophy(champion, 'league1');
 }
 function startNewSeason(){
   if(!confirm('Archive Season ' + (LS.currentSeason||1) + ' and start a new season?\n\nAll teams are kept. Fixtures and scores will be cleared.')) return;

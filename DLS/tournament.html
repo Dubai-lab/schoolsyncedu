@@ -1148,8 +1148,20 @@ async function publishCL(){
   }
 }
 
-function resetAll(){
+async function recordTrophy(teamName, type){
+  try {
+    const url = FIREBASE_URL + '/dls_trophies.json';
+    const res = await fetch(url);
+    const data = (res.ok ? await res.json() : null) || {};
+    if(!data[teamName]) data[teamName] = {};
+    data[teamName][type] = (data[teamName][type] || 0) + 1;
+    await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+  } catch(e) {}
+}
+async function resetAll(){
   if(!confirm('This will RESET the entire tournament. All scores and fixtures will be lost. Are you sure?')) return;
+  const winner = S.ko && S.ko.final && S.ko.final.winner;
+  if(winner) await recordTrophy(winner, 'cl');
   S=defaultState();
   saveState();
   renderSetup();
