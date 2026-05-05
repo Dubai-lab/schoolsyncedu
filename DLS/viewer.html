@@ -1398,14 +1398,18 @@ function updateTicker(){
   el.textContent = text;
   wrap.style.display = 'flex';
   if(_tickerRAF){ cancelAnimationFrame(_tickerRAF); _tickerRAF=null; }
-  let pos = track.offsetWidth;
-  function step(){
-    pos -= 0.6;
-    if(pos < -el.offsetWidth) pos = track.offsetWidth;
-    el.style.left = pos + 'px';
-    _tickerRAF = requestAnimationFrame(step);
-  }
-  step();
+  // Wait two frames so the browser lays out the element before we measure
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    let pos = track.offsetWidth;
+    function step(){
+      pos -= 0.6;
+      const textW = el.scrollWidth || 800;
+      if(pos < -textW) pos = track.offsetWidth;
+      el.style.left = pos + 'px';
+      _tickerRAF = requestAnimationFrame(step);
+    }
+    step();
+  }));
 }
 
 // ── Main refresh ──
