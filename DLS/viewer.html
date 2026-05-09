@@ -299,6 +299,20 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 .pp-prize{font-size:1.05rem;font-weight:800;color:#FFD700;margin-top:1px}
 .pp-coming{text-align:center;padding:10px;font-size:.78rem;color:#4a5568;font-style:italic}
 
+/* ── Season Champion Card ── */
+.champ-card{background:linear-gradient(160deg,#1a1200,#0d0d0d);border:2px solid #FFD700;border-radius:16px;padding:28px 20px 22px;text-align:center;margin-bottom:20px;position:relative;overflow:hidden}
+.champ-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(255,215,0,.1),transparent 65%);pointer-events:none}
+.champ-trophy{font-size:4rem;display:block;margin-bottom:6px;filter:drop-shadow(0 0 14px rgba(255,215,0,.5))}
+.champ-season-lbl{font-size:.63rem;color:#8b949e;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.champ-title{font-size:1.05rem;font-weight:900;color:#FFD700;letter-spacing:2px;text-transform:uppercase;margin-bottom:18px}
+.champ-team-row{display:inline-flex;align-items:center;gap:12px;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.22);border-radius:12px;padding:12px 22px;margin-bottom:18px}
+.champ-team-name{font-size:1.22rem;font-weight:900;color:#fff;letter-spacing:.5px;text-align:left}
+.champ-stats{display:flex;justify-content:center;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.champ-stat{text-align:center;min-width:38px}
+.champ-stat-val{font-size:1.05rem;font-weight:800;color:#FFD700}
+.champ-stat-lbl{font-size:.57rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.champ-footer{font-size:.63rem;color:#4a5568;letter-spacing:.5px}
+
 /* ── CL Sub-tabs ── */
 .cl-subtabs{display:flex;background:#0d1117;border-bottom:1px solid #21262d;margin:0 -16px 16px;padding:0 16px}
 .cl-sub-btn{flex:1;padding:10px 8px;background:none;border:none;color:#8b949e;font-size:.78rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid transparent;transition:all .2s}
@@ -1120,9 +1134,40 @@ function renderLeague(pub, label, accent){
     </div>`;
   });
 
-  wrap.innerHTML = getPrizePoolHTML() + statsHTML + progHTML +
-    `<div class="s-title">&#128197; Matchday ${matchday.day} Fixtures <span class="s-badge">MD ${currentMatchday}/${totalMatchdays}</span></div>`
-    + deadlineHTML + mdHTML + fixHTML +
+  // Season complete — show champion card instead of fixtures
+  const allSeasonComplete = currentMatchday === totalMatchdays && matchday.matches.every(m => m.played);
+  let fixturesSectionHTML;
+  if(allSeasonComplete && table.length){
+    const winner = table[0];
+    const wLogo = logos[winner.team];
+    const wLogoEl = wLogo
+      ? `<img src="${wLogo}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #FFD700;box-shadow:0 0 18px rgba(255,215,0,.4);flex-shrink:0">`
+      : `<div style="width:60px;height:60px;border-radius:50%;background:#21262d;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#FFD700;border:3px solid #FFD700;flex-shrink:0">${(winner.team[0]||'?').toUpperCase()}</div>`;
+    fixturesSectionHTML = `<div class="champ-card">
+      <span class="champ-trophy">&#127942;</span>
+      <div class="champ-season-lbl">${esc(label)} &middot; Season ${curSeasonNum}</div>
+      <div class="champ-title">Season ${curSeasonNum} Champion</div>
+      <div class="champ-team-row">
+        ${wLogoEl}
+        <div class="champ-team-name">${esc(winner.team)}</div>
+      </div>
+      <div class="champ-stats">
+        <div class="champ-stat"><div class="champ-stat-val">${winner.pts}</div><div class="champ-stat-lbl">Points</div></div>
+        <div class="champ-stat"><div class="champ-stat-val">${winner.w}</div><div class="champ-stat-lbl">Won</div></div>
+        <div class="champ-stat"><div class="champ-stat-val">${winner.d}</div><div class="champ-stat-lbl">Draw</div></div>
+        <div class="champ-stat"><div class="champ-stat-val">${winner.l}</div><div class="champ-stat-lbl">Lost</div></div>
+        <div class="champ-stat"><div class="champ-stat-val">${winner.gf}</div><div class="champ-stat-lbl">GF</div></div>
+        <div class="champ-stat"><div class="champ-stat-val">${winner.ga}</div><div class="champ-stat-lbl">GA</div></div>
+      </div>
+      <div class="champ-footer">&#10003; All ${totalMatchdays} matchdays complete &middot; Season ${curSeasonNum} final standings below</div>
+    </div>`;
+  } else {
+    fixturesSectionHTML =
+      `<div class="s-title">&#128197; Matchday ${matchday.day} Fixtures <span class="s-badge">MD ${currentMatchday}/${totalMatchdays}</span></div>`
+      + deadlineHTML + mdHTML + fixHTML;
+  }
+
+  wrap.innerHTML = getPrizePoolHTML() + statsHTML + progHTML + fixturesSectionHTML +
     `<div class="s-title" style="display:flex;align-items:center;gap:8px">&#128202; League Table <span class="s-badge" style="flex-shrink:0">Season ${curSeasonNum}</span>${seasonPickerHTML}</div>
     <div id="season-view-current">
       <div class="table-wrap">
