@@ -313,6 +313,18 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 .champ-stat-lbl{font-size:.57rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
 .champ-footer{font-size:.63rem;color:#4a5568;letter-spacing:.5px}
 
+/* ── Code Gate ── */
+.code-gate{position:fixed;inset:0;background:#0d1117;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.code-gate.hidden{display:none}
+.cg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:32px 24px;width:100%;max-width:360px;text-align:center}
+.cg-input{width:100%;background:#0d1117;border:2px solid #30363d;border-radius:8px;padding:12px 16px;color:#e6edf3;font-size:1rem;font-weight:700;text-align:center;letter-spacing:2px;outline:none;transition:border-color .2s;margin-top:20px;box-sizing:border-box}
+.cg-input:focus{border-color:#00c853}
+.cg-input.shake{animation:cg-shake .35s}
+.cg-btn{width:100%;margin-top:12px;background:linear-gradient(135deg,#00c853,#00a844);border:none;border-radius:8px;padding:13px;color:#fff;font-size:.9rem;font-weight:800;cursor:pointer;letter-spacing:1px;text-transform:uppercase}
+.cg-err{font-size:.75rem;color:#f87171;margin-top:10px;min-height:18px}
+.cg-hint{font-size:.63rem;color:#4a5568;margin-top:18px;line-height:1.5}
+@keyframes cg-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
 /* ── CL Sub-tabs ── */
 .cl-subtabs{display:flex;background:#0d1117;border-bottom:1px solid #21262d;margin:0 -16px 16px;padding:0 16px}
 .cl-sub-btn{flex:1;padding:10px 8px;background:none;border:none;color:#8b949e;font-size:.78rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid transparent;transition:all .2s}
@@ -341,6 +353,19 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 </style>
 </head>
 <body>
+
+<!-- ═══════ CODE GATE ═══════ -->
+<div class="code-gate" id="code-gate">
+  <div class="cg-box">
+    <div style="font-size:3rem">&#9917;</div>
+    <div style="font-size:1.15rem;font-weight:900;color:#e6edf3;letter-spacing:3px;text-transform:uppercase;margin-top:10px">DLS Football Hub</div>
+    <div style="font-size:.75rem;color:#8b949e;margin-top:6px">Enter your league access code</div>
+    <input type="text" class="cg-input" id="cg-input" placeholder="Enter code..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')submitCode()">
+    <button class="cg-btn" onclick="submitCode()">&#9654; Access League</button>
+    <div class="cg-err" id="cg-err"></div>
+    <div class="cg-hint">Contact your league admin if you don't have a code</div>
+  </div>
+</div>
 
 <header class="header">
   <h1>&#9917; DLS <span>Football</span> Hub</h1>
@@ -470,36 +495,14 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   </div>
 </div>
 
-<!-- ═══════ COMPETITION DROPDOWN ═══════ -->
-<div class="comp-wrap">
-  <button class="comp-trigger" onclick="toggleDropdown()">
-    <span class="ct-icon" id="ct-icon">&#9917;</span>
-    <span class="ct-name" id="ct-name" style="color:#00c853">DLS League</span>
-    <span class="ct-sub" id="ct-sub">Division 1</span>
-    <span class="ct-arrow" id="ct-arrow">&#9660;</span>
-  </button>
-  <div class="comp-dropdown" id="comp-dropdown">
-    <div class="comp-opt active" id="opt-league1" onclick="selectComp('league1')">
-      <span class="co-icon">&#9917;</span>
-      <div><div class="co-name" style="color:#00c853">DLS League</div><div class="co-sub">Division 1</div></div>
-    </div>
-    <div class="comp-opt" id="opt-league2" onclick="selectComp('league2')">
-      <span class="co-icon">&#9917;</span>
-      <div><div class="co-name" style="color:#4fc3f7">DLS League 2</div><div class="co-sub">Division 2</div></div>
-    </div>
-    <div class="comp-opt" id="opt-league3" onclick="selectComp('league3')">
-      <span class="co-icon">&#9917;</span>
-      <div><div class="co-name" style="color:#ab47bc">DLS League 3</div><div class="co-sub">Division 3</div></div>
-    </div>
-    <div class="comp-opt" id="opt-cl" onclick="selectComp('cl')">
-      <span class="co-icon">&#127942;</span>
-      <div><div class="co-name" style="color:#FFD700">Champions League</div><div class="co-sub">Div 1 &amp; 2 — Top 8 each</div></div>
-    </div>
-    <div class="comp-opt" id="opt-europa" onclick="selectComp('europa')">
-      <span class="co-icon">&#11088;</span>
-      <div><div class="co-name" style="color:#ff7043">Europa League</div><div class="co-sub">Division 3 — Top 16</div></div>
-    </div>
+<!-- ═══════ COMP DISPLAY ═══════ -->
+<div class="comp-wrap" style="display:flex;align-items:center;padding:12px 20px;gap:10px">
+  <span class="ct-icon" id="ct-icon">&#9917;</span>
+  <div style="flex:1">
+    <div class="ct-name" id="ct-name" style="color:#00c853">DLS League</div>
+    <div class="ct-sub" id="ct-sub">Division 1</div>
   </div>
+  <button onclick="switchLeague()" style="background:none;border:1px solid #30363d;border-radius:6px;color:#4a5568;font-size:.62rem;padding:4px 10px;cursor:pointer;letter-spacing:1px;text-transform:uppercase">Switch</button>
 </div>
 
 <!-- ═══════ CONTENT AREA ═══════ -->
@@ -529,11 +532,6 @@ const COMP_CFG = {
   europa: { icon:'&#11088;', name:'Europa League',    sub:'Division 3 Top 16',   accent:'#ff7043' },
 };
 
-function toggleDropdown(){
-  document.getElementById('comp-dropdown').classList.toggle('show');
-  document.getElementById('ct-arrow').classList.toggle('open');
-}
-
 function selectComp(id){
   currentComp = id;
   const c = COMP_CFG[id];
@@ -541,12 +539,6 @@ function selectComp(id){
   document.getElementById('ct-name').innerHTML = c.name;
   document.getElementById('ct-name').style.color = c.accent;
   document.getElementById('ct-sub').innerHTML = c.sub;
-  document.getElementById('comp-dropdown').classList.remove('show');
-  document.getElementById('ct-arrow').classList.remove('open');
-  document.querySelectorAll('.comp-opt').forEach(o=>o.classList.remove('active'));
-  document.getElementById('opt-'+id).classList.add('active');
-  renderCurrentComp();
-  updateNotifBanner();
 }
 
 // ═══════════════════════════════════════════
@@ -645,13 +637,47 @@ function renderCurrentComp(){
 }
 
 // Close dropdown on outside click
-document.addEventListener('click', e=>{
-  const wrap = document.querySelector('.comp-wrap');
-  if(wrap && !wrap.contains(e.target)){
-    document.getElementById('comp-dropdown').classList.remove('show');
-    document.getElementById('ct-arrow').classList.remove('open');
+// ── Code Gate ──
+let codesPub = null;
+function showCodeGate(){
+  document.getElementById('code-gate').classList.remove('hidden');
+  document.getElementById('cg-input').value='';
+  document.getElementById('cg-err').textContent='';
+  setTimeout(()=>document.getElementById('cg-input').focus(),200);
+}
+function hideCodeGate(){
+  document.getElementById('code-gate').classList.add('hidden');
+}
+async function submitCode(){
+  const input = document.getElementById('cg-input');
+  const errEl = document.getElementById('cg-err');
+  const code = (input.value||'').trim();
+  if(!code){ errEl.textContent='Please enter a code'; return; }
+  if(!codesPub){
+    try{
+      const r = await fetch(FIREBASE_URL+'/dls_codes.json');
+      codesPub = r.ok ? await r.json() : null;
+    } catch(e){}
   }
-});
+  if(!codesPub){ errEl.textContent='Could not verify. Check your connection.'; return; }
+  const entries = Object.entries(codesPub);
+  const match = entries.find(([,v])=>v===code);
+  if(!match){
+    input.classList.add('shake');
+    setTimeout(()=>input.classList.remove('shake'),400);
+    errEl.textContent='Wrong code. Try again.';
+    return;
+  }
+  const [comp] = match;
+  localStorage.setItem('dls_viewer_access', comp);
+  hideCodeGate();
+  selectComp(comp);
+  await refresh();
+}
+function switchLeague(){
+  localStorage.removeItem('dls_viewer_access');
+  showCodeGate();
+}
 
 // ── Load from Firebase ──
 async function loadData(){
@@ -665,6 +691,7 @@ async function loadData(){
       ['/dls_pub_europa.json',  d=>{ europaPub  = d; }],
       ['/dls_pub_prizes.json',  d=>{ prizePub   = d; }],
       ['/dls_trophies.json',    d=>{ trophiesPub = d; }],
+      ['/dls_codes.json',       d=>{ codesPub    = d; }],
     ];
     await Promise.all(paths.map(([path, set])=>
       fetch(FIREBASE_URL+path).then(r=>r.ok?r.json():null).then(set).catch(()=>{})
@@ -1466,11 +1493,24 @@ async function refresh(){
   updateTicker();
 }
 
-// Auto-refresh every 30 seconds
-setInterval(refresh, 30000);
+// Auto-refresh every 30 seconds (only when gate is not showing)
+setInterval(()=>{ if(document.getElementById('code-gate').classList.contains('hidden')) refresh(); }, 30000);
 
 // Initial load
-refresh();
+(async()=>{
+  await loadData();
+  updateTimestamp();
+  updateNotifBanner();
+  updateTicker();
+  const saved = localStorage.getItem('dls_viewer_access');
+  if(saved && COMP_CFG[saved]){
+    selectComp(saved);
+    hideCodeGate();
+    renderCurrentComp();
+  } else {
+    showCodeGate();
+  }
+})();
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
 </body>
