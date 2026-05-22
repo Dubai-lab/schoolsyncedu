@@ -372,21 +372,50 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 .highlights-screen.hidden{display:none}
 .hl-topbar{display:flex;align-items:center;background:#0f1923;border-bottom:1px solid #21262d;padding:0 16px;height:48px;gap:12px;flex-shrink:0;box-sizing:border-box}
 .hl-back-btn{background:none;border:none;color:#00c853;font-size:.9rem;font-weight:700;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:5px;white-space:nowrap}
-.hl-feed{flex:1;overflow-y:auto;padding:16px}
-.hl-card{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:border-color .2s;display:flex;align-items:center;gap:12px}
-.hl-card:hover{border-color:#ffc107}
-.hl-card-thumb{width:52px;height:52px;background:#21262d;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
-.hl-card-info{flex:1;min-width:0}
-.hl-card-vs{font-size:.9rem;font-weight:800;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-card-meta{font-size:.7rem;color:#8b949e;margin-top:3px}
-.hl-card-play{background:#ffc107;color:#0d1117;border:none;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:800;cursor:pointer;flex-shrink:0}
-.hl-empty{text-align:center;color:#8b949e;font-size:.85rem;padding:60px 20px;line-height:1.8}
-.hl-upload-fab{position:fixed;bottom:24px;right:20px;z-index:9991;background:linear-gradient(135deg,#ffc107,#ff8f00);border:none;border-radius:50%;width:58px;height:58px;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 20px rgba(255,193,7,.45)}
+.hl-upload-btn{background:linear-gradient(135deg,#ffc107,#ff8f00);border:none;border-radius:8px;padding:7px 14px;color:#0d1117;font-size:.8rem;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.hl-feed{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* Active player */
+.hl-player-section{display:none}
+.hl-player-section.active{display:block}
+.hl-inline-player{width:100%;aspect-ratio:16/9;background:#000;display:block;max-height:56vw}
+.hl-player-info{padding:12px 16px;background:#0f1923;border-bottom:1px solid #21262d}
+.hl-player-title{font-size:.92rem;font-weight:800;color:#e6edf3;margin-bottom:8px}
+.hl-player-meta{display:flex;align-items:center;gap:12px;font-size:.75rem;color:#8b949e;flex-wrap:wrap}
+.hl-like-btn{background:none;border:1px solid #30363d;border-radius:20px;padding:5px 14px;color:#e6edf3;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s}
+.hl-like-btn.liked{border-color:#e05252;color:#e05252;background:rgba(224,82,82,.08)}
+/* Comments */
+.hl-comments-wrap{padding:12px 16px 8px;background:#0f1923;border-bottom:3px solid #21262d}
+.hl-comments-hdr{font-size:.75rem;font-weight:700;color:#8b949e;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+.hl-comment{display:flex;gap:8px;margin-bottom:12px}
+.hl-comment-avatar{width:30px;height:30px;background:#21262d;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;color:#ffc107;flex-shrink:0;text-transform:uppercase}
+.hl-comment-body{flex:1;min-width:0}
+.hl-comment-team{font-size:.7rem;font-weight:700;color:#ffc107;margin-bottom:2px}
+.hl-comment-text{font-size:.82rem;color:#c9d1d9;line-height:1.4;word-break:break-word}
+.hl-mention{color:#58a6ff;font-weight:600}
+.hl-add-comment{display:flex;gap:8px;margin-top:10px;align-items:center}
+.hl-cmt-sel{background:#21262d;border:1px solid #30363d;border-radius:8px;padding:8px 8px;color:#e6edf3;font-size:.75rem;outline:none;flex-shrink:0;max-width:110px}
+.hl-cmt-input{flex:1;background:#21262d;border:1px solid #30363d;border-radius:8px;padding:8px 10px;color:#e6edf3;font-size:.82rem;outline:none;font-family:inherit;min-width:0}
+.hl-cmt-post{background:#ffc107;border:none;border-radius:8px;padding:8px 14px;color:#0d1117;font-size:.8rem;font-weight:800;cursor:pointer;flex-shrink:0}
+/* Video list */
+.hl-list-hdr{padding:10px 16px 4px;font-size:.72rem;font-weight:700;color:#8b949e;letter-spacing:1px;text-transform:uppercase}
+.hl-card{display:flex;gap:10px;padding:10px 16px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+.hl-card:active{background:rgba(255,255,255,.04)}
+.hl-card.hl-active{background:rgba(255,193,7,.06);border-left:3px solid #ffc107;padding-left:13px}
+.hl-thumb{width:120px;height:68px;border-radius:8px;flex-shrink:0;overflow:hidden;position:relative;background:#21262d}
+.hl-thumb img{width:100%;height:100%;object-fit:cover}
+.hl-thumb-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a2332,#21262d);font-size:1.5rem}
+.hl-play-ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.hl-play-ov span{background:rgba(0,0,0,.65);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#fff}
+.hl-card-info{flex:1;min-width:0;padding-top:2px}
+.hl-card-vs{font-size:.85rem;font-weight:700;color:#e6edf3;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.hl-card-date{font-size:.7rem;color:#8b949e;margin-top:4px}
+.hl-card-lk{font-size:.7rem;color:#8b949e;margin-top:2px}
+.hl-empty{text-align:center;color:#8b949e;font-size:.85rem;padding:60px 20px;line-height:1.9}
 
 /* ── Upload Modal ── */
 .hl-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9995;display:flex;align-items:center;justify-content:center;padding:20px}
 .hl-modal.hidden{display:none}
-.hl-modal-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:24px;width:100%;max-width:380px}
+.hl-modal-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:24px;width:100%;max-width:380px;max-height:90vh;overflow-y:auto}
 .hl-modal-title{font-size:1rem;font-weight:800;color:#e6edf3;letter-spacing:1px;text-transform:uppercase;margin-bottom:18px;text-align:center}
 .hl-select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 12px;color:#e6edf3;font-size:.85rem;outline:none;margin-bottom:12px;appearance:none}
 .hl-file-label{display:block;width:100%;background:#0d1117;border:2px dashed #30363d;border-radius:8px;padding:18px;color:#8b949e;font-size:.82rem;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color .2s;box-sizing:border-box}
@@ -398,13 +427,6 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 .hl-submit-btn:disabled{opacity:.5;cursor:not-allowed}
 .hl-cancel-btn{width:100%;background:none;border:1px solid #30363d;border-radius:8px;padding:10px;color:#8b949e;font-size:.85rem;cursor:pointer;margin-top:8px}
 .hl-err{color:#dc3545;font-size:.78rem;text-align:center;margin-top:8px;min-height:18px}
-
-/* ── Video Player Modal ── */
-.hl-video-modal{position:fixed;inset:0;background:#000;z-index:9998;display:flex;flex-direction:column}
-.hl-video-modal.hidden{display:none}
-.hl-video-topbar{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;background:rgba(0,0,0,.8);padding:0 16px;gap:12px;z-index:1;box-sizing:border-box}
-.hl-video-title{flex:1;font-size:.8rem;font-weight:700;color:#e6edf3;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#hl-video-player{position:absolute;top:48px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 48px);background:#000;object-fit:contain}
 
 /* ── Live Screen ── */
 .live-screen{position:fixed;inset:0;background:#000;z-index:9990}
@@ -442,12 +464,34 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   <div class="hl-topbar">
     <button class="hl-back-btn" onclick="showHomeScreen()">&#8592; Back</button>
     <span style="flex:1;font-size:.85rem;font-weight:800;color:#e6edf3;letter-spacing:2px;text-transform:uppercase;text-align:center">Highlights</span>
-    <span style="width:60px"></span>
+    <button class="hl-upload-btn" onclick="openUploadModal()">&#43; Upload</button>
   </div>
   <div class="hl-feed" id="hl-feed">
-    <div class="hl-empty">Loading...</div>
+    <!-- Inline player (shown when a video is selected) -->
+    <div class="hl-player-section" id="hl-player-section">
+      <video class="hl-inline-player" id="hl-inline-player" controls playsinline></video>
+      <div class="hl-player-info">
+        <div class="hl-player-title" id="hl-player-title"></div>
+        <div class="hl-player-meta">
+          <span id="hl-player-date"></span>
+          <button class="hl-like-btn" id="hl-like-btn" onclick="likeHighlight()">&#10084; <span id="hl-like-count">0</span></button>
+        </div>
+      </div>
+      <div class="hl-comments-wrap">
+        <div class="hl-comments-hdr">Comments</div>
+        <div id="hl-comments-list"></div>
+        <div class="hl-add-comment">
+          <select class="hl-cmt-sel" id="hl-cmt-team"><option value="">Your team...</option></select>
+          <input type="text" class="hl-cmt-input" id="hl-cmt-input" placeholder="Comment... use @Team to tag" autocomplete="off">
+          <button class="hl-cmt-post" onclick="submitComment()">Post</button>
+        </div>
+      </div>
+    </div>
+    <!-- Video list -->
+    <div class="hl-list-hdr" id="hl-list-hdr" style="display:none">All Highlights</div>
+    <div id="hl-cards"></div>
+    <div class="hl-empty" id="hl-empty" style="display:none">No highlights yet.<br>Be the first to upload one!</div>
   </div>
-  <button class="hl-upload-fab" id="hl-upload-fab" onclick="openUploadModal()" title="Upload Highlight">&#43;</button>
 </div>
 
 <!-- ═══════ UPLOAD MODAL ═══════ -->
@@ -466,16 +510,6 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
     <div class="hl-err" id="hl-err"></div>
     <button class="hl-cancel-btn" onclick="closeUploadModal()">Cancel</button>
   </div>
-</div>
-
-<!-- ═══════ VIDEO PLAYER MODAL ═══════ -->
-<div class="hl-video-modal hidden" id="hl-video-modal">
-  <div class="hl-video-topbar">
-    <button class="hl-back-btn" onclick="closeVideoPlayer()">&#8592; Back</button>
-    <span class="hl-video-title" id="hl-video-title"></span>
-    <span style="width:60px"></span>
-  </div>
-  <video id="hl-video-player" controls playsinline autoplay></video>
 </div>
 
 <!-- ═══════ LIVE SCREEN ═══════ -->
@@ -1575,9 +1609,8 @@ function showHomeScreen(){
   document.getElementById('live-screen').classList.add('hidden');
   document.getElementById('highlights-screen').classList.add('hidden');
   document.getElementById('hl-upload-modal').classList.add('hidden');
-  document.getElementById('hl-video-modal').classList.add('hidden');
   document.getElementById('twitch-iframe').src = '';
-  const vp = document.getElementById('hl-video-player');
+  const vp = document.getElementById('hl-inline-player');
   vp.pause(); vp.src = '';
   document.getElementById('team-overview-modal').style.display = 'none';
   document.getElementById('rules-overlay').classList.remove('show');
@@ -1601,38 +1634,149 @@ function showLeagueScreen(){
 function showHighlightsScreen(){
   document.getElementById('home-screen').classList.add('hidden');
   document.getElementById('highlights-screen').classList.remove('hidden');
-  document.getElementById('hl-upload-fab').style.display = 'flex';
-  document.getElementById('hl-upload-fab').style.alignItems = 'center';
-  document.getElementById('hl-upload-fab').style.justifyContent = 'center';
   loadHighlights();
 }
 
 // ── Highlights ──
 const HL_BUCKET = 'dls-hub-62226.firebasestorage.app';
 let _hlFile = null;
+let _hlItems = [];
+let _hlActiveKey = null;
 
 async function loadHighlights(){
-  const feed = document.getElementById('hl-feed');
-  feed.innerHTML = '<div class="hl-empty">Loading...</div>';
+  _hlActiveKey = null;
+  document.getElementById('hl-player-section').classList.remove('active');
+  document.getElementById('hl-list-hdr').style.display = 'none';
+  document.getElementById('hl-empty').style.display = 'none';
+  document.getElementById('hl-cards').innerHTML = '<div class="hl-empty">Loading...</div>';
   try {
     const res = await fetch(`${FIREBASE_URL}/dls_highlights/${currentComp}.json`);
     const data = res.ok ? await res.json() : null;
-    if(!data){ feed.innerHTML = '<div class="hl-empty">No highlights yet.<br>Be the first to upload one!</div>'; return; }
-    const items = Object.entries(data).map(([k,v])=>({...v, _key:k}))
-      .sort((a,b)=>((b.ts||0)-(a.ts||0)));
-    if(!items.length){ feed.innerHTML = '<div class="hl-empty">No highlights yet.<br>Be the first to upload one!</div>'; return; }
-    feed.innerHTML = items.map(h=>`
-      <div class="hl-card" onclick="playHighlight('${h.videoUrl}','${(h.title||'').replace(/'/g,"\\'")}')">
-        <div class="hl-card-thumb">&#127909;</div>
-        <div class="hl-card-info">
-          <div class="hl-card-vs">${h.title||'Match Highlight'}</div>
-          <div class="hl-card-meta">${h.date||''}</div>
-        </div>
-        <button class="hl-card-play">&#9654;</button>
-      </div>`).join('');
+    _hlItems = data ? Object.entries(data).filter(([k,v])=>v&&v.videoUrl).map(([k,v])=>({...v,_key:k})).sort((a,b)=>(b.ts||0)-(a.ts||0)) : [];
+    renderHlList();
   } catch(e){
-    feed.innerHTML = '<div class="hl-empty">Failed to load highlights.</div>';
+    document.getElementById('hl-cards').innerHTML = '<div class="hl-empty">Failed to load highlights.</div>';
   }
+}
+
+function renderHlList(){
+  const cards = document.getElementById('hl-cards');
+  const empty = document.getElementById('hl-empty');
+  const hdr   = document.getElementById('hl-list-hdr');
+  if(!_hlItems.length){
+    cards.innerHTML = ''; empty.style.display='block'; hdr.style.display='none'; return;
+  }
+  empty.style.display = 'none'; hdr.style.display = 'block';
+  cards.innerHTML = _hlItems.map(h=>{
+    const thumb = h.thumbUrl
+      ? `<img src="${h.thumbUrl}" alt="">`
+      : `<div class="hl-thumb-ph">&#127909;</div>`;
+    return `<div class="hl-card ${h._key===_hlActiveKey?'hl-active':''}" onclick="selectHighlight('${h._key}')">
+      <div class="hl-thumb">${thumb}<div class="hl-play-ov"><span>&#9654;</span></div></div>
+      <div class="hl-card-info">
+        <div class="hl-card-vs">${h.title||'Match Highlight'}</div>
+        <div class="hl-card-date">${h.date||''}</div>
+        <div class="hl-card-lk">&#10084; ${h.likes||0}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectHighlight(key){
+  _hlActiveKey = key;
+  const h = _hlItems.find(x=>x._key===key);
+  if(!h) return;
+  const player = document.getElementById('hl-inline-player');
+  player.src = h.videoUrl; player.load(); player.play().catch(()=>{});
+  document.getElementById('hl-player-title').textContent = h.title||'Match Highlight';
+  document.getElementById('hl-player-date').textContent = h.date||'';
+  document.getElementById('hl-like-count').textContent = h.likes||0;
+  const liked = getLikedKeys().includes(key);
+  document.getElementById('hl-like-btn').classList.toggle('liked', liked);
+  document.getElementById('hl-player-section').classList.add('active');
+  document.getElementById('hl-feed').scrollTop = 0;
+  renderHlList();
+  loadComments(key);
+  const teams = getTeamsForComp(currentComp).map(t=>typeof t==='object'?t.team:t).filter(Boolean);
+  document.getElementById('hl-cmt-team').innerHTML =
+    '<option value="">Your team...</option>' + teams.map(t=>`<option>${t}</option>`).join('');
+}
+
+function getLikedKeys(){
+  try{ return JSON.parse(localStorage.getItem('dls_liked_'+currentComp)||'[]'); }catch(e){ return []; }
+}
+
+async function likeHighlight(){
+  if(!_hlActiveKey) return;
+  const liked = getLikedKeys();
+  const isLiked = liked.includes(_hlActiveKey);
+  const h = _hlItems.find(x=>x._key===_hlActiveKey);
+  if(!h) return;
+  const newCount = Math.max(0,(h.likes||0)+(isLiked?-1:1));
+  await fetch(`${FIREBASE_URL}/dls_highlights/${currentComp}/${_hlActiveKey}/likes.json`,{
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(newCount)
+  });
+  h.likes = newCount;
+  if(isLiked){ liked.splice(liked.indexOf(_hlActiveKey),1); } else { liked.push(_hlActiveKey); }
+  localStorage.setItem('dls_liked_'+currentComp, JSON.stringify(liked));
+  document.getElementById('hl-like-count').textContent = newCount;
+  document.getElementById('hl-like-btn').classList.toggle('liked', !isLiked);
+  renderHlList();
+}
+
+async function loadComments(key){
+  const list = document.getElementById('hl-comments-list');
+  list.innerHTML = '<div style="font-size:.75rem;color:#8b949e;padding:4px 0">Loading...</div>';
+  try {
+    const res = await fetch(`${FIREBASE_URL}/dls_highlights/${currentComp}/${key}/comments.json`);
+    const data = res.ok ? await res.json() : null;
+    if(!data){ list.innerHTML = '<div style="font-size:.73rem;color:#8b949e;padding:4px 0">No comments yet.</div>'; return; }
+    const comments = Object.values(data).sort((a,b)=>(a.ts||0)-(b.ts||0));
+    list.innerHTML = comments.map(c=>{
+      const text = (c.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/(@[\w\s]+)/g,'<span class="hl-mention">$1</span>');
+      const initials = (c.team||'?').substring(0,2).toUpperCase();
+      return `<div class="hl-comment">
+        <div class="hl-comment-avatar">${initials}</div>
+        <div class="hl-comment-body">
+          <div class="hl-comment-team">${c.team||'Anonymous'}</div>
+          <div class="hl-comment-text">${text}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){ list.innerHTML=''; }
+}
+
+async function submitComment(){
+  if(!_hlActiveKey) return;
+  const team = document.getElementById('hl-cmt-team').value;
+  const input = document.getElementById('hl-cmt-input');
+  const text = input.value.trim();
+  if(!team||!text) return;
+  input.value = '';
+  await fetch(`${FIREBASE_URL}/dls_highlights/${currentComp}/${_hlActiveKey}/comments.json`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({team, text, ts:Date.now()})
+  });
+  loadComments(_hlActiveKey);
+}
+
+async function captureThumb(file){
+  return new Promise(resolve=>{
+    const vid = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    vid.preload='metadata'; vid.muted=true; vid.playsInline=true;
+    vid.src = URL.createObjectURL(file);
+    const cleanup = ()=>{ try{URL.revokeObjectURL(vid.src)}catch(e){} };
+    vid.onloadeddata = ()=>{ vid.currentTime=1; };
+    vid.onseeked = ()=>{
+      canvas.width=320; canvas.height=180;
+      canvas.getContext('2d').drawImage(vid,0,0,320,180);
+      canvas.toBlob(blob=>{ cleanup(); resolve(blob||null); },'image/jpeg',0.75);
+    };
+    vid.onerror = ()=>{ cleanup(); resolve(null); };
+    setTimeout(()=>{ cleanup(); resolve(null); }, 7000);
+  });
 }
 
 function openUploadModal(){
@@ -1647,6 +1791,7 @@ function openUploadModal(){
   document.getElementById('hl-err').textContent = '';
   document.getElementById('hl-file-input').value = '';
   document.getElementById('hl-submit-btn').disabled = false;
+  document.getElementById('hl-submit-btn').textContent = '⬆ Upload';
   _hlFile = null;
   document.getElementById('hl-upload-modal').classList.remove('hidden');
 }
@@ -1668,58 +1813,41 @@ async function uploadHighlight(){
   if(t1===t2){ errEl.textContent='Teams must be different.'; return; }
   if(!_hlFile){ errEl.textContent='Please choose a video file.'; return; }
   const btn = document.getElementById('hl-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Uploading...';
+  btn.disabled=true; btn.textContent='Uploading...';
   const progWrap = document.getElementById('hl-progress-wrap');
-  const progBar = document.getElementById('hl-progress-bar');
-  progWrap.style.display = 'block';
+  const progBar  = document.getElementById('hl-progress-bar');
+  progWrap.style.display='block';
   try {
     const fname = Date.now()+'_'+_hlFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${HL_BUCKET}/o?uploadType=media&name=highlights/${fname}`;
-    progBar.style.width = '30%';
-    const upRes = await fetch(uploadUrl, {
-      method:'POST',
-      headers:{'Content-Type': _hlFile.type||'video/mp4'},
-      body: _hlFile
+    // Capture thumbnail
+    btn.textContent='Processing...';
+    const thumbBlob = await captureThumb(_hlFile);
+    let thumbUrl = '';
+    if(thumbBlob){
+      const tname = 'thumb_'+fname.replace(/\.[^.]+$/,'.jpg');
+      const tr = await fetch(`https://firebasestorage.googleapis.com/v0/b/${HL_BUCKET}/o?uploadType=media&name=highlights/${tname}`,{
+        method:'POST', headers:{'Content-Type':'image/jpeg'}, body:thumbBlob
+      });
+      if(tr.ok) thumbUrl = `https://firebasestorage.googleapis.com/v0/b/${HL_BUCKET}/o/highlights%2F${encodeURIComponent(tname)}?alt=media`;
+    }
+    progBar.style.width='30%'; btn.textContent='Uploading video...';
+    const upRes = await fetch(`https://firebasestorage.googleapis.com/v0/b/${HL_BUCKET}/o?uploadType=media&name=highlights/${fname}`,{
+      method:'POST', headers:{'Content-Type':_hlFile.type||'video/mp4'}, body:_hlFile
     });
     if(!upRes.ok){ const e=await upRes.text(); throw new Error(e); }
-    progBar.style.width = '70%';
+    progBar.style.width='80%';
     const videoUrl = `https://firebasestorage.googleapis.com/v0/b/${HL_BUCKET}/o/highlights%2F${encodeURIComponent(fname)}?alt=media`;
-    const meta = {
-      team1:t1, team2:t2,
-      title:`${t1} vs ${t2}`,
-      videoUrl, league:currentComp,
-      date: new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),
-      ts: Date.now()
-    };
-    await fetch(`${FIREBASE_URL}/dls_highlights/${currentComp}.json`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(meta)
+    await fetch(`${FIREBASE_URL}/dls_highlights/${currentComp}.json`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({team1:t1,team2:t2,title:`${t1} vs ${t2}`,videoUrl,thumbUrl,league:currentComp,
+        date:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),ts:Date.now(),likes:0})
     });
-    progBar.style.width = '100%';
-    setTimeout(()=>{
-      closeUploadModal();
-      loadHighlights();
-    }, 500);
+    progBar.style.width='100%';
+    setTimeout(()=>{ closeUploadModal(); loadHighlights(); }, 500);
   } catch(e){
-    errEl.textContent = 'Upload failed. Check your connection and try again.';
-    btn.disabled = false;
-    btn.textContent = '⬆ Upload';
-    progWrap.style.display = 'none';
+    errEl.textContent='Upload failed. Check connection and try again.';
+    btn.disabled=false; btn.textContent='⬆ Upload'; progWrap.style.display='none';
   }
-}
-function playHighlight(url, title){
-  document.getElementById('hl-video-title').textContent = title;
-  const vp = document.getElementById('hl-video-player');
-  vp.src = url;
-  vp.load();
-  document.getElementById('hl-video-modal').classList.remove('hidden');
-}
-function closeVideoPlayer(){
-  const vp = document.getElementById('hl-video-player');
-  vp.pause(); vp.src = '';
-  document.getElementById('hl-video-modal').classList.add('hidden');
 }
 
 // ── Ticker ──
