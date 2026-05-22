@@ -366,11 +366,11 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 .hc-sub{font-size:.75rem;color:#8b949e}
 
 /* ── Live Screen ── */
-.live-screen{position:fixed;inset:0;background:#000;z-index:9990;display:flex;flex-direction:column}
+.live-screen{position:fixed;inset:0;background:#000;z-index:9990}
 .live-screen.hidden{display:none}
-.live-topbar{display:flex;align-items:center;background:#0f1923;border-bottom:1px solid #21262d;padding:12px 16px;gap:12px;flex-shrink:0}
+.live-topbar{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;background:#0f1923;border-bottom:1px solid #21262d;padding:0 16px;gap:12px;z-index:1;box-sizing:border-box}
 .live-back-btn{background:none;border:none;color:#00c853;font-size:.9rem;font-weight:700;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:5px;white-space:nowrap}
-#twitch-iframe{flex:1;width:100%;min-height:0;height:100%;border:none;display:block}
+#twitch-iframe{position:absolute;top:48px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 48px);border:none}
 </style>
 </head>
 <body>
