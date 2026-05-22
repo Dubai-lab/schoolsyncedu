@@ -350,9 +350,56 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
   /* Smaller overview circles on tiny screens */
   .ov-fb{ width:40px; height:40px; font-size:.88rem }
 }
+
+/* ── Home Screen ── */
+.home-screen{position:fixed;inset:0;background:#0d1117;z-index:9990;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px}
+.home-screen.hidden{display:none}
+.home-card{width:100%;max-width:360px;background:#161b22;border:1px solid #30363d;border-radius:16px;padding:28px 24px;text-align:center;cursor:pointer;transition:border-color .2s,transform .1s,box-shadow .2s;-webkit-tap-highlight-color:transparent}
+.home-card:hover{transform:translateY(-2px)}
+.home-card:active{transform:translateY(0)}
+.home-card.live-card{border-color:rgba(220,53,69,.35)}
+.home-card.live-card:hover{border-color:#dc3545;box-shadow:0 0 22px rgba(220,53,69,.2)}
+.home-card.league-card{border-color:rgba(0,200,83,.3)}
+.home-card.league-card:hover{border-color:#00c853;box-shadow:0 0 22px rgba(0,200,83,.15)}
+.hc-icon{font-size:2.8rem;margin-bottom:10px;display:block}
+.hc-title{font-size:1rem;font-weight:800;color:#e6edf3;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.hc-sub{font-size:.75rem;color:#8b949e}
+
+/* ── Live Screen ── */
+.live-screen{position:fixed;inset:0;background:#000;z-index:9990;display:flex;flex-direction:column}
+.live-screen.hidden{display:none}
+.live-topbar{display:flex;align-items:center;background:#0f1923;border-bottom:1px solid #21262d;padding:12px 16px;gap:12px;flex-shrink:0}
+.live-back-btn{background:none;border:none;color:#00c853;font-size:.9rem;font-weight:700;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:5px;white-space:nowrap}
+#twitch-iframe{flex:1;width:100%;border:none}
 </style>
 </head>
 <body>
+
+<!-- ═══════ HOME SCREEN ═══════ -->
+<div class="home-screen hidden" id="home-screen">
+  <div style="font-size:2.8rem">&#9917;</div>
+  <div style="font-size:1.3rem;font-weight:900;color:#e6edf3;letter-spacing:3px;text-transform:uppercase;text-align:center;margin-bottom:4px">DLS <span style="color:#00c853">Football</span> Hub</div>
+  <div class="home-card live-card" onclick="showLiveScreen()">
+    <span class="hc-icon">&#128250;</span>
+    <div class="hc-title">Watch Live</div>
+    <div class="hc-sub">Stream live matches</div>
+  </div>
+  <div class="home-card league-card" onclick="showLeagueScreen()">
+    <span class="hc-icon">&#127942;</span>
+    <div class="hc-title">My League</div>
+    <div class="hc-sub">Tables, fixtures &amp; standings</div>
+  </div>
+</div>
+
+<!-- ═══════ LIVE SCREEN ═══════ -->
+<div class="live-screen hidden" id="live-screen">
+  <div class="live-topbar">
+    <button class="live-back-btn" onclick="showHomeScreen()">&#8592; Back</button>
+    <span style="flex:1;font-size:.85rem;font-weight:800;color:#e6edf3;letter-spacing:2px;text-transform:uppercase;text-align:center">Live Stream</span>
+    <span class="live-badge" style="animation:blink 1.5s infinite">&#9679; LIVE</span>
+  </div>
+  <iframe id="twitch-iframe" allowfullscreen allow="autoplay"></iframe>
+</div>
 
 <!-- ═══════ CODE GATE ═══════ -->
 <div class="code-gate" id="code-gate">
@@ -496,12 +543,13 @@ tr.cut-rel td{border-top:2px solid rgba(220,53,69,.35)!important}
 </div>
 
 <!-- ═══════ COMP DISPLAY ═══════ -->
-<div class="comp-wrap" style="display:flex;align-items:center;padding:12px 20px;gap:10px">
+<div class="comp-wrap" id="comp-wrap" style="display:flex;align-items:center;padding:12px 20px;gap:10px">
   <span class="ct-icon" id="ct-icon">&#9917;</span>
   <div style="flex:1">
     <div class="ct-name" id="ct-name" style="color:#00c853">DLS League</div>
     <div class="ct-sub" id="ct-sub">Division 1</div>
   </div>
+  <button onclick="showHomeScreen()" style="background:none;border:1px solid #30363d;border-radius:6px;color:#4a5568;font-size:.62rem;padding:4px 10px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;margin-right:4px">&#8962; Home</button>
   <button onclick="switchLeague()" style="background:none;border:1px solid #30363d;border-radius:6px;color:#4a5568;font-size:.62rem;padding:4px 10px;cursor:pointer;letter-spacing:1px;text-transform:uppercase">Switch</button>
 </div>
 
@@ -672,7 +720,7 @@ async function submitCode(){
   localStorage.setItem('dls_viewer_access', comp);
   hideCodeGate();
   selectComp(comp);
-  await refresh();
+  showHomeScreen();
 }
 function switchLeague(){
   localStorage.removeItem('dls_viewer_access');
@@ -1434,6 +1482,31 @@ function buildBracketHTML(ko, phones, logos){
   </div>`;
 }
 
+// ── Home / Live / League navigation ──
+function showHomeScreen(){
+  document.getElementById('home-screen').classList.remove('hidden');
+  document.getElementById('live-screen').classList.add('hidden');
+  document.getElementById('twitch-iframe').src = '';
+  document.getElementById('team-overview-modal').style.display = 'none';
+  document.getElementById('rules-overlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+function showLiveScreen(){
+  document.getElementById('home-screen').classList.add('hidden');
+  document.getElementById('live-screen').classList.remove('hidden');
+  const host = window.location.hostname || 'localhost';
+  document.getElementById('twitch-iframe').src =
+    'https://player.twitch.tv/?channel=dubai_tech&parent=' + host + '&autoplay=true';
+}
+function showLeagueScreen(){
+  document.getElementById('home-screen').classList.add('hidden');
+  document.getElementById('live-screen').classList.add('hidden');
+  document.getElementById('twitch-iframe').src = '';
+  renderCurrentComp();
+  updateNotifBanner();
+  updateTicker();
+}
+
 // ── Ticker ──
 let _tickerRAF = null;
 function buildTickerText(){
@@ -1493,8 +1566,13 @@ async function refresh(){
   updateTicker();
 }
 
-// Auto-refresh every 30 seconds (only when gate is not showing)
-setInterval(()=>{ if(document.getElementById('code-gate').classList.contains('hidden')) refresh(); }, 30000);
+// Auto-refresh every 30 seconds (only when on the league screen)
+setInterval(()=>{
+  const codeHidden = document.getElementById('code-gate').classList.contains('hidden');
+  const homeHidden = document.getElementById('home-screen').classList.contains('hidden');
+  const liveHidden = document.getElementById('live-screen').classList.contains('hidden');
+  if(codeHidden && homeHidden && liveHidden) refresh();
+}, 30000);
 
 // Initial load
 (async()=>{
@@ -1506,7 +1584,7 @@ setInterval(()=>{ if(document.getElementById('code-gate').classList.contains('hi
   if(saved && COMP_CFG[saved]){
     selectComp(saved);
     hideCodeGate();
-    renderCurrentComp();
+    showHomeScreen();
   } else {
     showCodeGate();
   }
