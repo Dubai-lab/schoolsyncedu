@@ -1765,17 +1765,30 @@ async function captureThumb(file){
   return new Promise(resolve=>{
     const vid = document.createElement('video');
     const canvas = document.createElement('canvas');
-    vid.preload='metadata'; vid.muted=true; vid.playsInline=true;
-    vid.src = URL.createObjectURL(file);
-    const cleanup = ()=>{ try{URL.revokeObjectURL(vid.src)}catch(e){} };
-    vid.onloadeddata = ()=>{ vid.currentTime=1; };
-    vid.onseeked = ()=>{
-      canvas.width=320; canvas.height=180;
-      canvas.getContext('2d').drawImage(vid,0,0,320,180);
-      canvas.toBlob(blob=>{ cleanup(); resolve(blob||null); },'image/jpeg',0.75);
+    vid.preload='auto'; vid.muted=true; vid.playsInline=true;
+    vid.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0';
+    document.body.appendChild(vid);
+    let done = false;
+    const cleanup = ()=>{
+      try{URL.revokeObjectURL(vid.src)}catch(e){}
+      try{document.body.removeChild(vid)}catch(e){}
     };
+    const capture = ()=>{
+      if(done) return; done=true;
+      canvas.width=320; canvas.height=180;
+      try{
+        canvas.getContext('2d').drawImage(vid,0,0,320,180);
+        canvas.toBlob(blob=>{ cleanup(); resolve(blob&&blob.size>500?blob:null); },'image/jpeg',0.8);
+      }catch(e){ cleanup(); resolve(null); }
+    };
+    vid.onseeked = capture;
+    vid.ontimeupdate = ()=>{ if(vid.currentTime>0) capture(); };
+    vid.onloadeddata = ()=>{ vid.currentTime=0.5; };
+    vid.oncanplay = ()=>{ if(!done) vid.currentTime=0.5; };
     vid.onerror = ()=>{ cleanup(); resolve(null); };
-    setTimeout(()=>{ cleanup(); resolve(null); }, 7000);
+    setTimeout(()=>{ if(!done){ capture(); setTimeout(()=>{ if(!done){cleanup();resolve(null);} },500); } }, 6000);
+    vid.src = URL.createObjectURL(file);
+    vid.load();
   });
 }
 
