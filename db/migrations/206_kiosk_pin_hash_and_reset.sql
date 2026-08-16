@@ -28,7 +28,22 @@
 -- and finance or leadership can reset it without knowing the old one.
 -- ============================================================
 
+-- Supabase ships pgcrypto in the `extensions` schema. This is a no-op there,
+-- and installs it on a plain Postgres instance. Every function below sets
+-- `search_path = public, extensions` so crypt() and gen_salt() resolve in
+-- either arrangement — without that they raise 42883 at call time, which
+-- PostgREST returns as a 404 and looks like a missing function.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Fail loudly and early if crypt() cannot be reached, rather than creating
+-- functions that compile fine and break on first use.
+DO $$
+BEGIN
+  PERFORM crypt('probe', gen_salt('bf'));
+EXCEPTION WHEN undefined_function THEN
+  RAISE EXCEPTION
+    'pgcrypto is not reachable. Install it, or add its schema to the search_path in this migration.';
+END $$;
 
 
 -- ============================================================
@@ -72,7 +87,7 @@ CREATE OR REPLACE FUNCTION set_kiosk_pin(p_pin TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_user RECORD;
@@ -116,7 +131,7 @@ CREATE OR REPLACE FUNCTION is_kiosk_pin_set()
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 STABLE
 AS $$
 DECLARE
@@ -150,6 +165,11 @@ CREATE OR REPLACE FUNCTION verify_kiosk_pin(p_stored TEXT, p_supplied TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 IMMUTABLE
+-- extensions must be on the path: Supabase installs pgcrypto there, not in
+-- public, so a bare `SET search_path = public` leaves crypt() unresolvable and
+-- the call fails with 42883 (undefined_function) at runtime. PostgREST reports
+-- that as a 404, which reads exactly like the function not existing at all.
+SET search_path = public, extensions
 AS $$
 BEGIN
   IF p_stored IS NULL OR p_supplied IS NULL THEN
@@ -184,7 +204,7 @@ CREATE OR REPLACE FUNCTION verify_kiosk_access(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_school     RECORD;
