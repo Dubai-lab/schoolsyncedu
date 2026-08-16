@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { registrarService } from '@/services/registrarService';
+import { supabase } from '@/lib/supabase';
 import { notify } from '@/components/shared/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Breadcrumb from '@/components/shared/Breadcrumb';
@@ -12,7 +12,6 @@ export default function KioskSettings() {
   const schoolId   = user?.school_id ?? '';
   const schoolCode = (user as unknown as Record<string, unknown>)?.school_code as string ?? '';
 
-  const [currentPin,  setCurrentPin]  = useState('');
   const [newPin,      setNewPin]      = useState('');
   const [confirmPin,  setConfirmPin]  = useState('');
   const [showPin,     setShowPin]     = useState(false);
@@ -20,13 +19,25 @@ export default function KioskSettings() {
   const [loading,     setLoading]     = useState(false);
   const [checking,    setChecking]    = useState(true);
 
-  // Check if PIN is already set
+  // is_kiosk_pin_set reports existence without disclosing the value. The old
+  // code read the PIN itself, which is no longer possible — and was the reason
+  // any staff account could learn it. See migration 206.
   useEffect(() => {
     if (!schoolId) return;
-    registrarService.getSetting(schoolId, 'kiosk_pin')
-      .then((val) => setPinIsSet(!!val))
-      .catch(() => setPinIsSet(false))
-      .finally(() => setChecking(false));
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const { data } = await supabase.rpc('is_kiosk_pin_set');
+        if (!cancelled) setPinIsSet(data === true);
+      } catch {
+        if (!cancelled) setPinIsSet(false);
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [schoolId]);
 
   async function handleSave() {
@@ -34,20 +45,25 @@ export default function KioskSettings() {
     if (newPin.length < 4) { notify.error('PIN must be at least 4 digits.'); return; }
     if (!/^\d+$/.test(newPin)) { notify.error('PIN must contain digits only.'); return; }
     if (newPin !== confirmPin) { notify.error('PINs do not match.'); return; }
-    if (pinIsSet && !currentPin.trim()) { notify.error('Enter your current PIN to change it.'); return; }
 
-    if (pinIsSet) {
-      // Verify current PIN
-      const stored = await registrarService.getSetting(schoolId, 'kiosk_pin');
-      if (stored !== currentPin) { notify.error('Current PIN is incorrect.'); return; }
-    }
-
+    // The current PIN is deliberately NOT required. Whoever reaches this screen
+    // is already signed in as finance or school leadership, and the server
+    // re-checks that role. Demanding the old PIN guarded only against an
+    // unattended session, while making a forgotten PIN a permanent lockout with
+    // no way out — which is exactly what happened.
     setLoading(true);
     try {
-      await registrarService.upsertSetting(schoolId, 'kiosk_pin', newPin);
+      const { data, error } = await supabase.rpc('set_kiosk_pin', { p_pin: newPin });
+      if (error) throw error;
+
+      const result = data as { ok?: boolean; message?: string } | null;
+      if (!result?.ok) {
+        notify.error(result?.message ?? 'Could not save the PIN.');
+        return;
+      }
+
       notify.success(pinIsSet ? 'Kiosk PIN updated.' : 'Kiosk PIN set successfully.');
       setPinIsSet(true);
-      setCurrentPin('');
       setNewPin('');
       setConfirmPin('');
     } catch {
@@ -140,40 +156,37 @@ export default function KioskSettings() {
               )}
 
               {pinIsSet && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Current PIN</label>
-                  <div className="relative w-48">
-                    <input
-                      type={showPin ? 'text' : 'password'}
-                      inputMode="numeric"
-                      maxLength={8}
-                      value={currentPin}
-                      onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))}
-                      placeholder="••••"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono tracking-widest pr-10 focus:outline-none focus:border-primary-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPin(!showPin)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
-                    >
-                      {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
+                <p className="flex items-start gap-1.5 text-xs text-slate-500">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  You do not need the old PIN. Setting a new one replaces it
+                  immediately, and every kiosk will need the new PIN from then on.
+                </p>
               )}
 
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">New PIN (4–8 digits)</label>
-                <input
-                  type={showPin ? 'text' : 'password'}
-                  inputMode="numeric"
-                  maxLength={8}
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="••••"
-                  className="w-48 rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono tracking-widest focus:outline-none focus:border-primary-400"
-                />
+                <div className="relative w-48">
+                  <input
+                    type={showPin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm font-mono tracking-widest focus:outline-none focus:border-primary-400"
+                  />
+                  {/* Reveal applies to both fields — the PIN is about to be read
+                      aloud to whoever mans the exam door, so hiding it from the
+                      person setting it serves no one. */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div>
