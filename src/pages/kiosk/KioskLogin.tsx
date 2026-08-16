@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { kioskService } from '@/services/kioskService';
 import type { KioskSchool } from '@/services/kioskService';
-import { Wifi, Lock, SchoolIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Wifi, Lock, SchoolIcon, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 // PIN pad digits
 const PAD = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
@@ -65,6 +65,23 @@ export default function KioskLogin() {
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-4">
+      {/* Way out. Nothing here is authenticated yet, so this is Back rather
+          than Sign out. Without it, tapping "Exam clearance" by mistake inside
+          the app was a dead end — the only escape was force-quitting.
+
+          navigate(-1) rather than a fixed route: inside SchoolSync Attend that
+          returns to the mode picker, and on the web kiosk it behaves like the
+          browser's own back. The '/' fallback covers someone opening /kiosk
+          directly, where there is no history to step back through. */}
+      <button
+        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+        className="absolute left-3 flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm text-slate-400 active:bg-slate-800"
+        style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+
       {/* Header */}
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2 mb-3">
