@@ -49,6 +49,15 @@ export interface IdCardStudent {
   last_name?: string | null;
   registration_number?: string | null;
   current_grade_level?: string | null;
+  /**
+   * The OFFICIAL school-issued ID photo (students.photo_url), written by staff
+   * through ITCardGenerator.
+   *
+   * Deliberately NOT students.profile_photo_url, and there is deliberately no
+   * fallback to it. A student uploading a portal picture must never change the
+   * photo on their identity card — the school issues the card, so the school
+   * controls the face on it. See migration 205.
+   */
   photo_url?: string | null;
 }
 

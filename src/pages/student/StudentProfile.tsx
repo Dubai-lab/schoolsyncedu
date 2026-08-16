@@ -132,9 +132,17 @@ export default function StudentProfile() {
           <Card className="p-6 text-center lg:col-span-1">
             <div className="relative h-24 w-24 mx-auto">
               <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                {photoPreview || student.photo_url ? (
+                {/* profile_photo_url is the student's own picture. It falls back
+                    to the official ID photo so a profile is never blank — the
+                    fallback only runs in this direction. The ID card must never
+                    fall back to the profile photo, or a student could put any
+                    image on their identity card. */}
+                {photoPreview || student.profile_photo_url || student.photo_url ? (
                   <img
-                    src={photoPreview ?? (student.photo_url as string)}
+                    src={
+                      photoPreview ??
+                      ((student.profile_photo_url as string) || (student.photo_url as string))
+                    }
                     alt="Photo"
                     className="h-full w-full object-cover"
                   />
