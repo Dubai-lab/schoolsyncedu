@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ActivationRequestForm from '@/components/shared/ActivationRequestForm';
 import SavedCardSection from './SavedCardSection';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,7 +31,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Clock,
-  Mail,
+
 } from 'lucide-react';
 
 type Tab = 'overview' | 'invoices' | 'history' | 'cards';
@@ -503,14 +504,15 @@ export default function SubscriptionManagement() {
                 <p className="text-xs text-slate-500 leading-relaxed">
                   To upgrade your plan now, please contact our support team and we will process your payment manually.
                 </p>
-                <a
-                  href="mailto:support@schoolsyncedu.com"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
-                >
-                  <Mail className="h-4 w-4" />
-                  Contact Support
-                </a>
-                <p className="text-xs text-slate-400">support@schoolsyncedu.com</p>
+                <div className="mx-auto w-full max-w-xl text-left">
+                  <ActivationRequestForm
+                    planId={subscription?.plan_id ?? null}
+                    intro="Send us your details and we will arrange payment and restore access."
+                  />
+                </div>
+                <p className="text-xs text-slate-400">
+                  Prefer email? support@schoolsyncedu.com
+                </p>
               </div>
 
               <Button variant="outline" size="sm" onClick={() => setShowCardForm(false)} className="w-full">

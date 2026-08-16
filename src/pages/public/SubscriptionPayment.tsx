@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ActivationRequestForm from '@/components/shared/ActivationRequestForm';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   fetchPaymentInfo,
@@ -14,7 +15,7 @@ import {
   Tag,
   X,
   Clock,
-  Mail,
+
 } from 'lucide-react';
 
 
@@ -301,14 +302,14 @@ export default function SubscriptionPayment() {
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
                 Online payment via MTN MoMo is coming soon. To activate your school now, please contact our support team and we will process your subscription manually.
               </p>
-              <a
-                href="mailto:support@schoolsyncedu.com"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700 transition-colors shadow-sm"
-              >
-                <Mail className="h-4 w-4" />
-                Contact Support
-              </a>
-              <p className="mt-3 text-xs text-slate-400">support@schoolsyncedu.com</p>
+              <div className="mt-5">
+                <ActivationRequestForm
+                  intro="Tell us how to reach you and we will arrange payment and activate your school."
+                />
+              </div>
+              <p className="mt-3 text-xs text-slate-400">
+                Prefer email? support@schoolsyncedu.com
+              </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">

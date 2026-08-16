@@ -147,8 +147,14 @@ export default function ProprietorDashboard() {
                 </p>
               </div>
             </div>
-            <Button className="bg-red-600 hover:bg-red-700 text-white shrink-0" onClick={() => navigate('/proprietor/subscription')}>
-              <RefreshCw className="w-4 h-4 mr-1.5" /> Contact Support
+            {/* Was labelled "Contact Support" while only navigating to the
+                subscription page — it contacted nobody. The label now matches
+                what it does, and the request form lives at the destination. */}
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white shrink-0"
+              onClick={() => navigate('/proprietor/subscription')}
+            >
+              <RefreshCw className="w-4 h-4 mr-1.5" /> Restore Access
             </Button>
           </div>
         </div>
