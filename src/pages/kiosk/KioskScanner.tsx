@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { startNfcScan, detectNfc, type StopScan } from '@/lib/nfc';
 import { useNavigate } from 'react-router-dom';
 import { kioskService } from '@/services/kioskService';
 import type { KioskSchool, KioskClass, ClearanceResult, ScanRecord } from '@/services/kioskService';
@@ -185,7 +186,7 @@ export default function KioskScanner() {
   const [setupDone,          setSetupDone]          = useState(false);
   const [setupLoading,       setSetupLoading]       = useState(false);
 
-  const nfcAbortRef = useRef<AbortController | null>(null);
+  const nfcStopRef = useRef<StopScan | null>(null);
   const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Refs so NFC callbacks always read the latest values (avoids stale closure)
   const sessionIdRef      = useRef<string | null>(null);
@@ -193,7 +194,12 @@ export default function KioskScanner() {
   const schoolRef         = useRef<KioskSchool | null>(school);
   const selectedClassRef  = useRef<KioskClass | null>(null);
 
-  const nfcSupported = 'NDEFReader' in window;
+  // Resolved from lib/nfc rather than probing for NDEFReader, so a native
+  // build reports the Capacitor plugin's capability instead of always failing.
+  const [nfcSupported, setNfcSupported] = useState(true);
+  useEffect(() => {
+    void detectNfc().then((c) => setNfcSupported(c.available));
+  }, []);
 
   // Keep refs in sync with state so NFC callbacks always have the latest values
   useEffect(() => { sessionIdRef.current     = sessionId;     }, [sessionId]);
@@ -225,8 +231,8 @@ export default function KioskScanner() {
 
   // ── NFC Scanning ──────────────────────────────────────────────────────────
   const stopNfc = useCallback(() => {
-    nfcAbortRef.current?.abort();
-    nfcAbortRef.current = null;
+    nfcStopRef.current?.();
+    nfcStopRef.current = null;
     setScanning(false);
   }, []);
 
@@ -267,31 +273,30 @@ export default function KioskScanner() {
   }, []);
 
   async function startNfc() {
-    if (!('NDEFReader' in window)) {
-      setScanError('NFC not supported on this device. Use Android Chrome.');
+    // Routed through lib/nfc rather than calling NDEFReader directly. Web NFC
+    // exists only in Chrome on Android, so the raw call meant this screen could
+    // never scan inside the SchoolSync Attend app — exam clearance would have
+    // been the one mode reduced to typing numbers. The abstraction picks the
+    // Capacitor plugin natively and Web NFC in a browser, so the web kiosk
+    // behaves exactly as before.
+    const cap = await detectNfc();
+    if (!cap.available) {
+      setScanError(cap.reason ?? 'NFC not available on this device.');
       return;
     }
+
     setScanning(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ndef = new (window as any).NDEFReader();
-      const abort = new AbortController();
-      nfcAbortRef.current = abort;
-      await ndef.scan({ signal: abort.signal });
-
-      ndef.addEventListener('reading', ({ serialNumber }: { serialNumber: string }) => {
-        const chipId = serialNumber.replace(/:/g, '').toUpperCase();
-        processChip(chipId);
-      });
-
-      ndef.addEventListener('readingerror', () => {
-        setScanError('Could not read NFC chip. Try again.');
-        setScanState('error');
-        setTimeout(() => { setScanState('idle'); setScanError(''); }, 3000);
-      });
+      nfcStopRef.current = await startNfcScan(
+        (uid) => processChip(uid),
+        () => {
+          setScanError('Could not read NFC chip. Try again.');
+          setScanState('error');
+          setTimeout(() => { setScanState('idle'); setScanError(''); }, 3000);
+        },
+      );
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setScanError((err as Error).message ?? 'NFC start failed');
+      setScanError(err instanceof Error ? err.message : 'NFC start failed');
       setScanning(false);
     }
   }

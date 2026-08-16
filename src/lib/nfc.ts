@@ -1,7 +1,7 @@
 /**
  * NFC reading, abstracted away from any single platform API.
  *
- * The existing screens (pages/kiosk/KioskScanner.tsx and
+ * The screens that read cards (pages/kiosk/KioskScanner.tsx and
  * pages/teacher/NfcAttendance.tsx) call `new NDEFReader()` directly. That is
  * Web NFC, which exists only in Chrome on Android — it is the specific reason
  * the kiosk cannot run on iPhone and why teachers must use a particular

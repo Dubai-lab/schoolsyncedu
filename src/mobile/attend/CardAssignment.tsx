@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { nfcCardService } from '@/services/nfcService';
-import { startNfcScan, detectNfc, normaliseUid, type StopScan } from './nfc';
+import { startNfcScan, detectNfc, normaliseUid, type StopScan } from '@/lib/nfc';
 import {
   ArrowLeft, Nfc, Search, CheckCircle2, Loader2, AlertCircle,
   CreditCard, Keyboard, X,

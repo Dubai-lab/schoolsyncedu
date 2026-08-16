@@ -8,7 +8,7 @@ import {
   enqueueTap, getQueue, cacheRoster, getCachedRoster, resolveChipOffline,
   isOnline, onConnectivityChange, type CachedRoster,
 } from './offlineQueue';
-import { startNfcScan, detectNfc, normaliseUid, type StopScan } from './nfc';
+import { startNfcScan, detectNfc, normaliseUid, type StopScan } from '@/lib/nfc';
 import {
   Nfc, WifiOff, CheckCircle2, Loader2, ArrowLeft, Users,
   CloudUpload, Keyboard, AlertCircle, ChevronDown,
