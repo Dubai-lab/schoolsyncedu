@@ -469,15 +469,17 @@ export default function SiteThemePanel() {
 
       {/* Footer and CTA bands */}
       <section>
-        <h2 className="text-sm font-bold text-slate-900">Footer &amp; call-to-action</h2>
+        <h2 className="text-sm font-bold text-slate-900">Coloured bands</h2>
         <p className="mb-3 text-xs text-slate-500">
-          These two bands used to stay in your school colour whatever style you chose,
-          which left a dark page with two bright blocks. Now they follow your pick.
+          These bands used to stay in your school colour whatever style you chose,
+          which left a dark page with bright blocks. Now they follow your pick.
+          &ldquo;Plain&rdquo; keeps a band the same shade as the rest of the page.
         </p>
         <div className="grid gap-5 sm:grid-cols-2">
           {([
             ['footerStyle', 'Footer'],
             ['ctaStyle', 'Call-to-action band'],
+            ['galleryStyle', 'Gallery background'],
             ['authPanelStyle', 'Login page panel'],
           ] as const).map(([key, label]) => (
             <Card key={key} className="p-4">

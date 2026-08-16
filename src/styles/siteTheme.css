@@ -406,6 +406,26 @@
 .ss-head--minimal .ss-section-label { display: none; }
 .ss-head--minimal .ss-section-head { text-align: left; }
 
+/* ── Banded sections ─────────────────────────────────────────────────────────
+ * A section painted with a band colour sets `color` on itself, but the
+ * headings and copy inside carry fixed Tailwind text utilities that win over
+ * inheritance. That is exactly what hid the gallery heading: the section was
+ * nailed to white by an inline background while its heading was re-coloured
+ * for a dark page. Inside a band, the text follows the band.
+ *
+ * Must stay after the [data-preset='bold'] text rules — same specificity, so
+ * order decides.
+ */
+.ss-theme .ss-band .text-gray-900,
+.ss-theme .ss-band .text-gray-800,
+.ss-theme .ss-band .text-slate-900,
+.ss-theme .ss-band .text-slate-800 { color: inherit; }
+
+.ss-theme .ss-band .text-gray-600,
+.ss-theme .ss-band .text-gray-500,
+.ss-theme .ss-band .text-slate-600,
+.ss-theme .ss-band .text-slate-500 { color: currentColor; opacity: 0.72; }
+
 /* ── Login branding panel ────────────────────────────────────────────────────
  * The panel was painted with an inline style using the school colour, so a
  * chosen preset changed the form side and left the branding side untouched —

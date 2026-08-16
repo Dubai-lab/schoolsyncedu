@@ -361,6 +361,7 @@ export default function SchoolSite() {
   // designs stitched together.
   const footerBand = bandStyle(siteStyles.theme.footerStyle, primary, siteStyles.isDark);
   const ctaBand = bandStyle(siteStyles.theme.ctaStyle, primary, siteStyles.isDark);
+  const galleryBand = bandStyle(siteStyles.theme.galleryStyle, primary, siteStyles.isDark);
 
   const vis = cfg.sections_visible ?? {};
   const show = (section: string) => vis[section] !== false;
@@ -894,8 +895,12 @@ export default function SchoolSite() {
       )}
 
       {/* ===== PROGRAMS ===== */}
+      {/* bg-slate-50 rather than an inline #f8fafc: it is the same colour, but
+          an inline background cannot be re-pointed by the theme layer, so on a
+          dark preset the section stayed white while its heading was re-coloured
+          for a dark page — and vanished. Same for testimonials below. */}
       {show('programs') && (cfg.programs ?? []).length > 0 && (
-        <section id="programs" className="px-5 py-20 sm:px-8 sm:py-28" style={{ backgroundColor: '#f8fafc' }}>
+        <section id="programs" className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="What We Offer" color={secondary} />
@@ -986,7 +991,13 @@ export default function SchoolSite() {
 
       {/* ===== GALLERY ===== */}
       {show('gallery') && (cfg.gallery_images ?? []).length > 0 && (
-        <section id="gallery" className="px-5 py-20 sm:px-8 sm:py-28" style={{ backgroundColor: '#f8fafc' }}>
+        <section
+          id="gallery"
+          className={`px-5 py-20 sm:px-8 sm:py-28 ${
+            siteStyles.theme.galleryStyle === 'surface' ? '' : 'ss-band'
+          }`}
+          style={{ background: galleryBand.background, color: galleryBand.color }}
+        >
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="School Life" color={secondary} />
@@ -1090,7 +1101,7 @@ export default function SchoolSite() {
 
       {/* ===== TESTIMONIALS ===== */}
       {show('testimonials') && (cfg.testimonials ?? []).length > 0 && (
-        <section className="px-5 py-20 sm:px-8 sm:py-28" style={{ backgroundColor: '#f8fafc' }}>
+        <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="What Parents Say" color={secondary} />

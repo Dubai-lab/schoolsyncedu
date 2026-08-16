@@ -171,6 +171,9 @@ export interface SiteTheme {
   /** Gallery tile shape. */
   galleryShape?: GalleryShape;
 
+  /** Background band behind the gallery section. See BandStyle. */
+  galleryStyle?: BandStyle;
+
   /** Login page arrangement. See AuthLayout. */
   authLayout?: AuthLayout;
 
@@ -231,6 +234,9 @@ export const DEFAULT_THEME: Required<Omit<SiteTheme, 'layouts' | 'sectionOrder'>
   sectionHeader: 'centered',
   authPanelStyle: 'brand',
   galleryShape: 'rounded',
+  // 'surface' is the alt page surface, which is #f8fafc on the light presets —
+  // the exact colour the section was hardcoded to, so nothing moves by default.
+  galleryStyle: 'surface',
   authLayout: 'split',
   footerStyle: 'brand',
   ctaStyle: 'brand',
