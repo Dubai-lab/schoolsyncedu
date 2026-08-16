@@ -8,7 +8,7 @@ import {
   resolveTheme, PRESET_INFO, SURFACE_INFO,
   type SiteTheme, type ThemePreset, type SurfaceStyle,
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
-  type BandStyle,
+  type BandStyle, type AuthLayout,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
 import { Loader2, Check, Save } from 'lucide-react';
@@ -46,6 +46,14 @@ const HEROES: { value: HeroLayout; label: string; description: string }[] = [
   { value: 'full-image', label: 'Full image', description: 'Edge-to-edge photo, text low' },
   { value: 'minimal', label: 'Minimal', description: 'No photo — colour and type' },
   { value: 'card', label: 'Card', description: 'Text in a raised card' },
+];
+
+const AUTH_LAYOUTS: { value: AuthLayout; label: string; description: string }[] = [
+  { value: 'split',    label: 'Split',    description: 'Branding beside the form' },
+  { value: 'centered', label: 'Centred',  description: 'Form over the branding' },
+  { value: 'card',     label: 'Card',     description: 'Raised card on an image' },
+  { value: 'minimal',  label: 'Minimal',  description: 'Plain, logo above the form' },
+  { value: 'cover',    label: 'Cover',    description: 'Full image, frosted panel' },
 ];
 
 const BANDS: { value: BandStyle; label: string }[] = [
@@ -259,6 +267,35 @@ export default function SiteThemePanel() {
         </div>
       </section>
 
+      {/* Login page */}
+      <section>
+        <h2 className="text-sm font-bold text-slate-900">Login page</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          The sign-in screen shares this design. Its wording and images stay under
+          the Login page tab — this is the arrangement.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {AUTH_LAYOUTS.map((a) => {
+            const active = t.authLayout === a.value;
+            return (
+              <button
+                key={a.value}
+                onClick={() => update('authLayout', a.value)}
+                className={`overflow-hidden rounded-xl border-2 text-left transition-all ${
+                  active ? 'border-primary-600 ring-2 ring-primary-600/20' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <AuthThumb layout={a.value} primary={colors.primary} />
+                <div className="border-t border-slate-100 bg-white p-2.5">
+                  <p className="text-xs font-semibold text-slate-800">{a.label}</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{a.description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Footer and CTA bands */}
       <section>
         <h2 className="text-sm font-bold text-slate-900">Footer &amp; call-to-action</h2>
@@ -369,6 +406,48 @@ export default function SiteThemePanel() {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Wireframe of each login arrangement. */
+function AuthThumb({ layout, primary }: { layout: AuthLayout; primary: string }) {
+  const form = (extra = '') => (
+    <div className={`flex flex-col gap-1 rounded bg-white p-1.5 shadow ${extra}`}>
+      <div className="h-1 w-10 rounded-full bg-slate-300" />
+      <div className="h-1 w-8 rounded-full bg-slate-200" />
+      <div className="mt-0.5 h-1.5 w-6 rounded-full" style={{ background: primary }} />
+    </div>
+  );
+  return (
+    <div className="flex h-20 items-center justify-center bg-slate-50 p-2">
+      {layout === 'split' && (
+        <div className="flex h-full w-full gap-1">
+          <div className="w-1/2 rounded" style={{ background: primary }} />
+          <div className="flex w-1/2 items-center justify-center">{form()}</div>
+        </div>
+      )}
+      {layout === 'centered' && (
+        <div className="flex h-full w-full items-center justify-center rounded" style={{ background: primary }}>
+          {form()}
+        </div>
+      )}
+      {layout === 'card' && (
+        <div className="flex h-full w-full items-center justify-center rounded" style={{ background: `${primary}66` }}>
+          {form('shadow-lg')}
+        </div>
+      )}
+      {layout === 'minimal' && (
+        <div className="flex h-full w-full items-center justify-center rounded bg-white">{form()}</div>
+      )}
+      {layout === 'cover' && (
+        <div className="flex h-full w-full items-center justify-center rounded" style={{ background: `${primary}aa` }}>
+          <div className="flex flex-col gap-1 rounded bg-white/80 p-1.5">
+            <div className="h-1 w-10 rounded-full bg-slate-400" />
+            <div className="h-1 w-8 rounded-full bg-slate-300" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

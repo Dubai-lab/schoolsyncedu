@@ -77,6 +77,21 @@ export type LogoPlacement = 'left' | 'center' | 'right';
  *   ink      near-black, letting the accent colour do the work
  *   surface  follows the preset's own surfaces, so it disappears into the page
  */
+/**
+ * Login page arrangement.
+ *
+ * The sign-in page had content options — heading, background image, feature
+ * cards — but exactly one layout, so every school's login screen was the same
+ * two-panel split in a different colour. It is the first thing staff and
+ * students see, and it carried none of the branding the site now has.
+ */
+export type AuthLayout =
+  | 'split'     // branding panel beside the form — today's only option
+  | 'centered'  // form centred on a branded background
+  | 'card'      // form in a raised card over a full-bleed image
+  | 'minimal'   // form on a plain surface, logo above
+  | 'cover';    // full-screen image, form in a translucent panel
+
 export type BandStyle = 'brand' | 'deep' | 'ink' | 'surface';
 
 // ── The theme object ─────────────────────────────────────────────────────────
@@ -87,6 +102,9 @@ export interface SiteTheme {
   corners?: CornerStyle;
   headingFont?: HeadingFont;
   logoPlacement?: LogoPlacement;
+
+  /** Login page arrangement. See AuthLayout. */
+  authLayout?: AuthLayout;
 
   /** Footer treatment. See BandStyle. */
   footerStyle?: BandStyle;
@@ -140,6 +158,7 @@ export const DEFAULT_THEME: Required<Omit<SiteTheme, 'layouts' | 'sectionOrder'>
   headingFont: 'sans',
   logoPlacement: 'left',
   logoSize: 'md',
+  authLayout: 'split',
   footerStyle: 'brand',
   ctaStyle: 'brand',
   density: 'normal',

@@ -6,6 +6,9 @@ import { schoolSiteService } from '@/services/schoolSiteService';
 import { useDomainContext } from '@/context/DomainContext';
 import { getHomePath } from '@/middleware/requireAuth';
 import type { School, SiteConfig, AuthPageConfig } from '@/types/school.types';
+import { buildSiteStyles } from '@/utils/siteThemeStyles';
+import type { SiteTheme } from '@/types/siteTheme';
+import '@/styles/siteTheme.css';
 import {
   Eye,
   EyeOff,
@@ -204,6 +207,14 @@ export default function SchoolLogin() {
   const primary = school.primary_color || '#1e40af';
   const secondary = school.secondary_color || '#f59e0b';
   const cfg: SiteConfig = school.site_config ?? {};
+  // The login page shares the site's theme, so a school that has chosen a
+  // style does not meet a differently-designed sign-in screen. Content stays
+  // in AuthPageConfig; only arrangement and surfaces come from here.
+  const siteStyles = buildSiteStyles(
+    (cfg as Record<string, unknown>).theme as SiteTheme | undefined,
+    school.primary_color || '#1e40af',
+    school.secondary_color || '#f59e0b',
+  );
   const auth: AuthPageConfig = cfg.auth_page ?? {};
 
   const heading = auth.welcome_heading || `Welcome to ${school.name}`;
@@ -222,10 +233,14 @@ export default function SchoolLogin() {
       ];
 
   return (
-    <div className="flex min-h-screen">
+    <div
+      className={`ss-theme ss-auth--${siteStyles.theme.authLayout} flex min-h-screen`}
+      data-preset={siteStyles.theme.preset}
+      style={siteStyles.vars}
+    >
       {/* ===== LEFT PANEL — School Branding ===== */}
       <div
-        className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
+        className="ss-auth-brand hidden lg:flex lg:w-1/2 relative overflow-hidden"
         style={{
           background: auth.background_image_url
             ? `url(${auth.background_image_url}) center/cover no-repeat`
@@ -303,7 +318,7 @@ export default function SchoolLogin() {
       </div>
 
       {/* ===== RIGHT PANEL — Login Form ===== */}
-      <div className="flex w-full flex-col items-center justify-center bg-slate-50 px-6 py-12 lg:w-1/2 relative">
+      <div className="ss-auth-form flex w-full flex-col items-center justify-center bg-slate-50 px-6 py-12 lg:w-1/2 relative">
         {/* Back to school site */}
         <Link
           to={`/school/${slug}`}

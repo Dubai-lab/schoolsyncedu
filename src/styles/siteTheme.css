@@ -84,7 +84,21 @@
   z-index: 0;
 }
 
-.ss-theme > *:not(.ss-surface) { position: relative; z-index: 1; }
+/* Raise page content above the fixed texture layer.
+ *
+ * Listed by element rather than `> *:not(.ss-surface)`. That blanket selector
+ * outranked Tailwind's .fixed and turned the floating WhatsApp and
+ * scroll-to-top buttons into position: relative — which dropped them into the
+ * flex column *below* the footer and left a band of page background under it.
+ *
+ * Naming the structural elements leaves floating controls alone. */
+.ss-theme > section,
+.ss-theme > nav,
+.ss-theme > header,
+.ss-theme > footer {
+  position: relative;
+  z-index: 1;
+}
 
 /* ── Hero variants ───────────────────────────────────────────────────────────
  * Arrangement only. Each variant reuses the same markup and images, so a
@@ -152,3 +166,62 @@
 /* ── Logo placement ──────────────────────────────────────────────────────── */
 .ss-nav--center .ss-nav-brand { order: 2; margin-inline: auto; }
 .ss-nav--right  .ss-nav-brand { order: 3; margin-left: auto; }
+
+/* ── Login page ──────────────────────────────────────────────────────────────
+ * The sign-in page had content options but one layout, so every school's
+ * login screen was the same two-panel split in a different colour — and it
+ * carried none of the branding the site had gained.
+ *
+ * As with the hero, these reposition rather than restructure: the branding
+ * panel and the form stay exactly as they are, so nothing a school has
+ * written or uploaded is affected by switching between them.
+ */
+
+/* Form centred on the branded background; the panel becomes the backdrop. */
+.ss-auth--centered { position: relative; }
+.ss-auth--centered .ss-auth-brand {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  width: 100%;
+}
+.ss-auth--centered .ss-auth-form {
+  position: relative;
+  z-index: 1;
+  margin: auto;
+  max-width: 26rem;
+  width: 100%;
+  background: var(--site-surface, #fff);
+  border-radius: var(--site-radius, 0.75rem);
+  box-shadow: 0 25px 60px -20px rgba(0, 0, 0, 0.45);
+}
+
+/* Raised card over a full-bleed image. */
+.ss-auth--card .ss-auth-brand { position: absolute; inset: 0; display: flex; width: 100%; }
+.ss-auth--card .ss-auth-form {
+  position: relative;
+  z-index: 1;
+  margin: auto;
+  max-width: 28rem;
+  width: 100%;
+  background: var(--site-surface, #fff);
+  border-radius: var(--site-radius, 0.75rem);
+  box-shadow: 0 30px 70px -25px rgba(0, 0, 0, 0.55);
+}
+
+/* No branding panel at all — plain surface, logo above the form. */
+.ss-auth--minimal .ss-auth-brand { display: none; }
+.ss-auth--minimal .ss-auth-form { margin: auto; max-width: 26rem; width: 100%; }
+
+/* Full-screen image with a translucent form panel over it. */
+.ss-auth--cover .ss-auth-brand { position: absolute; inset: 0; display: flex; width: 100%; }
+.ss-auth--cover .ss-auth-form {
+  position: relative;
+  z-index: 1;
+  margin: auto;
+  max-width: 26rem;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-radius: var(--site-radius, 0.75rem);
+}
