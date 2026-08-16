@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import ScannerHeader from '@/components/shared/ScannerHeader';
 import { useFetch } from '@/hooks/useFetch';
 import { nfcCardService } from '@/services/nfcService';
 import { startNfcScan, detectNfc, normaliseUid, type StopScan } from '@/lib/nfc';
 import {
-  ArrowLeft, Nfc, Search, CheckCircle2, Loader2, AlertCircle,
+  Nfc, Search, CheckCircle2, Loader2, AlertCircle,
   CreditCard, Keyboard, X,
 } from 'lucide-react';
 
@@ -45,7 +46,7 @@ type CardRow = {
 };
 
 export default function CardAssignment() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const schoolId = user?.school_id ?? '';
 
@@ -111,6 +112,12 @@ export default function CardAssignment() {
     }
   }
 
+  async function handleSignOut() {
+    stopRef.current?.();
+    await signOut();
+    navigate('/', { replace: true });
+  }
+
   function closeSheet() {
     stopRef.current?.();
     setScanning(false);
@@ -168,19 +175,14 @@ export default function CardAssignment() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-900">
-      <header className="border-b border-slate-800 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
-        <button
-          onClick={() => navigate('/')}
-          className="-ml-2 mb-2 flex w-fit items-center gap-1.5 p-2 text-sm text-slate-400"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h1 className="text-lg font-bold text-white">Assign cards</h1>
-        <p className="mt-0.5 text-xs text-slate-400">
-          {pending.length} card{pending.length === 1 ? '' : 's'} waiting for a chip
-        </p>
+      <ScannerHeader
+        title="Assign cards"
+        subtitle={`${pending.length} card${pending.length === 1 ? '' : 's'} waiting for a chip`}
+        onSignOut={handleSignOut}
+      />
 
-        <div className="relative mt-3">
+      <div className="border-b border-slate-800 px-4 pb-3 pt-3">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             value={query}
@@ -189,7 +191,7 @@ export default function CardAssignment() {
             className="w-full rounded-xl border border-slate-700 bg-slate-800 py-3 pl-10 pr-4 text-base text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
           />
         </div>
-      </header>
+      </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4">
         {isLoading ? (

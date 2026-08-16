@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import ScannerHeader from '@/components/shared/ScannerHeader';
 import { useFetch } from '@/hooks/useFetch';
 import { teacherService } from '@/services/teacherService';
 import { loadRoster, flushQueue } from './attendService';
@@ -10,7 +11,7 @@ import {
 } from './offlineQueue';
 import { startNfcScan, detectNfc, normaliseUid, type StopScan } from '@/lib/nfc';
 import {
-  Nfc, WifiOff, CheckCircle2, Loader2, ArrowLeft, Users,
+  Nfc, WifiOff, CheckCircle2, Loader2, Users,
   CloudUpload, Keyboard, AlertCircle, ChevronDown,
 } from 'lucide-react';
 
@@ -30,7 +31,7 @@ function today() {
 }
 
 export default function TeacherSession() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const schoolId = user?.school_id ?? '';
   const teacherId = user?.id ?? '';
@@ -154,6 +155,12 @@ export default function TeacherSession() {
     }
   }
 
+  async function handleSignOut() {
+    stopRef.current?.();
+    await signOut();
+    navigate('/', { replace: true });
+  }
+
   async function handleStart() {
     if (!classId) return;
     setStarting(true);
@@ -188,15 +195,14 @@ export default function TeacherSession() {
   // ── Setup ──────────────────────────────────────────────────────────────────
   if (phase === 'setup') {
     return (
-      <div className="min-h-[100dvh] bg-slate-900 px-6 pb-[env(safe-area-inset-bottom)] pt-[max(2rem,env(safe-area-inset-top))]">
-        <button
-          onClick={() => navigate('/')}
-          className="-ml-2 flex w-fit items-center gap-1.5 p-2 text-sm text-slate-400"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
+      <div className="min-h-[100dvh] bg-slate-900">
+        <ScannerHeader
+          title="Class attendance"
+          subtitle={user?.email ?? undefined}
+          onSignOut={handleSignOut}
+        />
 
-        <div className="mx-auto w-full max-w-sm pt-6">
+        <div className="mx-auto w-full max-w-sm px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
           <h1 className="text-xl font-bold text-white">Start attendance</h1>
           <p className="mt-1 text-sm text-slate-400">{today()}</p>
 
@@ -272,30 +278,29 @@ export default function TeacherSession() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-900">
-      <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">
-            {(myClasses ?? []).find((c: { id: string }) => c.id === classId)?.name ?? 'Class'}
-          </p>
-          <p className="text-xs text-slate-400">
-            {subjectsForClass.find((s: { subject_id: string }) => s.subject_id === subjectId)
-              ?.subject_name ?? 'Whole day'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {!online && (
-            <span className="flex items-center gap-1 rounded-lg bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-400">
-              <WifiOff className="h-3.5 w-3.5" /> Offline
-            </span>
-          )}
-          <button
-            onClick={() => { stopRef.current?.(); setPhase('setup'); setScanning(false); }}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300"
-          >
-            End
-          </button>
-        </div>
-      </header>
+      <ScannerHeader
+        title={
+          (myClasses ?? []).find((c: { id: string }) => c.id === classId)?.name ?? 'Class'
+        }
+        subtitle={
+          subjectsForClass.find((s: { subject_id: string }) => s.subject_id === subjectId)
+            ?.subject_name ?? 'Whole day'
+        }
+        onSignOut={handleSignOut}
+      >
+        {!online && (
+          <span className="flex items-center gap-1 rounded-lg bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-400">
+            <WifiOff className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Offline</span>
+          </span>
+        )}
+        <button
+          onClick={() => { stopRef.current?.(); setPhase('setup'); setScanning(false); }}
+          className="flex min-h-11 items-center rounded-lg bg-slate-700 px-3 text-xs font-semibold text-slate-200 active:bg-slate-600"
+        >
+          End
+        </button>
+      </ScannerHeader>
 
       <div className="grid grid-cols-3 gap-3 px-4 pt-4">
         <Stat label="Marked" value={marked} tone="emerald" />

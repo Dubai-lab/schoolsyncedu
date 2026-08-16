@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { startNfcScan, detectNfc, type StopScan } from '@/lib/nfc';
+import ScannerHeader from '@/components/shared/ScannerHeader';
 import { useNavigate } from 'react-router-dom';
 import { kioskService } from '@/services/kioskService';
 import type { KioskSchool, KioskClass, ClearanceResult, ScanRecord } from '@/services/kioskService';
 import {
-  Wifi, WifiOff, CheckCircle2, XCircle, Download, LogOut,
+  Wifi, WifiOff, CheckCircle2, XCircle, Download,
   Lock, Loader2, Users, ChevronDown, AlertCircle, RefreshCw,
 } from 'lucide-react';
 
@@ -353,39 +354,34 @@ export default function KioskScanner() {
     <div className="min-h-screen bg-slate-900 text-white flex flex-col">
 
       {/* ── Top Bar ── */}
-      <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="font-bold text-white text-sm">{school.school_name}</p>
-          <p className="text-slate-400 text-xs">{semester} · {selectedClass?.name ?? 'No class selected'}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {scanning ? (
-            <span className="flex items-center gap-1 text-xs text-emerald-400">
-              <Wifi className="h-3.5 w-3.5 animate-pulse" /> NFC Active
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
-              <WifiOff className="h-3.5 w-3.5" /> NFC Off
-            </span>
-          )}
-          {setupDone && (
-            <button
-              onClick={() => setShowChangeClassPin(true)}
-              className="ml-1 p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition"
-              title="Change Class"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
-          )}
+      <ScannerHeader
+        title={school.school_name}
+        subtitle={`${semester} · ${selectedClass?.name ?? 'No class selected'}`}
+        onSignOut={() => setShowLogoutPin(true)}
+        signOutLabel="Exit"
+      >
+        {scanning ? (
+          <span className="flex items-center gap-1 text-xs text-emerald-400">
+            <Wifi className="h-3.5 w-3.5 animate-pulse" />
+            <span className="hidden sm:inline">NFC Active</span>
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <WifiOff className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">NFC Off</span>
+          </span>
+        )}
+        {setupDone && (
           <button
-            onClick={() => setShowLogoutPin(true)}
-            className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition"
-            title="Exit Kiosk"
+            onClick={() => setShowChangeClassPin(true)}
+            className="flex min-h-11 items-center rounded-lg bg-slate-700 px-2.5 text-slate-300 active:bg-slate-600"
+            title="Change Class"
+            aria-label="Change class"
           >
-            <LogOut className="h-4 w-4" />
+            <RefreshCw className="h-4 w-4" />
           </button>
-        </div>
-      </header>
+        )}
+      </ScannerHeader>
 
       {/* ── Setup Panel (shown before session starts) ── */}
       {!setupDone ? (
