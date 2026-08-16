@@ -1,0 +1,137 @@
+/* Theme layer for a school's public site.
+ *
+ * SchoolSite.tsx renders twelve sections built from fixed Tailwind utilities —
+ * bg-white, rounded-2xl, text-slate-900 and so on. That is why every school
+ * site looked the same: the colour was a variable, the surfaces were not.
+ *
+ * Rather than rewrite twelve sections, this re-points those utilities at theme
+ * tokens for the duration of the site. `.ss-theme .bg-white` has higher
+ * specificity than `.bg-white`, so it wins without !important, and only inside
+ * a school site — the dashboard and marketing pages are untouched.
+ *
+ * Every rule is a repaint. Nothing here moves or removes an element, so a
+ * school that has chosen nothing renders exactly as it did before.
+ */
+
+.ss-theme {
+  background: var(--site-page-bg);
+  color: var(--site-text);
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+
+.ss-theme h1,
+.ss-theme h2,
+.ss-theme h3,
+.ss-theme h4 {
+  font-family: var(--site-heading-font);
+  font-weight: var(--site-heading-weight);
+  letter-spacing: var(--site-heading-tracking);
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────────
+ * The two background utilities the page leans on. Redirecting these is what
+ * makes 'warm' cream and 'bold' near-black without touching any section.
+ */
+.ss-theme .bg-white { background-color: var(--site-surface); }
+.ss-theme .bg-slate-50,
+.ss-theme .bg-gray-50 { background-color: var(--site-surface-alt); }
+
+/* ── Corners ─────────────────────────────────────────────────────────────────
+ * Capped rather than absolute: a pill radius on a large panel looks wrong, so
+ * big containers take the token while small controls keep their own shape.
+ */
+.ss-theme .rounded-xl,
+.ss-theme .rounded-2xl,
+.ss-theme .rounded-3xl { border-radius: var(--site-radius); }
+
+/* ── Text on dark presets ────────────────────────────────────────────────────
+ * 'bold' uses a near-black page, where the page's slate text would vanish.
+ * Scoped to that preset only, so light presets keep their exact colours.
+ */
+.ss-theme[data-preset='bold'] .text-slate-900,
+.ss-theme[data-preset='bold'] .text-slate-800,
+.ss-theme[data-preset='bold'] .text-gray-900 { color: var(--site-text); }
+
+.ss-theme[data-preset='bold'] .text-slate-600,
+.ss-theme[data-preset='bold'] .text-slate-500,
+.ss-theme[data-preset='bold'] .text-gray-600 { color: var(--site-text-muted); }
+
+.ss-theme[data-preset='bold'] .border-slate-200,
+.ss-theme[data-preset='bold'] .border-slate-100 { border-color: rgba(255, 255, 255, 0.12); }
+
+/* ── Section rhythm ──────────────────────────────────────────────────────────
+ * Density and preset both feed --site-section-pad, so 'airy' genuinely
+ * breathes and 'compact' genuinely tightens.
+ */
+.ss-theme section {
+  padding-top: var(--site-section-pad);
+  padding-bottom: var(--site-section-pad);
+}
+
+/* The hero owns its own height, and the navbar must not inherit section padding. */
+.ss-theme section.ss-hero,
+.ss-theme nav { padding-top: 0; padding-bottom: 0; }
+
+/* ── Surface texture ─────────────────────────────────────────────────────────
+ * A single fixed layer behind everything rather than one per section, so the
+ * pattern is continuous down the page instead of restarting at each block.
+ */
+.ss-surface {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ss-theme > *:not(.ss-surface) { position: relative; z-index: 1; }
+
+/* ── Hero variants ───────────────────────────────────────────────────────────
+ * Arrangement only. Each variant reuses the same markup and images, so a
+ * school can try all five without re-entering anything.
+ */
+
+/* Text sits low over a full-bleed image. */
+.ss-hero--full-image .ss-hero-content {
+  align-self: flex-end;
+  padding-bottom: 5rem;
+  text-align: left;
+}
+
+/* No photograph — a colour field and type. The image layers stay in the DOM
+   but are hidden, so switching back is instant. */
+.ss-hero--minimal .ss-hero-bg { display: none; }
+.ss-hero--minimal { background: var(--site-primary); }
+.ss-hero--minimal .ss-hero-content { text-align: left; }
+
+/* Content raised into a card over the image. */
+.ss-hero--card .ss-hero-content {
+  background: var(--site-surface);
+  color: var(--site-text);
+  border-radius: var(--site-radius);
+  padding: 2.5rem;
+  max-width: 42rem;
+  box-shadow: var(--site-shadow);
+  text-align: left;
+}
+.ss-hero--card .ss-hero-content .text-white { color: var(--site-text); }
+
+/* Text on one side, image on the other. The background image is clipped to a
+   half rather than moved, which keeps the slideshow and its controls working. */
+@media (min-width: 1024px) {
+  .ss-hero--split .ss-hero-bg { clip-path: inset(0 0 0 50%); }
+  .ss-hero--split .ss-hero-content {
+    max-width: 50%;
+    text-align: left;
+    margin-right: auto;
+    padding-right: 3rem;
+  }
+  .ss-hero--split { background: var(--site-surface); }
+  .ss-hero--split .ss-hero-content .text-white { color: var(--site-text); }
+  .ss-hero--split .ss-hero-content .text-white\/80,
+  .ss-hero--split .ss-hero-content .text-white\/70 { color: var(--site-text-muted); }
+}
+
+/* ── Logo placement ──────────────────────────────────────────────────────── */
+.ss-nav--center .ss-nav-brand { order: 2; margin-inline: auto; }
+.ss-nav--right  .ss-nav-brand { order: 3; margin-left: auto; }

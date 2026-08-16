@@ -1,5 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
+import { buildSiteStyles } from '@/utils/siteThemeStyles';
+import type { SiteTheme } from '@/types/siteTheme';
+import '@/styles/siteTheme.css';
 import { useParams, Link } from 'react-router-dom';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { useDomainContext } from '@/context/DomainContext';
@@ -343,6 +346,14 @@ export default function SchoolSite() {
     `${school.name} is a premier educational institution located in ${school.location || 'Liberia'}. We are committed to providing quality education and shaping the leaders of tomorrow.`;
 
   const cfg: SiteConfig = school.site_config ?? {};
+  // Theme lives inside site_config alongside the page content. resolveTheme
+  // fills every gap with the previous hardcoded values, so a school that has
+  // chosen nothing renders exactly as it did before.
+  const siteStyles = buildSiteStyles(
+    (cfg as Record<string, unknown>).theme as SiteTheme | undefined,
+    primary,
+    secondary,
+  );
   const vis = cfg.sections_visible ?? {};
   const show = (section: string) => vis[section] !== false;
 
@@ -411,7 +422,25 @@ export default function SchoolSite() {
       .ss-hero-hours  { animation: ssFadeIn 0.6s ease 1.1s both; }
       .ss-wa-btn      { animation: ssWAFloat 3s ease-in-out infinite, ssWAPulse 2.5s ease-out 2s infinite; }
     `}</style>
-    <div className="min-h-screen bg-white antialiased" style={{ '--school-primary': primary, '--school-secondary': secondary } as React.CSSProperties}>
+    {/* data-preset drives the few rules that must know whether the surface is
+        dark. Everything else reads the tokens, so a new preset needs no change
+        here. */}
+    <div
+      className="ss-theme min-h-screen bg-white antialiased"
+      data-preset={siteStyles.theme.preset}
+      style={{
+        '--school-primary': primary,
+        '--school-secondary': secondary,
+        ...siteStyles.vars,
+      } as React.CSSProperties}
+    >
+      {/* One fixed texture layer for the whole page rather than one per
+          section, so the pattern runs continuously instead of restarting at
+          every block. */}
+      {siteStyles.surface && (
+        <div className="ss-surface" style={{ ...siteStyles.surface, color: 'var(--site-text)' }} />
+      )}
+
 
       {/* ===== NAVBAR ===== */}
       <nav
@@ -421,9 +450,10 @@ export default function SchoolSite() {
             : 'bg-transparent'
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2 sm:px-8">
-          {/* Logo + Name */}
-          <div className="flex items-center gap-3">
+        <div className={`ss-nav--${siteStyles.theme.logoPlacement} mx-auto flex max-w-7xl items-center justify-between px-5 py-2 sm:px-8`}>
+          {/* Logo + Name. ss-nav-brand is what the logo-placement rules move —
+              order and margin only, so the markup stays as it is. */}
+          <div className="ss-nav-brand flex items-center gap-3">
             {school.logo_url ? (
               <img src={school.logo_url} alt={school.name} className="h-10 w-10 object-contain" />
             ) : (
@@ -555,7 +585,7 @@ export default function SchoolSite() {
         <section
           id="home"
           ref={heroRef}
-          className="relative flex min-h-screen items-center overflow-hidden"
+          className={`ss-hero ss-hero--${siteStyles.theme.layouts.hero} relative flex min-h-screen items-center overflow-hidden`}
           style={!cfg.hero_image_url ? {
             background: `linear-gradient(145deg, ${primary} 0%, ${primary}e0 40%, ${primary}b0 100%)`,
           } : undefined}
@@ -646,8 +676,11 @@ export default function SchoolSite() {
                 </div>
               )}
 
-              {/* Text content — right column on desktop */}
-              <div className="flex-1 text-center lg:text-left">
+              {/* Text content — right column on desktop.
+                  ss-hero-content is the handle each hero variant repositions:
+                  lowered for full-image, boxed for card, half-width for split.
+                  The markup never changes, only where it sits. */}
+              <div className="ss-hero-content flex-1 text-center lg:text-left">
                 {/* Badge */}
                 {(school.founded_year || school.county) && (
                   <div className="ss-hero-badge mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
