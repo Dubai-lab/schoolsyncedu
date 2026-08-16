@@ -221,7 +221,7 @@ BEGIN
   END IF;
 
   SELECT bc.id AS copy_id, bc.barcode, bc.status,
-         b.id AS book_id, b.title, b.author, b.isbn, b.cover_url
+         b.id AS book_id, b.title, b.author, b.isbn
   INTO   v_row
   FROM   book_copies bc
   JOIN   books b ON b.id = bc.book_id
@@ -241,7 +241,6 @@ BEGIN
     'title',   v_row.title,
     'author',  v_row.author,
     'isbn',    v_row.isbn,
-    'cover_url', v_row.cover_url,
     -- Who has it, when it is out. This is what turns "unavailable" into
     -- something the librarian can act on.
     'current', (

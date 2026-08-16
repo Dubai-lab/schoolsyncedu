@@ -187,7 +187,10 @@ export const studentPortalService = {
   async getMyCheckouts(_schoolId: UUID, studentId: UUID) {
     const { data, error } = await supabase
       .from('book_checkouts')
-      .select('*, book_copies(*, books(title, author, isbn, cover_url))')
+      // No cover_url on books — the column has never existed, so this query
+      // threw on every call and the student's library tab silently showed
+      // nothing. See migration 214.
+      .select('*, book_copies(*, books(title, author, isbn))')
       .eq('student_id', studentId) // no school_id column on this table
       .order('checkout_date', { ascending: false });
     if (error) throw error;
