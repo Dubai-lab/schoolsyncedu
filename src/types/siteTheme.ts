@@ -64,6 +64,21 @@ export type StaffLayout = 'cards' | 'circles' | 'rows';
 /** Where the logo sits in the header — a small change that reads as identity. */
 export type LogoPlacement = 'left' | 'center' | 'right';
 
+/**
+ * Treatment for the footer and the call-to-action band.
+ *
+ * These two were the only blocks painted with the school's colour through an
+ * inline style, so a dark preset produced a dark page with two bright bands
+ * still in the old colour — the page looked like two designs stitched
+ * together. They now follow whichever treatment is chosen.
+ *
+ *   brand    the school's primary colour, as before
+ *   deep     a darkened version of it — brand identity without the glare
+ *   ink      near-black, letting the accent colour do the work
+ *   surface  follows the preset's own surfaces, so it disappears into the page
+ */
+export type BandStyle = 'brand' | 'deep' | 'ink' | 'surface';
+
 // ── The theme object ─────────────────────────────────────────────────────────
 
 export interface SiteTheme {
@@ -72,6 +87,11 @@ export interface SiteTheme {
   corners?: CornerStyle;
   headingFont?: HeadingFont;
   logoPlacement?: LogoPlacement;
+
+  /** Footer treatment. See BandStyle. */
+  footerStyle?: BandStyle;
+  /** Call-to-action band treatment. */
+  ctaStyle?: BandStyle;
 
   /** Larger logo for schools whose crest carries the identity. */
   logoSize?: 'sm' | 'md' | 'lg';
@@ -120,6 +140,8 @@ export const DEFAULT_THEME: Required<Omit<SiteTheme, 'layouts' | 'sectionOrder'>
   headingFont: 'sans',
   logoPlacement: 'left',
   logoSize: 'md',
+  footerStyle: 'brand',
+  ctaStyle: 'brand',
   density: 'normal',
   layouts: {
     hero: 'centered',

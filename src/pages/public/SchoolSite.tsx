@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
-import { buildSiteStyles } from '@/utils/siteThemeStyles';
+import { buildSiteStyles, bandStyle } from '@/utils/siteThemeStyles';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
 import { useParams, Link } from 'react-router-dom';
@@ -354,6 +354,13 @@ export default function SchoolSite() {
     primary,
     secondary,
   );
+  // The footer and CTA were the only blocks painted with the school's colour
+  // through an inline style, so they ignored the preset entirely — a dark page
+  // ended up with two bright bands still in the old colour, reading as two
+  // designs stitched together.
+  const footerBand = bandStyle(siteStyles.theme.footerStyle, primary, siteStyles.isDark);
+  const ctaBand = bandStyle(siteStyles.theme.ctaStyle, primary, siteStyles.isDark);
+
   const vis = cfg.sections_visible ?? {};
   const show = (section: string) => vis[section] !== false;
 
@@ -1139,7 +1146,7 @@ export default function SchoolSite() {
       {/* ===== CTA BAND ===== */}
       <section
         className="relative overflow-hidden px-5 py-16 sm:px-8"
-        style={{ background: `linear-gradient(135deg, ${primary} 0%, ${primary}cc 100%)` }}
+        style={{ background: ctaBand.background, color: ctaBand.color }}
       >
         <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full opacity-10 blur-3xl" style={{ backgroundColor: secondary }} />
         <div className="absolute bottom-0 left-10 h-40 w-40 rounded-full opacity-10 blur-2xl" style={{ backgroundColor: secondary }} />
@@ -1230,7 +1237,7 @@ export default function SchoolSite() {
       )}
 
       {/* ===== FOOTER ===== */}
-      <footer style={{ backgroundColor: primary }}>
+      <footer className="ss-footer" style={{ backgroundColor: footerBand.background, color: footerBand.color }}>
         <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8">
           <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {/* Brand */}

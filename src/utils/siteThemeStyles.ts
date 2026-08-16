@@ -178,3 +178,52 @@ export function buildSiteStyles(
 export const LOGO_SIZE: Record<string, string> = {
   sm: '2.25rem', md: '3rem', lg: '4rem',
 };
+
+/** Mix a hex colour toward black. ratio 0 = unchanged, 1 = black. */
+function darken(hex: string, ratio: number): string {
+  const c = hex.replace('#', '');
+  const full = c.length === 3 ? c.split('').map((x) => x + x).join('') : c;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return hex;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  const mix = (v: number) => Math.round(v * (1 - ratio));
+  return '#' + [r, g, b].map((v) => mix(v).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Background for the footer and the call-to-action band.
+ *
+ * These two were the only blocks painted with the school's colour through an
+ * inline style, so they ignored the preset entirely — a dark page ended up with
+ * two bright bands still in the old colour, and the page read as two designs
+ * stitched together.
+ *
+ * Returned as a style object rather than a class because the source colour is
+ * the school's own and cannot be known at build time.
+ */
+export function bandStyle(
+  band: string,
+  primary: string,
+  isDark: boolean,
+): { background: string; color: string; muted: string } {
+  switch (band) {
+    case 'deep':
+      return { background: darken(primary, 0.55), color: '#ffffff', muted: 'rgba(255,255,255,.65)' };
+    case 'ink':
+      return { background: '#0b1020', color: '#ffffff', muted: 'rgba(255,255,255,.6)' };
+    case 'surface':
+      // Follows the preset. On a dark preset that means the band disappears
+      // into the page, which is the point — some schools want one continuous
+      // surface rather than a stack of coloured blocks.
+      return {
+        background: 'var(--site-surface-alt)',
+        color: 'var(--site-text)',
+        muted: 'var(--site-text-muted)',
+      };
+    default:
+      return {
+        background: primary,
+        color: '#ffffff',
+        muted: isDark ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.7)',
+      };
+  }
+}

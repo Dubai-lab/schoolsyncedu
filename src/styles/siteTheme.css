@@ -132,6 +132,23 @@
   .ss-hero--split .ss-hero-content .text-white\/70 { color: var(--site-text-muted); }
 }
 
+/* ── Footer ──────────────────────────────────────────────────────────────────
+ * The page background was showing beneath the footer, so it looked lifted off
+ * the bottom of the window rather than anchored to it. The wrapper becomes a
+ * column and the footer is pushed to the end, which also handles short pages
+ * where the content does not fill the viewport.
+ */
+.ss-theme {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.ss-theme > .ss-footer { margin-top: auto; }
+
+/* The band owns its own padding; the generic section rule must not add more. */
+.ss-theme .ss-footer { padding-top: 0; padding-bottom: 0; }
+
 /* ── Logo placement ──────────────────────────────────────────────────────── */
 .ss-nav--center .ss-nav-brand { order: 2; margin-inline: auto; }
 .ss-nav--right  .ss-nav-brand { order: 3; margin-left: auto; }

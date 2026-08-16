@@ -8,6 +8,7 @@ import {
   resolveTheme, PRESET_INFO, SURFACE_INFO,
   type SiteTheme, type ThemePreset, type SurfaceStyle,
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
+  type BandStyle,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
 import { Loader2, Check, Save } from 'lucide-react';
@@ -46,6 +47,22 @@ const HEROES: { value: HeroLayout; label: string; description: string }[] = [
   { value: 'minimal', label: 'Minimal', description: 'No photo — colour and type' },
   { value: 'card', label: 'Card', description: 'Text in a raised card' },
 ];
+
+const BANDS: { value: BandStyle; label: string }[] = [
+  { value: 'brand',   label: 'Brand' },
+  { value: 'deep',    label: 'Deep' },
+  { value: 'ink',     label: 'Ink' },
+  { value: 'surface', label: 'Plain' },
+];
+
+/** Same darkening the site uses, so the swatch matches what renders. */
+function shade(hex: string, ratio: number): string {
+  const c = hex.replace('#', '');
+  const full = c.length === 3 ? c.split('').map((x) => x + x).join('') : c;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return hex;
+  const parts = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  return '#' + parts.map((v) => Math.round(v * (1 - ratio)).toString(16).padStart(2, '0')).join('');
+}
 
 const PLACEMENTS: { value: LogoPlacement; label: string }[] = [
   { value: 'left', label: 'Left' },
@@ -239,6 +256,47 @@ export default function SiteThemePanel() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* Footer and CTA bands */}
+      <section>
+        <h2 className="text-sm font-bold text-slate-900">Footer &amp; call-to-action</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          These two bands used to stay in your school colour whatever style you chose,
+          which left a dark page with two bright blocks. Now they follow your pick.
+        </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          {([
+            ['footerStyle', 'Footer'],
+            ['ctaStyle', 'Call-to-action band'],
+          ] as const).map(([key, label]) => (
+            <Card key={key} className="p-4">
+              <h3 className="mb-2.5 text-xs font-bold text-slate-900">{label}</h3>
+              <div className="grid grid-cols-4 gap-2">
+                {BANDS.map((b) => {
+                  const active = (t[key] as string) === b.value;
+                  const bg =
+                    b.value === 'brand' ? colors.primary
+                    : b.value === 'deep' ? shade(colors.primary, 0.55)
+                    : b.value === 'ink' ? '#0b1020'
+                    : '#e2e8f0';
+                  return (
+                    <button
+                      key={b.value}
+                      onClick={() => update(key, b.value)}
+                      className={`overflow-hidden rounded-lg border-2 transition-all ${
+                        active ? 'border-primary-600 ring-2 ring-primary-600/20' : 'border-slate-200'
+                      }`}
+                    >
+                      <div className="h-9" style={{ background: bg }} />
+                      <p className="bg-white px-1 py-1 text-[10px] font-medium text-slate-600">{b.label}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          ))}
         </div>
       </section>
 
