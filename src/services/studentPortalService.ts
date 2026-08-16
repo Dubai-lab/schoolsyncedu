@@ -229,6 +229,21 @@ export const studentPortalService = {
   },
 
   /** Get active card design for this school */
+  /**
+   * The student's own school — name, logo, motto and address for the ID card.
+   * Permitted by the schools_select policy (id = auth_school_id()), so no
+   * public RPC is needed here.
+   */
+  async getMySchool(schoolId: UUID) {
+    const { data, error } = await supabase
+      .from('schools')
+      .select('id, name, logo_url, motto, address, primary_color')
+      .eq('id', schoolId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
   async getActiveCardDesign(schoolId: UUID) {
     const { data, error } = await supabase
       .from('id_card_designs')

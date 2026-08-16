@@ -3,14 +3,22 @@ import { useFetch } from '@/hooks/useFetch';
 import { studentPortalService } from '@/services/studentPortalService';
 import { Card } from '@/components/ui/Card';
 import Breadcrumb from '@/components/shared/Breadcrumb';
-import {
-  CreditCard,
-  User,
-  School,
-  Shield,
-  Barcode,
-} from 'lucide-react';
+import { StudentIdCard, StudentIdCardBack } from '@/components/shared/StudentIdCard';
+import type { IdCardDesignData } from '@/types/nfc.types';
+import { CreditCard } from 'lucide-react';
 
+/**
+ * The student's digital ID card.
+ *
+ * Renders with the school's OWN active design, through the same component the
+ * printed card uses — so what a student sees here matches the plastic in their
+ * pocket.
+ *
+ * This page previously drew its own card from properties the designer never
+ * writes (bg_color, school_name, school_address) and read them from
+ * design_data when the column is design_json. Both resolved to undefined, so
+ * every student at every school saw the same hardcoded SchoolSync fallback.
+ */
 export default function MyIDCard() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
@@ -22,7 +30,7 @@ export default function MyIDCard() {
     { enabled: !!schoolId && !!userId },
   );
 
-  const studentId = student?.id ?? '';
+  const studentId = (student as Record<string, unknown> | null)?.id as string ?? '';
 
   const { data: cardData, isLoading } = useFetch(
     ['my-id-card', schoolId, studentId],
@@ -36,7 +44,52 @@ export default function MyIDCard() {
     { enabled: !!schoolId },
   );
 
-  const designData = design?.design_data as Record<string, unknown> | null;
+  const { data: school } = useFetch(
+    ['my-school', schoolId],
+    () => studentPortalService.getMySchool(schoolId),
+    { enabled: !!schoolId },
+  );
+
+  const s = student as Record<string, unknown> | null;
+  const c = cardData as Record<string, unknown> | null;
+  const sc = school as Record<string, unknown> | null;
+
+  // Prefer the design attached to this student's own card row — getMyIDCard
+  // joins id_card_designs, so that is the design their physical card was
+  // printed with. Falling back to the school's currently active design would
+  // show a different card than the one in their pocket whenever the school
+  // redesigns. The school-wide design is only the fallback, for students whose
+  // card has not been generated yet.
+  //
+  // design_json is the column the designer writes; the old code read
+  // design_data, which does not exist on this table.
+  const cardOwnDesign =
+    (c?.id_card_designs as Record<string, unknown> | null)?.design_json as
+      | IdCardDesignData
+      | undefined;
+
+  const schoolActiveDesign = (design as Record<string, unknown> | null)?.design_json as
+    | IdCardDesignData
+    | undefined;
+
+  const designJson = cardOwnDesign ?? schoolActiveDesign ?? null;
+
+  const cardStudent = {
+    first_name: s?.first_name as string | null,
+    last_name: s?.last_name as string | null,
+    registration_number: s?.registration_number as string | null,
+    current_grade_level:
+      ((s?.classes as Record<string, unknown> | null)?.name as string) ??
+      (s?.current_grade_level as string | null),
+    photo_url: s?.photo_url as string | null,
+  };
+
+  const cardSchool = {
+    name: sc?.name as string | null,
+    logo_url: sc?.logo_url as string | null,
+    motto: sc?.motto as string | null,
+    address: sc?.address as string | null,
+  };
 
   return (
     <div className="space-y-6">
@@ -44,163 +97,82 @@ export default function MyIDCard() {
 
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          <CreditCard className="inline-block h-6 w-6 mr-2 text-blue-600" />
+          <CreditCard className="mr-2 inline-block h-6 w-6 text-blue-600" />
           My ID Card
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Your digital student identification card.
+          Your school identification card.
         </p>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin h-8 w-8 rounded-full border-b-2 border-blue-600" />
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
         </div>
-      ) : !cardData && !student ? (
+      ) : !student ? (
         <Card className="p-12 text-center">
-          <CreditCard className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+          <CreditCard className="mx-auto mb-3 h-12 w-12 text-slate-300" />
           <h3 className="text-lg font-semibold text-slate-600">No ID card assigned</h3>
-          <p className="text-sm text-slate-400 mt-1">Your ID card has not been issued yet. Contact your school administration.</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Your ID card has not been issued yet. Contact your school administration.
+          </p>
         </Card>
       ) : (
-        <div className="max-w-md mx-auto space-y-6">
-          {/* Front of Card */}
-          <Card
-            className="overflow-hidden rounded-2xl shadow-lg"
-            style={{
-              background: (designData?.bg_color as string) || 'linear-gradient(135deg, #1e40af, #3b82f6)',
-            }}
-          >
-            <div
-              className="p-6 text-white"
-              style={{ color: (designData?.text_color as string) || '#ffffff' }}
-            >
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-5">
-                <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <School className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs opacity-75">Student ID Card</p>
-                  <p className="font-bold text-sm">
-                    {(designData?.school_name as string) || 'SchoolSync'}
-                  </p>
-                </div>
-              </div>
+        <div className="mx-auto max-w-md space-y-6">
+          {/* Front — scaled up from the 220px print base so it reads on a phone */}
+          <div className="flex justify-center">
+            <StudentIdCard
+              design={designJson}
+              student={cardStudent}
+              school={cardSchool}
+              scale={1.55}
+            />
+          </div>
 
-              {/* Photo + Info */}
-              <div className="flex gap-4">
-                <div className="h-20 w-20 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  {student?.photo_url ? (
-                    <img src={student.photo_url as string} alt="Photo" className="h-full w-full object-cover" />
-                  ) : (
-                    <User className="h-10 w-10 opacity-50" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-lg leading-tight truncate">
-                    {student?.first_name} {student?.last_name}
-                  </p>
-                  <div className="mt-2 space-y-1 text-xs opacity-80">
-                    <p>Reg: {student?.registration_number || '—'}</p>
-                    <p>Class: {String((student?.classes as Record<string, unknown>)?.name) || '—'}</p>
-                    {student?.date_of_birth && (
-                      <p>DOB: {new Date(student.date_of_birth as string).toLocaleDateString()}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+          {/* Back */}
+          <div className="flex justify-center">
+            <StudentIdCardBack design={designJson} school={cardSchool} scale={1.55} />
+          </div>
 
-              {/* NFC / Card Info */}
-              {cardData && (
-                <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between text-xs opacity-70">
-                  <span className="flex items-center gap-1">
-                    <Shield className="h-3 w-3" />
-                    Card #{(cardData.card_number as string) || (cardData.nfc_uid as string) || ''}
-                  </span>
-                  {cardData.issued_date && (
-                    <span>Issued: {new Date(cardData.issued_date as string).toLocaleDateString()}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Back of Card */}
-          <Card
-            className="overflow-hidden rounded-2xl shadow-lg"
-            style={{
-              background: (designData?.back_bg_color as string) || '#f8fafc',
-              color: (designData?.back_text_color as string) || '#334155',
-            }}
-          >
-            <div className="p-6 space-y-4 text-sm">
-              <div className="text-center">
-                <p className="font-bold text-base">
-                  {(designData?.school_name as string) || 'SchoolSync'}
-                </p>
-                {designData?.show_back_school_address ? (
-                  <p className="text-xs opacity-70 mt-0.5">
-                    {(designData?.school_address as string) || ''}
-                  </p>
-                ) : null}
-              </div>
-
-              {designData?.show_back_emergency_info ? (
-                <div className="bg-black/5 rounded-lg p-3">
-                  <p className="text-xs font-semibold mb-1">Emergency Contact</p>
-                  <p className="text-xs opacity-70">
-                    {student?.emergency_contact_name || 'Contact school administration'}
-                  </p>
-                  <p className="text-xs opacity-70">
-                    {student?.emergency_contact_phone || ''}
-                  </p>
-                </div>
-              ) : null}
-
-              {designData?.back_content ? (
-                <p className="text-xs opacity-70 text-center">{designData.back_content as string}</p>
-              ) : null}
-
-              {designData?.show_back_barcode !== false && (
-                <div className="flex flex-col items-center gap-1 pt-2">
-                  <Barcode className="h-8 w-16 opacity-30" />
-                  <p className="text-[10px] opacity-40 font-mono">
-                    {student?.registration_number || ''}
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Card status info */}
           <Card className="p-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-2">Card Information</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-700">Card Information</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <p className="text-slate-400">Status</p>
-                <p className="font-medium text-slate-700 capitalize">
-                  {(cardData?.status as string) || (student ? 'Active' : 'Not Issued')}
+                <p className="font-medium capitalize text-slate-700">
+                  {(c?.status as string) || 'Not Issued'}
                 </p>
               </div>
               <div>
                 <p className="text-slate-400">Card Type</p>
                 <p className="font-medium text-slate-700">
-                  {cardData?.nfc_uid ? 'NFC Enabled' : 'Digital Only'}
+                  {c?.nfc_chip_id || c?.nfc_uid ? 'NFC Enabled' : 'Digital Only'}
                 </p>
               </div>
               <div>
                 <p className="text-slate-400">Registration #</p>
-                <p className="font-medium text-slate-700 font-mono">{student?.registration_number || '—'}</p>
+                <p className="font-mono font-medium text-slate-700">
+                  {cardStudent.registration_number || '—'}
+                </p>
               </div>
               <div>
                 <p className="text-slate-400">Valid Until</p>
                 <p className="font-medium text-slate-700">
-                  {cardData?.expiry_date ? new Date(cardData.expiry_date as string).toLocaleDateString() : 'End of Year'}
+                  {c?.valid_until
+                    ? new Date(c.valid_until as string).toLocaleDateString()
+                    : c?.expiry_date
+                      ? new Date(c.expiry_date as string).toLocaleDateString()
+                      : 'End of Year'}
                 </p>
               </div>
             </div>
           </Card>
+
+          {!designJson && (
+            <p className="text-center text-xs leading-relaxed text-slate-400">
+              Your school has not published a card design yet, so this shows the default layout.
+            </p>
+          )}
         </div>
       )}
     </div>
