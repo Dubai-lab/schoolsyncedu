@@ -304,6 +304,9 @@ export default function SubscriptionPayment() {
               </p>
               <div className="mt-5">
                 <ActivationRequestForm
+                  schoolId={schoolId}
+                  defaultEmail={email}
+                  planId={paymentData.plan.id}
                   intro="Tell us how to reach you and we will arrange payment and activate your school."
                 />
               </div>

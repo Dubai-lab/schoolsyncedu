@@ -24,6 +24,7 @@ import {
 
 type Row = {
   id: string;
+  school_id: string;
   reference: string;
   status: 'pending' | 'contacted' | 'activated' | 'declined';
   contact_name: string | null;
@@ -134,10 +135,30 @@ export default function ActivationRequests() {
         return;
       }
 
+      // The RPC writes a payment_confirmed row to notification_logs, but that
+      // table is an audit log — process-subscription-notifications sends first
+      // and records afterwards, so a row written by hand documents an email
+      // nobody sent. This actually sends it. Best-effort: the subscription is
+      // already active either way.
+      let emailed = true;
+      try {
+        const { data: mail } = await supabase.functions.invoke('send-activation-email', {
+          body: {
+            school_id: activating.school_id,
+            invoice_number: result.invoice_number,
+            amount_usd: amount ? Number(amount) : 0,
+            payment_method: method,
+            recipient_email: activating.contact_email,
+          },
+        });
+        emailed = (mail as { ok?: boolean } | null)?.ok !== false;
+      } catch {
+        emailed = false;
+      }
+
       notify.success(
-        result.invoice_number
-          ? `Subscription active. Invoice ${result.invoice_number} issued.`
-          : 'Subscription active.',
+        `Subscription active${result.invoice_number ? `. Invoice ${result.invoice_number}` : ''}.` +
+          (emailed ? ' Confirmation emailed.' : ' Email could not be sent — tell them directly.'),
       );
       setActivating(null);
       await load();

@@ -31,10 +31,25 @@ interface ActivationRequestFormProps {
   planId?: string | null;
   /** Shown above the form — differs between suspended and first-time schools. */
   intro?: string;
+  /**
+   * School id, for the registration flow.
+   *
+   * When present the form uses the public RPC instead of resolving the school
+   * from the session. RegisterSchool signs up through supabase.auth.signUp,
+   * which establishes no session while email confirmation is on, so a school
+   * registering for the first time reaches the payment page unauthenticated —
+   * precisely the case this form exists to serve.
+   */
+  schoolId?: string | null;
+  /** Prefill when the page knows it from the URL, as registration does. */
+  defaultEmail?: string | null;
 }
 
-export default function ActivationRequestForm({ planId, intro }: ActivationRequestFormProps) {
+export default function ActivationRequestForm({
+  planId, intro, schoolId, defaultEmail,
+}: ActivationRequestFormProps) {
   const { user } = useAuth();
+  const isPublic = !!schoolId;
 
   const [checking, setChecking] = useState(true);
   const [existing, setExisting] = useState<{ reference: string; status: string } | null>(null);
@@ -51,19 +66,24 @@ export default function ActivationRequestForm({ planId, intro }: ActivationReque
   // Prefill from the signed-in user. Anything that saves a school retyping
   // details we already hold is one less reason to abandon the form.
   useEffect(() => {
+    if (defaultEmail && !email) setEmail(defaultEmail);
     const u = user as Record<string, unknown> | null;
     if (u?.email && !email) setEmail(String(u.email));
     const first = u?.first_name ? String(u.first_name) : '';
     const last = u?.last_name ? String(u.last_name) : '';
     if ((first || last) && !name) setName(`${first} ${last}`.trim());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, defaultEmail]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const { data } = await supabase.rpc('my_activation_request');
+        // my_activation_request reads auth.uid(), which is null in the
+        // registration flow — hence the school-keyed variant there.
+        const { data } = isPublic
+          ? await supabase.rpc('activation_request_status', { p_school_id: schoolId })
+          : await supabase.rpc('my_activation_request');
         const r = data as { found?: boolean; reference?: string; status?: string } | null;
         if (!cancelled && r?.found) {
           setExisting({ reference: r.reference!, status: r.status! });
@@ -73,7 +93,7 @@ export default function ActivationRequestForm({ planId, intro }: ActivationReque
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [isPublic, schoolId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,14 +103,24 @@ export default function ActivationRequestForm({ planId, intro }: ActivationReque
 
     setBusy(true);
     try {
-      const { data, error: rpcErr } = await supabase.rpc('submit_activation_request', {
-        p_plan_id: planId ?? null,
-        p_contact_name: name.trim() || null,
-        p_contact_email: email.trim(),
-        p_contact_phone: phone.trim() || null,
-        p_preferred_method: method,
-        p_note: note.trim() || null,
-      });
+      const { data, error: rpcErr } = isPublic
+        ? await supabase.rpc('submit_activation_request_public', {
+            p_school_id: schoolId,
+            p_contact_name: name.trim() || null,
+            p_contact_email: email.trim(),
+            p_plan_id: planId ?? null,
+            p_contact_phone: phone.trim() || null,
+            p_preferred_method: method,
+            p_note: note.trim() || null,
+          })
+        : await supabase.rpc('submit_activation_request', {
+            p_plan_id: planId ?? null,
+            p_contact_name: name.trim() || null,
+            p_contact_email: email.trim(),
+            p_contact_phone: phone.trim() || null,
+            p_preferred_method: method,
+            p_note: note.trim() || null,
+          });
       if (rpcErr) throw rpcErr;
 
       const result = data as { ok?: boolean; reference?: string; message?: string } | null;
