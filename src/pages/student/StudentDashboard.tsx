@@ -194,8 +194,16 @@ export default function StudentDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden shrink-0">
-            {s?.photo_url ? (
-              <img src={s.photo_url as string} alt="Photo" className="h-full w-full object-cover" />
+            {/* The student's own picture, falling back to the official ID photo
+                so this is never blank. Their portal should show the face they
+                chose — the ID card is the one place that must stay on the
+                school-issued photo. See migration 205. */}
+            {(s?.profile_photo_url || s?.photo_url) ? (
+              <img
+                src={(s.profile_photo_url as string) || (s.photo_url as string)}
+                alt="Photo"
+                className="h-full w-full object-cover"
+              />
             ) : (
               <User className="h-7 w-7 text-blue-500" />
             )}
