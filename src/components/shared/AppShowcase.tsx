@@ -1,4 +1,5 @@
 import { Smartphone, Nfc, GraduationCap, Apple, Play, Check } from 'lucide-react';
+import GridBackdrop from './GridBackdrop';
 
 /**
  * 3D showcase of the two SchoolSync mobile apps.
@@ -231,27 +232,19 @@ export default function AppShowcase({
 }: AppShowcaseProps) {
   const isSchool = variant === 'school';
 
-  return (
-    <section
-      className={`relative overflow-hidden ${
-        isSchool ? 'py-14' : 'bg-slate-950 py-20 sm:py-28'
-      }`}
-    >
-      {/* Grid backdrop. Faint enough to read as texture rather than pattern —
-          it should give the dark panel depth, not compete with the phones. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
-          backgroundSize: '44px 44px',
-          color: isSchool ? '#0f172a' : '#ffffff',
-          maskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent)',
-          WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent)',
-        }}
-      />
+  // On a school's own site this sits between light sections, so it stays
+  // light. On the SchoolSync landing page it shares the hero's ruled panel,
+  // which is what makes the two read as one surface rather than two designs.
+  const Wrapper = isSchool
+    ? ({ children }: { children: React.ReactNode }) => (
+        <section className="relative overflow-hidden py-14">{children}</section>
+      )
+    : ({ children }: { children: React.ReactNode }) => (
+        <GridBackdrop glow="emerald" className="py-20 sm:py-28">{children}</GridBackdrop>
+      );
 
+  return (
+    <Wrapper>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Copy */}
@@ -327,6 +320,6 @@ export default function AppShowcase({
           </div>
         </div>
       </div>
-    </section>
+    </Wrapper>
   );
 }

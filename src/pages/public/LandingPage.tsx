@@ -1,4 +1,5 @@
 import AppShowcase from '@/components/shared/AppShowcase';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
@@ -181,19 +182,15 @@ export default function LandingPage() {
   return (
     <div>
       {/* ========== HERO ========== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600">
+      {/* Was a blue primary-900→600 gradient. The ruled dark panel replaces it:
+          same white type, but the accent colours now read as accents instead of
+          competing with a saturated background. The blobs stay — they give the
+          grid something to sit under, and are far more visible on dark. */}
+      <GridBackdrop glow="violet" className="relative">
         {/* Animated background blobs */}
         <div className="absolute inset-0">
           <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-accent-500/10 blur-3xl animate-blob-float" />
           <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-white/5 blur-3xl animate-blob-float-alt" />
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
-              backgroundSize: '60px 60px',
-            }}
-          />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
@@ -260,7 +257,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </GridBackdrop>
 
       {/* ========== SCHOOL SITE PREVIEW ========== */}
       <SchoolSitePreview />
