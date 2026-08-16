@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import SavedCardSection from './SavedCardSection';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
 import {
@@ -39,7 +41,16 @@ type Tab = 'overview' | 'invoices' | 'history' | 'cards';
 export default function SubscriptionManagement() {
   const { user } = useAuth();
   const schoolId = user?.school_id;
-  const [tab, setTab] = useState<Tab>('overview');
+  // Honours ?tab= so the dashboard's "Add Card" prompt lands here directly.
+  // Without this the link changed the URL and left you on Overview, which is
+  // why the button looked like it did nothing.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as Tab) ?? 'overview';
+  const [tab, setTabState] = useState<Tab>(initialTab);
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    setSearchParams(t === 'overview' ? {} : { tab: t }, { replace: true });
+  };
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [showCardForm,   setShowCardForm]   = useState(false);
@@ -134,6 +145,7 @@ export default function SubscriptionManagement() {
     { key: 'overview',  label: 'Overview' },
     { key: 'invoices',  label: `Invoices (${invoices.length})` },
     { key: 'history',   label: 'History' },
+    { key: 'cards',     label: 'Payment Card' },
   ];
 
   const invoiceColumns: Column<BillingInvoice>[] = [
@@ -348,6 +360,8 @@ export default function SubscriptionManagement() {
           emptyMessage="No subscription history."
         />
       )}
+
+      {tab === 'cards' && schoolId && <SavedCardSection schoolId={schoolId} />}
 
       {/* ===== CHANGE / RENEW PLAN DIALOG ===== */}
       <Dialog open={changePlanOpen} onClose={closeDialog} className="max-w-2xl">
