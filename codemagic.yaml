@@ -274,3 +274,163 @@ workflows:
         notify:
           success: true
           failure: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SIGNED WORKFLOWS — for when the paid Apple Developer account exists.
+#
+# Nothing in the project needs editing to switch over. The entitlements files
+# are passed on the xcodebuild command line here rather than wired into the
+# Xcode targets, so the unsigned workflows above keep working for free-account
+# sideloading while these produce real, capability-carrying builds.
+#
+# One-time setup in Codemagic when you pay:
+#
+#   1. Teams → Integrations → App Store Connect → add an API key.
+#      Name it exactly: SchoolSyncAppStore
+#
+#   2. Register both bundle IDs in the Apple Developer portal:
+#        com.schoolsync.student  — enable Push Notifications
+#        com.schoolsync.attend   — enable NFC Tag Reading
+#
+#   3. For push, in Firebase → Project settings → Cloud Messaging:
+#        add an iOS app with bundle ID com.schoolsync.student
+#        upload an APNs Auth Key (.p8) from the Apple portal
+#        download GoogleService-Info.plist into ios/App/App/
+#
+#   4. Run these workflows instead of the unsigned ones.
+#
+# Step 3 is the only one that needs a file committed to the repo. Everything
+# else is account configuration.
+# ─────────────────────────────────────────────────────────────────────────────
+
+  ios-student-signed:
+    name: SchoolSync Student — signed (TestFlight)
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: SchoolSyncAppStore
+
+    environment:
+      node: 22
+      xcode: latest
+      groups:
+        - supabase
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.schoolsync.student
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+
+    scripts:
+      - name: Check required environment variables
+        script: |
+          for var in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+            [ -z "$(eval echo \$$var)" ] && { echo "MISSING: $var"; exit 1; }
+          done
+          echo "ok"
+
+      - name: Warn if the Firebase iOS config is absent
+        # Push registration silently no-ops without this. The build is still
+        # valid, so this warns rather than fails — everything except push works.
+        script: |
+          if [ -f ios/App/App/GoogleService-Info.plist ]; then
+            echo "ok: GoogleService-Info.plist present"
+          else
+            echo "WARNING: ios/App/App/GoogleService-Info.plist is missing."
+            echo "The app will build and run, but push notifications will not arrive."
+          fi
+
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Build and sync
+        script: |
+          npm run build:student
+          npx cap sync ios
+
+      - name: Set up code signing
+        script: xcode-project use-profiles
+
+      - name: Build signed ipa
+        # CODE_SIGN_ENTITLEMENTS is supplied here rather than stored in the
+        # project, so the unsigned sideload workflow stays buildable.
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags="CODE_SIGN_ENTITLEMENTS=App/App.entitlements"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+      email:
+        recipients:
+          - admin@schoolsyncedu.com
+
+  ios-attend-signed:
+    name: SchoolSync Attend — signed (TestFlight)
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: SchoolSyncAppStore
+
+    environment:
+      node: 22
+      xcode: latest
+      groups:
+        - supabase
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.schoolsync.attend
+      vars:
+        XCODE_PROJECT: "ios-attend/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+
+    scripts:
+      - name: Check required environment variables
+        script: |
+          for var in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+            [ -z "$(eval echo \$$var)" ] && { echo "MISSING: $var"; exit 1; }
+          done
+          echo "ok"
+
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Build and sync
+        script: |
+          npm run build:attend
+          CAP_APP=attend npx cap sync ios
+
+      - name: Set up code signing
+        script: xcode-project use-profiles
+
+      - name: Build signed ipa
+        # This is the build where NFC actually works: the entitlement requesting
+        # NFCTagReaderSession is applied, and the provisioning profile carries
+        # the capability to back it.
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags="CODE_SIGN_ENTITLEMENTS=App/App.entitlements"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+      email:
+        recipients:
+          - admin@schoolsyncedu.com

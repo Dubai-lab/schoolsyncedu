@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Push notifications for the SchoolSync student app.
+
+	  'production' is correct for TestFlight and the App Store. Apple routes
+	  TestFlight builds through the production APNs environment, so a build
+	  signed with 'development' silently fails to receive notifications there —
+	  the app registers, gets a token, and nothing ever arrives.
+
+	  NOT wired into the Xcode project by default. CODE_SIGN_ENTITLEMENTS is
+	  unset on the App target so that unsigned builds can be sideloaded with a
+	  free Apple ID, which cannot be granted the push capability. The signed
+	  Codemagic workflow passes this file on the xcodebuild command line
+	  instead, so one project serves both paths without editing.
+	-->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>
