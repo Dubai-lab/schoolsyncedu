@@ -38,9 +38,12 @@ ALTER TABLE book_checkouts
 
 -- Backfill from book_returns, which recorded the real date all along. Matches
 -- on copy + student, taking the earliest return at or after each checkout.
+--
+-- A correlated subquery in SET rather than UPDATE ... FROM LATERAL: a LATERAL
+-- item in the FROM list may only reference earlier FROM items, never the row
+-- being updated, so referring to bc there is rejected outright.
 UPDATE book_checkouts bc
-SET    return_date = r.return_date
-FROM   LATERAL (
+SET    return_date = (
   SELECT br.return_date
   FROM   book_returns br
   WHERE  br.book_copy_id = bc.book_copy_id
@@ -48,7 +51,7 @@ FROM   LATERAL (
     AND  br.return_date >= bc.checkout_date
   ORDER  BY br.return_date
   LIMIT  1
-) r
+)
 WHERE  bc.is_returned IS TRUE
   AND  bc.return_date IS NULL;
 
