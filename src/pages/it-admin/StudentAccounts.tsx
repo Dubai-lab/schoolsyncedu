@@ -420,7 +420,7 @@ function SecurityTab({
         name: `${student.first_name} ${student.last_name}`,
         type: 'Grade page PIN',
         success: true,
-        message: 'PIN will be cleared on next login to My Grades',
+        message: 'PIN cleared. The student sets a new one next time they open My Grades.',
       }, ...prev]);
       queryClient.invalidateQueries({ queryKey: ['all-students-security', schoolId] });
     } catch (err) {
@@ -444,7 +444,7 @@ function SecurityTab({
           <p><strong>Security Reset Hub:</strong> Search any enrolled student to manage their security settings.</p>
           <ul className="text-xs text-violet-600 list-disc ml-4 space-y-0.5">
             <li><strong>Reset Login Password</strong> — sets the student's auth password back to the school default immediately (no email sent).</li>
-            <li><strong>Reset Grade PIN</strong> — clears the PIN that protects the student's My Grades page on their next visit.</li>
+            <li><strong>Reset Grade PIN</strong> — clears the PIN protecting the student's My Grades page, on every device, straight away. They choose a new one on their next visit.</li>
           </ul>
         </div>
       </div>
@@ -582,7 +582,7 @@ function SecurityTab({
                           <button
                             onClick={() => resetGradePin(student)}
                             disabled={anyBusy || student.grade_pin_reset_requested}
-                            title={student.grade_pin_reset_requested ? 'Reset already pending' : 'Clear grade page PIN on next visit'}
+                            title={student.grade_pin_reset_requested ? 'Already reset — waiting for the student to set a new PIN' : 'Clear the grade page PIN for this student now'}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-all hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             {busyPin ? <Loader2 className="h-3 w-3 animate-spin" /> : <Hash className="h-3 w-3" />}

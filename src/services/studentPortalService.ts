@@ -260,6 +260,42 @@ export const studentPortalService = {
 
   // ==================== ANNOUNCEMENTS ====================
 
+  // ==================== GRADE PRIVACY PIN ====================
+  //
+  // The PIN used to live in localStorage, so it vanished with the browser's
+  // storage and protected nothing on any other device. It is a bcrypt hash in
+  // student_grade_pins now, reachable only through these three SECURITY
+  // DEFINER functions — no client can read the hash itself.
+
+  /** Whether this student has a PIN, and whether staff have flagged a reset. */
+  async getGradePinState(): Promise<{ hasPin: boolean; resetRequested: boolean; lockedUntil: string | null }> {
+    const { data, error } = await supabase.rpc('get_my_grade_pin_state');
+    if (error) throw error;
+    // The function RETURNS TABLE, so PostgREST sends an array of one row.
+    const row = (Array.isArray(data) ? data[0] : data) as
+      { has_pin: boolean; reset_requested: boolean; locked_until: string | null } | undefined;
+    return {
+      hasPin: row?.has_pin ?? false,
+      resetRequested: row?.reset_requested ?? false,
+      lockedUntil: row?.locked_until ?? null,
+    };
+  },
+
+  /** Set the PIN. Rejected by the database if one is already set and no reset is pending. */
+  async setGradePin(pin: string): Promise<void> {
+    const { error } = await supabase.rpc('set_my_grade_pin', { p_pin: pin });
+    if (error) throw error;
+  },
+
+  /** Check a PIN. Throws if the account is locked out after repeated failures. */
+  async verifyGradePin(pin: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('verify_my_grade_pin', { p_pin: pin });
+    if (error) throw error;
+    return data === true;
+  },
+
+  // ==================== ANNOUNCEMENTS ====================
+
   /** Get announcements for the school */
   async getAnnouncements(schoolId: UUID) {
     const { data, error } = await supabase

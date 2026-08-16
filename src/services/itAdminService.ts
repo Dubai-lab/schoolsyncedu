@@ -258,18 +258,17 @@ export const itAdminStudentService = {
     if (error) throw error;
   },
 
-  /** Flag a student's grade PIN for reset — cleared on next My Grades visit. */
+  /**
+   * Clear a student's grade PIN so they can choose a new one.
+   *
+   * Deletes the stored hash rather than only raising a flag. The old version
+   * set grade_pin_reset_requested and relied on the student's browser to drop
+   * its own copy of the PIN — which never happened if they didn't come back to
+   * that same browser. The RPC removes the PIN itself, so the reset is real
+   * everywhere the moment it is pressed.
+   */
   async resetStudentGradePin(studentId: UUID): Promise<void> {
-    const { error } = await supabase
-      .from('students')
-      .update({ grade_pin_reset_requested: true })
-      .eq('id', studentId);
-    if (error) throw error;
-  },
-
-  /** Clear the grade_pin_reset_requested flag after the student's device clears localStorage. */
-  async clearGradePinResetFlag(studentId: UUID): Promise<void> {
-    const { error } = await supabase.rpc('clear_grade_pin_reset', { p_student_id: studentId });
+    const { error } = await supabase.rpc('reset_student_grade_pin', { p_student_id: studentId });
     if (error) throw error;
   },
 };

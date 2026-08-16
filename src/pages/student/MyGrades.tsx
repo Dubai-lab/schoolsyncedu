@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { studentPortalService } from '@/services/studentPortalService';
@@ -18,6 +17,7 @@ import {
   EyeOff,
   Shield,
   X,
+  Loader2,
 } from 'lucide-react';
 import { MARKING_PERIOD_LABELS } from '@/utils/constants';
 
@@ -26,61 +26,88 @@ function termLabel(raw: string): string {
 }
 
 // ==================== GRADE PRIVACY LOCK ====================
-// PIN stored in localStorage per user: `grade_pin_{userId}`
-// PIN_ENABLED flag: `grade_pin_enabled_{userId}`
-
-function getPinKey(userId: string) { return `grade_pin_${userId}`; }
-function getPinEnabledKey(userId: string) { return `grade_pin_enabled_${userId}`; }
+//
+// The PIN lives in the database (student_grade_pins, bcrypt) and is reached
+// only through RPCs. It used to be kept in localStorage, which is why a
+// student who had set one was asked to set it again once that storage was
+// cleared — and why it protected nothing on any other device.
+//
+// Nothing about the PIN is cached here. The only thing still held client-side
+// is how long an unlock lasts within the open page, which is a convenience,
+// not the secret.
 
 const PIN_SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-function GradePrivacyGate({
-  userId,
-  onUnlock,
-}: {
-  userId: string;
-  onUnlock: () => void;
-}) {
-  const [mode, setMode] = useState<'prompt' | 'setup' | 'enter'>('prompt');
+function GradePrivacyGate({ onUnlock }: { onUnlock: (hasPin: boolean) => void }) {
+  const [mode, setMode] = useState<'loading' | 'prompt' | 'setup' | 'enter'>('loading');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const pinEnabled = localStorage.getItem(getPinEnabledKey(userId)) === 'true';
-
+  // Which screen to show is the server's answer, not the browser's.
   useEffect(() => {
-    if (pinEnabled) {
-      setMode('enter');
-    } else {
-      setMode('prompt');
-    }
-  }, [pinEnabled]);
+    let cancelled = false;
+    studentPortalService.getGradePinState()
+      .then((state) => {
+        if (cancelled) return;
+        setMode(state.hasPin ? 'enter' : 'prompt');
+      })
+      .catch(() => {
+        // Never strand the student behind a gate we cannot read. Failing open
+        // to the prompt keeps "Skip for now" available; it cannot bypass a PIN,
+        // because setting one is rejected server-side when a PIN already exists.
+        if (!cancelled) setMode('prompt');
+      });
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleEnterPin = useCallback(() => {
-    const stored = localStorage.getItem(getPinKey(userId));
-    if (pin === stored) {
-      setError('');
-      onUnlock();
-    } else {
-      setError('Incorrect PIN. Try again.');
+  const handleEnterPin = useCallback(async () => {
+    setBusy(true);
+    try {
+      const ok = await studentPortalService.verifyGradePin(pin);
+      if (ok) {
+        setError('');
+        onUnlock(true);
+      } else {
+        setError('Incorrect PIN. Try again.');
+        setPin('');
+      }
+    } catch (err) {
+      // Covers the lockout message raised after repeated wrong attempts.
+      setError(err instanceof Error ? err.message : 'Could not check your PIN.');
       setPin('');
+    } finally {
+      setBusy(false);
     }
-  }, [pin, userId, onUnlock]);
+  }, [pin, onUnlock]);
 
-  const handleSetPin = useCallback(() => {
-    if (pin.length < 4) { setError('PIN must be at least 4 digits'); return; }
+  const handleSetPin = useCallback(async () => {
+    if (!/^[0-9]{4,6}$/.test(pin)) { setError('PIN must be 4 to 6 digits'); return; }
     if (pin !== confirmPin) { setError('PINs do not match'); return; }
-    localStorage.setItem(getPinKey(userId), pin);
-    localStorage.setItem(getPinEnabledKey(userId), 'true');
-    setError('');
-    onUnlock();
-  }, [pin, confirmPin, userId, onUnlock]);
+    setBusy(true);
+    try {
+      await studentPortalService.setGradePin(pin);
+      setError('');
+      onUnlock(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your PIN.');
+    } finally {
+      setBusy(false);
+    }
+  }, [pin, confirmPin, onUnlock]);
 
-  const handleSkip = () => {
-    // User skips — grades shown without lock
-    localStorage.removeItem(getPinEnabledKey(userId));
-    onUnlock();
-  };
+  // Skipping declines to set a PIN. It cannot skip past one that exists —
+  // this branch is only reachable when the server says there is none.
+  const handleSkip = () => onUnlock(false);
+
+  if (mode === 'loading') {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -137,11 +164,14 @@ function GradePrivacyGate({
                 {error && <p className="text-xs text-red-600">{error}</p>}
                 <button
                   onClick={handleSetPin}
-                  disabled={pin.length < 4 || confirmPin.length < 4}
+                  disabled={busy || pin.length < 4 || confirmPin.length < 4}
                   className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  Save PIN & View Grades
+                  {busy ? 'Saving…' : 'Save PIN & View Grades'}
                 </button>
+                <p className="text-[11px] leading-relaxed text-slate-400">
+                  You only set this once. If you forget it, the IT office can reset it for you.
+                </p>
                 <button
                   onClick={() => setMode('prompt')}
                   className="w-full text-xs text-slate-400 hover:text-slate-600"
@@ -168,11 +198,11 @@ function GradePrivacyGate({
                 {error && <p className="text-xs text-red-600">{error}</p>}
                 <button
                   onClick={handleEnterPin}
-                  disabled={pin.length < 4}
+                  disabled={busy || pin.length < 4}
                   className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
                   <Unlock className="inline h-4 w-4 mr-2" />
-                  Unlock Grades
+                  {busy ? 'Checking…' : 'Unlock Grades'}
                 </button>
                 <p className="text-xs text-slate-400">
                   Forgot PIN? Visit the IT office to reset.
@@ -231,21 +261,23 @@ export default function MyGrades() {
   const [yearFilter, setYearFilter] = useState('');
   const [termFilter, setTermFilter] = useState('');
 
-  // Privacy lock state
+  // Privacy lock state. hasPin comes from the gate, which read it from the
+  // server — the page must not consult localStorage for it, since that is what
+  // made the PIN look unset after storage was cleared.
   const [unlocked, setUnlocked] = useState(false);
+  const [hasPin, setHasPin] = useState(false);
   const [showLockBanner, setShowLockBanner] = useState(false);
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Lock again after 5 minutes of inactivity
   const resetLockTimer = useCallback(() => {
     if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
-    const pinEnabled = localStorage.getItem(getPinEnabledKey(userId)) === 'true';
-    if (pinEnabled) {
+    if (hasPin) {
       lockTimerRef.current = setTimeout(() => {
         setUnlocked(false);
       }, PIN_SESSION_TIMEOUT_MS);
     }
-  }, [userId]);
+  }, [hasPin]);
 
   useEffect(() => {
     if (unlocked) resetLockTimer();
@@ -254,21 +286,25 @@ export default function MyGrades() {
     };
   }, [unlocked, resetLockTimer]);
 
-  const handleUnlock = useCallback(() => {
+  // The gate passes back whether a PIN now exists, so the page learns it from
+  // the same server round trip rather than making a second one.
+  const handleUnlock = useCallback((pinSet: boolean) => {
+    setHasPin(pinSet);
     setUnlocked(true);
-    resetLockTimer();
-  }, [resetLockTimer]);
+    if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+    if (pinSet) {
+      lockTimerRef.current = setTimeout(() => setUnlocked(false), PIN_SESSION_TIMEOUT_MS);
+    }
+  }, []);
 
   const handleLockNow = () => {
     setUnlocked(false);
     setShowLockBanner(false);
   };
 
-  const handleDisablePin = () => {
-    localStorage.removeItem(getPinKey(userId));
-    localStorage.removeItem(getPinEnabledKey(userId));
-    setShowLockBanner(false);
-  };
+  // No "turn the PIN off" any more. A PIN is set once and only the IT office
+  // clears it — a student who could remove their own would have a way around
+  // forgetting it, which is exactly what the reset flow is for.
 
   // Get student profile first to get student_id
   const { data: student } = useFetch(
@@ -277,23 +313,12 @@ export default function MyGrades() {
     { enabled: !!schoolId && !!userId },
   );
 
-  const queryClient = useQueryClient();
   const studentId = (student as Record<string, unknown> | null)?.id as string ?? '';
-  const gradePinResetRequested = (student as Record<string, unknown> | null)?.grade_pin_reset_requested as boolean ?? false;
 
-  // If IT Admin flagged a PIN reset, clear localStorage and acknowledge it
-  useEffect(() => {
-    if (!studentId || !gradePinResetRequested) return;
-    // Clear the PIN from localStorage
-    localStorage.removeItem(getPinKey(userId));
-    localStorage.removeItem(getPinEnabledKey(userId));
-    // Clear the flag in the DB so this only fires once, then refresh profile
-    import('@/services/itAdminService').then(({ itAdminStudentService }) => {
-      itAdminStudentService.clearGradePinResetFlag(studentId)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['my-profile', schoolId, userId] }))
-        .catch(() => {/* best-effort */});
-    });
-  }, [studentId, gradePinResetRequested, userId, schoolId, queryClient]);
+  // An IT admin reset used to be a flag this page acted on, by clearing the
+  // PIN out of its own localStorage — which only worked if the student came
+  // back to that same browser. The reset now deletes the stored PIN itself, so
+  // there is nothing left for the client to do about it.
 
   const { data: grades = [], isLoading } = useFetch(
     ['my-grades', schoolId, studentId],
@@ -307,14 +332,12 @@ export default function MyGrades() {
     { enabled: !!schoolId && !!studentId },
   );
 
-  const pinEnabled = localStorage.getItem(getPinEnabledKey(userId)) === 'true';
-
   // Show PIN gate if not yet unlocked
   if (!unlocked) {
     return (
       <div className="space-y-6">
         <Breadcrumb items={[{ label: 'My Portal' }, { label: 'My Grades' }]} />
-        <GradePrivacyGate userId={userId} onUnlock={handleUnlock} />
+        <GradePrivacyGate onUnlock={handleUnlock} />
       </div>
     );
   }
@@ -377,7 +400,7 @@ export default function MyGrades() {
 
         {/* Lock controls */}
         <div className="flex items-center gap-2">
-          {pinEnabled ? (
+          {hasPin ? (
             <button
               onClick={handleLockNow}
               className="flex items-center gap-1.5 text-xs font-medium text-slate-500 border border-slate-200 rounded-lg px-3 py-2 hover:bg-slate-50"
@@ -420,15 +443,6 @@ export default function MyGrades() {
           </div>
           <button onClick={() => setShowLockBanner(false)}>
             <X className="h-4 w-4 text-blue-400" />
-          </button>
-        </div>
-      )}
-
-      {/* Disable PIN link */}
-      {pinEnabled && (
-        <div className="text-right">
-          <button onClick={handleDisablePin} className="text-xs text-slate-400 hover:text-red-500">
-            Remove PIN lock
           </button>
         </div>
       )}
