@@ -1,0 +1,89 @@
+# Codemagic CI — iOS builds for the SchoolSync mobile apps.
+#
+# The default workflow produces an UNSIGNED .ipa, which needs no Apple
+# Developer account. You then re-sign it on your own machine with Sideloadly
+# using a free Apple ID and install it on your iPhone. That build lasts 7 days
+# before iOS revokes it, which is a limit of free signing, not of this config.
+#
+# What works in an unsigned/free-signed build:
+#   the whole UI, login, per-school branding, every screen, Face ID app lock
+#
+# What does not, because both need paid-account entitlements:
+#   push notifications (APNs) and NFC (Core NFC)
+#
+# Only the student app is here. SchoolSync Attend requests the Core NFC
+# entitlement, which a free Apple ID cannot be granted — signing fails outright,
+# and stripping it would install an app whose whole purpose does not work.
+# Attend is tested on Android until there is a paid account.
+
+workflows:
+  ios-student-unsigned:
+    name: SchoolSync Student — unsigned iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      node: 22
+      xcode: latest
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Build the student web bundle
+        # Produces dist-student/, which capacitor.config.ts points at as webDir.
+        script: npm run build:student
+
+      - name: Sync the iOS project
+        # Copies dist-student into the native project and registers plugins.
+        # CAP_APP is unset, so capacitor.config.ts resolves to the student app.
+        script: npx cap sync ios
+
+      - name: Resolve Swift package dependencies
+        # Capacitor 8 uses SPM rather than CocoaPods — there is no Podfile.
+        script: |
+          xcodebuild -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -resolvePackageDependencies
+
+      - name: Archive without code signing
+        # Signing is skipped entirely; Sideloadly applies your own signature
+        # afterwards. Building unsigned is what removes the need for an Apple
+        # Developer account at this stage.
+        script: |
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$CM_BUILD_DIR/build/App.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Package the .app into an .ipa
+        # An .ipa is just a zip with the .app inside a folder named Payload.
+        # xcodebuild -exportArchive is not usable here because exporting
+        # requires a signing identity.
+        script: |
+          cd "$CM_BUILD_DIR"
+          mkdir -p Payload
+          cp -R build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -r SchoolSync-unsigned.ipa Payload -x '*.DS_Store'
+          ls -lh SchoolSync-unsigned.ipa
+
+    artifacts:
+      - SchoolSync-unsigned.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - admin@schoolsyncedu.com
+        notify:
+          success: true
+          failure: true
