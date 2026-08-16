@@ -241,11 +241,31 @@ export const notificationService = {
     if (error) throw error;
   },
 
+  /**
+   * Dismiss one row from the super admin bell.
+   *
+   * notification_logs is the platform's audit record of every email sent, so
+   * rows are marked dismissed rather than deleted — the log survives, the
+   * dropdown gets tidy. See migration 204.
+   */
+  async dismissForSuperAdmin(id: string): Promise<void> {
+    const { error } = await supabase.rpc('dismiss_notification_log', { p_id: id });
+    if (error) throw error;
+  },
+
+  /** Dismiss every currently visible row — a backlog can run to hundreds. */
+  async dismissAllForSuperAdmin(): Promise<void> {
+    const { error } = await supabase.rpc('dismiss_all_notification_logs');
+    if (error) throw error;
+  },
+
   /** Super admin bell: reads notification_logs (platform-wide email events) */
   async listForSuperAdmin(limit = 30): Promise<UserNotification[]> {
     const { data, error } = await supabase
       .from('notification_logs')
       .select('id, event_type, recipient_email, sent_at, metadata, school_id, is_read, schools(name)')
+      // Dismissed rows stay in the table for audit but leave the bell.
+      .is('dismissed_at', null)
       .order('sent_at', { ascending: false })
       .limit(limit);
     if (error) throw error;

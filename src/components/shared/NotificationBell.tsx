@@ -158,11 +158,26 @@ export default function NotificationBell() {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!isSuperAdmin) await notificationService.delete(id);
+
+    const wasUnread = notifications.find((n) => n.id === id)?.is_read === false;
+
+    try {
+      // Super admin's bell reads notification_logs — the platform's record of
+      // every email ever sent. Those rows are dismissed, not deleted, so the
+      // audit trail survives being tidied out of a dropdown.
+      if (isSuperAdmin) {
+        await notificationService.dismissForSuperAdmin(id);
+      } else {
+        await notificationService.delete(id);
+      }
+    } catch {
+      // Leave the row on screen rather than hiding something still in the
+      // database — that mismatch is what made this look like it "came back".
+      return;
+    }
+
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    setUnreadCount((c) =>
-      Math.max(0, c - (notifications.find((n) => n.id === id)?.is_read === false ? 1 : 0)),
-    );
+    setUnreadCount((c) => Math.max(0, c - (wasUnread ? 1 : 0)));
   };
 
   const displayCount = unreadCount > 99 ? '99+' : unreadCount;
