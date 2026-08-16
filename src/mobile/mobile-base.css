@@ -1,0 +1,66 @@
+/* Native-feel baseline, shared by both mobile apps.
+ *
+ * Imported only by src/mobile/student/main.tsx and src/mobile/attend/main.tsx,
+ * so none of it reaches the web app — where scrollbars and text selection are
+ * expected behaviour, not defects.
+ *
+ * Everything here removes a browser affordance that gives the app away as a
+ * web page inside a shell.
+ */
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────────
+ * The visible track that tracks your finger as you scroll. Native apps show a
+ * transient indicator drawn by the OS, never a persistent web scrollbar, so
+ * this is the single clearest tell. Hidden on every scrollable element, not
+ * just the document — inner panes like the class list scroll too.
+ */
+* {
+  scrollbar-width: none;        /* Firefox / spec */
+  -ms-overflow-style: none;     /* legacy Edge */
+}
+
+*::-webkit-scrollbar {          /* WKWebView and Android WebView */
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* ── Overscroll ──────────────────────────────────────────────────────────────
+ * Stops a scroll that reaches the end of a list from chaining to the document
+ * and dragging the whole app. The rubber-band inside a scroll area is genuine
+ * iOS behaviour and is deliberately left alone; it is the page-level drag that
+ * feels like a web page.
+ */
+html,
+body {
+  overscroll-behavior-y: contain;
+  /* Locks out iOS text inflation in landscape, which silently resizes type. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ── Touch feedback ──────────────────────────────────────────────────────────
+ * The grey rectangle WebViews flash over a tapped element. No native control
+ * does this; components already express press state through active: styles.
+ */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Long-pressing a button should not raise the copy/share callout. Text content
+ * is deliberately excluded below — a student copying their registration number
+ * is a reasonable thing to do, and blocking it would be its own annoyance. */
+button,
+a,
+[role='button'],
+nav,
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Dragging an image out of the page is a desktop gesture with no meaning here. */
+img {
+  -webkit-user-drag: none;
+}
