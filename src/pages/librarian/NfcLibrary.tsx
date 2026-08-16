@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import SerialLookup, { type FoundCopy } from '@/components/shared/SerialLookup';
 import { useAuth } from '@/hooks/useAuth';
-import { useFetch, useMutate } from '@/hooks/useFetch';
-import { bookService, bookCopyService, checkoutService } from '@/services/libraryService';
+import { useMutate } from '@/hooks/useFetch';
+import { checkoutService } from '@/services/libraryService';
 import { supabase } from '@/lib/supabase';
 import { notify } from '@/components/shared/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -24,7 +25,6 @@ import {
   XCircle,
   GraduationCap,
   BookOpen,
-  AlertTriangle,
 } from 'lucide-react';
 
 type ScannedStudent = {
@@ -64,8 +64,7 @@ export default function NfcLibrary() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Checkout form
-  const [selectedBook, setSelectedBook] = useState('');
-  const [selectedCopy, setSelectedCopy] = useState('');
+  const [foundCopy, setFoundCopy] = useState<FoundCopy | null>(null);
   const [dueDate, setDueDate] = useState(
     new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
   );
@@ -74,27 +73,6 @@ export default function NfcLibrary() {
   const [returnTarget, setReturnTarget] = useState<ActiveCheckout | null>(null);
   const [returnCondition, setReturnCondition] = useState<BookCondition>('good');
 
-  // Book options for checkout
-  const { data: booksResult } = useFetch(
-    ['books-available', schoolId],
-    () => bookService.list(schoolId, { available: true, pageSize: 200 }),
-    { enabled: !!schoolId && mode === 'checkout' && !!student },
-  );
-
-  const { data: copies } = useFetch(
-    ['book-copies', selectedBook],
-    () => bookCopyService.listByBook(selectedBook),
-    { enabled: !!selectedBook },
-  );
-
-  const bookOptions = (booksResult?.data ?? []).map((b) => ({
-    label: `${b.title}${b.author ? ` — ${b.author}` : ''} (${b.available_copies} avail.)`,
-    value: b.id,
-  }));
-
-  const copyOptions = (copies ?? [])
-    .filter((c) => c.status === 'available')
-    .map((c) => ({ label: c.barcode, value: c.id }));
 
   // Fetch student's active checkouts when in return mode
   const fetchActiveCheckouts = useCallback(async (studentId: string) => {
@@ -127,8 +105,7 @@ export default function NfcLibrary() {
 
   // Reset when student changes
   useEffect(() => {
-    setSelectedBook('');
-    setSelectedCopy('');
+    setFoundCopy(null);
     setActiveCheckouts([]);
     if (student && mode === 'return') {
       fetchActiveCheckouts(student.id);
@@ -248,10 +225,10 @@ export default function NfcLibrary() {
   // ── Checkout mutation ─────────────────────────────────────────────────────
   const doCheckout = useMutate(
     () => {
-      if (!student || !selectedCopy) throw new Error('Missing data');
+      if (!student || !foundCopy) throw new Error('Missing data');
       return checkoutService.checkout({
         student_id: student.id,
-        book_copy_id: selectedCopy,
+        book_copy_id: foundCopy.copy_id,
         due_date: dueDate,
         checked_out_by: userId,
       });
@@ -260,8 +237,7 @@ export default function NfcLibrary() {
     {
       onSuccess: () => {
         notify.success(`Book checked out to ${student?.firstName} ${student?.lastName}`);
-        setSelectedBook('');
-        setSelectedCopy('');
+        setFoundCopy(null);
         setStudent(null);
       },
     },
@@ -291,8 +267,7 @@ export default function NfcLibrary() {
 
   const clearStudent = () => {
     setStudent(null);
-    setSelectedBook('');
-    setSelectedCopy('');
+    setFoundCopy(null);
     setActiveCheckouts([]);
     setManualInput('');
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -427,28 +402,16 @@ export default function NfcLibrary() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pb-5">
-            <Select
-              label="Book"
-              options={bookOptions}
-              value={selectedBook}
-              onChange={(e) => { setSelectedBook(e.target.value); setSelectedCopy(''); }}
-              placeholder="Select an available book…"
+            {/* Serial entry instead of two dropdowns. The librarian is holding
+                the book; its number is on the label. Hunting for the title in
+                a list of the whole catalog was both slower and easy to get
+                subtly wrong between similar editions. */}
+            <SerialLookup
+              mode="checkout"
+              selected={foundCopy}
+              onFound={setFoundCopy}
+              onClear={() => setFoundCopy(null)}
             />
-            {selectedBook && copyOptions.length > 0 && (
-              <Select
-                label="Copy (Barcode)"
-                options={copyOptions}
-                value={selectedCopy}
-                onChange={(e) => setSelectedCopy(e.target.value)}
-                placeholder="Select a copy…"
-              />
-            )}
-            {selectedBook && copyOptions.length === 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                No available copies for this book.
-              </div>
-            )}
             <Input
               label="Due Date"
               type="date"
@@ -459,7 +422,7 @@ export default function NfcLibrary() {
               className="w-full"
               onClick={() => doCheckout.mutate(undefined)}
               loading={doCheckout.isPending}
-              disabled={!selectedCopy || !dueDate}
+              disabled={!foundCopy || !dueDate}
             >
               <BookUp className="h-4 w-4 mr-2" /> Confirm Checkout
             </Button>

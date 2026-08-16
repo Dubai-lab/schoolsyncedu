@@ -56,7 +56,30 @@ export const bookService = {
       .select()
       .single();
     if (error) throw error;
+
+    // Create the physical copies. Without this the counters above were
+    // fiction: the catalog showed "500 / 500" while checkout found no copies
+    // at all, because book_copies was never populated. generate_book_copies
+    // assigns each one a serial number and the trigger corrects the counters.
+    if (entry.total_copies > 0) {
+      const { error: copyError } = await supabase.rpc('generate_book_copies', {
+        p_book_id: (data as Book).id,
+        p_count: entry.total_copies,
+      });
+      if (copyError) throw copyError;
+    }
+
     return data as Book;
+  },
+
+  /** Add more physical copies to an existing book. */
+  async addCopies(bookId: UUID, count: number) {
+    const { data, error } = await supabase.rpc('generate_book_copies', {
+      p_book_id: bookId,
+      p_count: count,
+    });
+    if (error) throw error;
+    return data as number;
   },
 
   async update(id: UUID, entry: Partial<{
@@ -198,10 +221,15 @@ export const checkoutService = {
       .single();
     if (returnError) throw returnError;
 
-    // Mark checkout as returned
+    // Mark checkout as returned.
+    //
+    // return_date matters as much as is_returned: the student portal decides
+    // what is still on loan with `!return_date`, so setting only the boolean
+    // left every returned book on their screen forever, eventually shown as
+    // overdue. See migration 213.
     await supabase
       .from('book_checkouts')
-      .update({ is_returned: true })
+      .update({ is_returned: true, return_date: new Date().toISOString().split('T')[0] })
       .eq('book_copy_id', entry.book_copy_id)
       .eq('student_id', entry.student_id)
       .eq('is_returned', false);
