@@ -11,10 +11,14 @@
 # What does not, because both need paid-account entitlements:
 #   push notifications (APNs) and NFC (Core NFC)
 #
-# Only the student app is here. SchoolSync Attend requests the Core NFC
-# entitlement, which a free Apple ID cannot be granted — signing fails outright,
-# and stripping it would install an app whose whole purpose does not work.
-# Attend is tested on Android until there is a paid account.
+# Two workflows:
+#   ios-student-unsigned  SchoolSync         — everything works except push
+#   ios-attend-unsigned   SchoolSync Attend  — everything works except NFC
+#
+# Attend installs on a free Apple ID because its entitlements file is not wired
+# into the Xcode project, so the app never asks for the NFC capability it
+# could not be granted. Scanning screens fall back to manual entry, which is
+# enough to check layout and flow. Real NFC testing happens on Android.
 
 workflows:
   ios-student-unsigned:
@@ -151,6 +155,116 @@ workflows:
 
     artifacts:
       - SchoolSync-unsigned.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - admin@schoolsyncedu.com
+        notify:
+          success: true
+          failure: true
+
+  ios-attend-unsigned:
+    name: SchoolSync Attend — unsigned iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    # NFC will NOT work in this build.
+    #
+    # Core NFC needs the com.apple.developer.nfc.readersession.formats
+    # entitlement, which Apple only grants to paid developer accounts.
+    # ios-attend/App/App/App.entitlements requests it but is deliberately not
+    # wired into the Xcode project (CODE_SIGN_ENTITLEMENTS is unset), because
+    # a free Apple ID cannot sign an app that asks for it.
+    #
+    # So this build is for checking layout and flow on an iPhone. lib/nfc
+    # reports NFC unavailable and every scanning screen falls back to manual
+    # entry, which is the same path used when a card is lost or a chip fails.
+    #
+    # To make NFC work on iOS once there is a paid account: set
+    # CODE_SIGN_ENTITLEMENTS = App/App.entitlements on the App target and
+    # sign with a provisioning profile carrying the NFC capability.
+    # Real NFC testing happens on Android, which has no such restriction.
+
+    environment:
+      node: 22
+      xcode: latest
+      groups:
+        - supabase
+      vars:
+        XCODE_PROJECT: "ios-attend/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+
+    scripts:
+      - name: Check required environment variables
+        script: |
+          missing=0
+          for var in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+            if [ -z "$(eval echo \$$var)" ]; then
+              echo "MISSING: $var"; missing=1
+            else
+              echo "ok: $var is set"
+            fi
+          done
+          [ "$missing" = "1" ] && { echo "Add these to the 'supabase' variable group."; exit 1; }
+          exit 0
+
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Build the attend web bundle
+        script: npm run build:attend
+
+      - name: Verify Supabase config was baked into the bundle
+        script: |
+          grep -rq "supabase.co" dist-attend/assets/*.js \
+            || { echo "FATAL: VITE_SUPABASE_URL missing at build time"; exit 1; }
+          echo "ok: Supabase URL present"
+
+      - name: Sync the iOS project
+        # CAP_APP selects the attend config, which points webDir at dist-attend
+        # and the native projects at ios-attend/.
+        script: CAP_APP=attend npx cap sync ios
+
+      - name: Verify web assets reached the native project
+        script: |
+          PUBLIC_DIR="ios-attend/App/App/public"
+          ls -la "$PUBLIC_DIR" || { echo "MISSING: $PUBLIC_DIR"; exit 1; }
+          test -f "$PUBLIC_DIR/index.html" || { echo "MISSING: index.html"; exit 1; }
+          du -sh "$PUBLIC_DIR"
+
+      - name: Resolve Swift package dependencies
+        script: |
+          xcodebuild -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME" \
+            -resolvePackageDependencies
+
+      - name: Archive without code signing
+        script: |
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$CM_BUILD_DIR/build/Attend.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Package the .app into an .ipa
+        script: |
+          cd "$CM_BUILD_DIR"
+          mkdir -p Payload
+          cp -R build/Attend.xcarchive/Products/Applications/App.app Payload/
+          test -f Payload/App.app/public/index.html \
+            || { echo "FATAL: web assets missing from the built app"; exit 1; }
+          du -sh Payload/App.app
+          zip -r SchoolSyncAttend-unsigned.ipa Payload -x '*.DS_Store'
+          ls -lh SchoolSyncAttend-unsigned.ipa
+
+    artifacts:
+      - SchoolSyncAttend-unsigned.ipa
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
