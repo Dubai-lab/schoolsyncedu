@@ -42,6 +42,21 @@ workflows:
         # CAP_APP is unset, so capacitor.config.ts resolves to the student app.
         script: npx cap sync ios
 
+      - name: Verify web assets reached the native project
+        # A build that ships without ios/App/App/public still compiles and
+        # installs — it just launches to a white screen, because index.html
+        # and the JS bundle are simply absent. Failing loudly here turns a
+        # confusing runtime symptom into an obvious build error.
+        script: |
+          PUBLIC_DIR="ios/App/App/public"
+          echo "--- $PUBLIC_DIR ---"
+          ls -la "$PUBLIC_DIR" || { echo "MISSING: cap sync did not create $PUBLIC_DIR"; exit 1; }
+          test -f "$PUBLIC_DIR/index.html" || { echo "MISSING: $PUBLIC_DIR/index.html"; exit 1; }
+          echo "--- assets ---"
+          ls -la "$PUBLIC_DIR/assets" | head -20
+          echo "--- total size ---"
+          du -sh "$PUBLIC_DIR"
+
       - name: Resolve Swift package dependencies
         # Capacitor 8 uses SPM rather than CocoaPods — there is no Podfile.
         script: |
@@ -73,6 +88,19 @@ workflows:
           cd "$CM_BUILD_DIR"
           mkdir -p Payload
           cp -R build/App.xcarchive/Products/Applications/App.app Payload/
+
+          # Confirm the assets survived into the built .app, not just the
+          # source tree. A folder reference that failed to copy shows up here
+          # and nowhere else until the app launches white on a device.
+          echo "--- App.app contents ---"
+          ls -la Payload/App.app
+          echo "--- bundled web assets ---"
+          ls -la Payload/App.app/public 2>/dev/null | head -10 \
+            || { echo "FATAL: public/ is missing from the built app"; exit 1; }
+          test -f Payload/App.app/public/index.html \
+            || { echo "FATAL: index.html missing from the built app"; exit 1; }
+          du -sh Payload/App.app Payload/App.app/public
+
           zip -r SchoolSync-unsigned.ipa Payload -x '*.DS_Store'
           ls -lh SchoolSync-unsigned.ipa
 
