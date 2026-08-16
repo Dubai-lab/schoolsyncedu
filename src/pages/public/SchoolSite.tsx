@@ -982,7 +982,13 @@ export default function SchoolSite() {
               <SectionLabel text="School Life" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Photo Gallery</h2>
             </div>
-            <div ref={gallRef} className="columns-2 gap-3 sm:columns-3 lg:columns-4">
+            {/* columns-* is the masonry default and stays for schools that
+                have chosen nothing. The other layouts override it in CSS, so
+                the markup below is identical whichever is picked. */}
+            <div
+              ref={gallRef}
+              className={`ss-gallery ss-gallery--${siteStyles.theme.layouts.gallery} ss-gallery--shape-${siteStyles.theme.galleryShape} columns-2 gap-3 sm:columns-3 lg:columns-4`}
+            >
               {(cfg.gallery_images ?? []).map((img, i) => (
                 <div key={i} className="group relative mb-3 overflow-hidden rounded-2xl break-inside-avoid shadow-sm"
                   style={scaleUp(i * 60, gallVisible)}

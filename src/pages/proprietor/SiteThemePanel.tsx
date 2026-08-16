@@ -8,7 +8,7 @@ import {
   resolveTheme, PRESET_INFO, SURFACE_INFO,
   type SiteTheme, type ThemePreset, type SurfaceStyle,
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
-  type BandStyle, type AuthLayout,
+  type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
 import { Loader2, Check, Save } from 'lucide-react';
@@ -46,6 +46,21 @@ const HEROES: { value: HeroLayout; label: string; description: string }[] = [
   { value: 'full-image', label: 'Full image', description: 'Edge-to-edge photo, text low' },
   { value: 'minimal', label: 'Minimal', description: 'No photo — colour and type' },
   { value: 'card', label: 'Card', description: 'Text in a raised card' },
+];
+
+const GALLERIES: { value: GalleryLayout; label: string; description: string }[] = [
+  { value: 'masonry',  label: 'Masonry',  description: 'Varied heights — grows with photo count' },
+  { value: 'grid',     label: 'Grid',     description: 'Even tiles in fixed rows' },
+  { value: 'carousel', label: 'Carousel', description: 'One swipeable row' },
+  { value: 'strip',    label: 'Strip',    description: 'Compact thumbnails' },
+];
+
+const SHAPES: { value: GalleryShape; label: string; radius: string }[] = [
+  { value: 'square',   label: 'Square',   radius: '0' },
+  { value: 'rounded',  label: 'Rounded',  radius: '0.5rem' },
+  { value: 'circle',   label: 'Circle',   radius: '9999px' },
+  { value: 'arch',     label: 'Arch',     radius: '999px 999px 4px 4px' },
+  { value: 'portrait', label: 'Portrait', radius: '0.5rem' },
 ];
 
 const AUTH_LAYOUTS: { value: AuthLayout; label: string; description: string }[] = [
@@ -116,7 +131,9 @@ export default function SiteThemePanel() {
     setDirty(true);
   }
 
-  function updateLayout(key: 'hero', value: HeroLayout) {
+  function updateLayout(key: 'hero', value: HeroLayout): void;
+  function updateLayout(key: 'gallery', value: GalleryLayout): void;
+  function updateLayout(key: 'hero' | 'gallery', value: HeroLayout | GalleryLayout) {
     setTheme((t) => ({ ...t, layouts: { ...(t.layouts ?? {}), [key]: value } }));
     setDirty(true);
   }
@@ -267,6 +284,62 @@ export default function SiteThemePanel() {
         </div>
       </section>
 
+      {/* Gallery */}
+      <section>
+        <h2 className="text-sm font-bold text-slate-900">Photo gallery</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Masonry grows taller with every photo you add. The other three keep the
+          section the same height however many you have.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-4">
+          {GALLERIES.map((g) => {
+            const active = t.layouts.gallery === g.value;
+            return (
+              <button
+                key={g.value}
+                onClick={() => updateLayout('gallery', g.value)}
+                className={`overflow-hidden rounded-xl border-2 text-left transition-all ${
+                  active ? 'border-primary-600 ring-2 ring-primary-600/20' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <GalleryThumb layout={g.value} primary={colors.primary} />
+                <div className="border-t border-slate-100 bg-white p-2.5">
+                  <p className="text-xs font-semibold text-slate-800">{g.label}</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{g.description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <h3 className="mb-2 mt-4 text-xs font-bold text-slate-900">Photo shape</h3>
+        <div className="flex flex-wrap gap-2">
+          {SHAPES.map((sh) => {
+            const active = t.galleryShape === sh.value;
+            return (
+              <button
+                key={sh.value}
+                onClick={() => update('galleryShape', sh.value)}
+                className={`flex flex-col items-center gap-1.5 rounded-lg border-2 px-3 py-2 transition-all ${
+                  active ? 'border-primary-600 bg-primary-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span
+                  className="block h-8"
+                  style={{
+                    width: sh.value === 'portrait' || sh.value === 'arch' ? '1.5rem' : '2rem',
+                    background: colors.primary,
+                    borderRadius: sh.radius,
+                  }}
+                />
+                <span className="text-[10px] font-medium text-slate-600">{sh.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Login page */}
       <section>
         <h2 className="text-sm font-bold text-slate-900">Login page</h2>
@@ -406,6 +479,39 @@ export default function SiteThemePanel() {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Wireframe of each gallery arrangement, showing relative height. */
+function GalleryThumb({ layout, primary }: { layout: GalleryLayout; primary: string }) {
+  const tile = (h: string, w = '100%') => (
+    <span className="block rounded-sm" style={{ height: h, width: w, background: `${primary}55` }} />
+  );
+  return (
+    <div className="flex h-20 items-center justify-center bg-slate-50 p-2">
+      {layout === 'masonry' && (
+        <div className="flex h-full w-full gap-1">
+          <div className="flex flex-1 flex-col gap-1">{tile('60%')}{tile('35%')}</div>
+          <div className="flex flex-1 flex-col gap-1">{tile('35%')}{tile('60%')}</div>
+          <div className="flex flex-1 flex-col gap-1">{tile('50%')}{tile('45%')}</div>
+        </div>
+      )}
+      {layout === 'grid' && (
+        <div className="grid h-full w-full grid-cols-3 grid-rows-2 gap-1">
+          {Array.from({ length: 6 }).map((_, i) => <span key={i} className="rounded-sm" style={{ background: `${primary}55` }} />)}
+        </div>
+      )}
+      {layout === 'carousel' && (
+        <div className="flex w-full items-center gap-1 overflow-hidden">
+          {tile('3rem', '45%')}{tile('3rem', '45%')}{tile('3rem', '20%')}
+        </div>
+      )}
+      {layout === 'strip' && (
+        <div className="flex w-full items-center gap-1 overflow-hidden">
+          {tile('1.75rem', '25%')}{tile('1.75rem', '25%')}{tile('1.75rem', '25%')}{tile('1.75rem', '15%')}
+        </div>
+      )}
     </div>
   );
 }

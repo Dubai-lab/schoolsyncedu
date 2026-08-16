@@ -225,3 +225,100 @@
   backdrop-filter: blur(12px);
   border-radius: var(--site-radius, 0.75rem);
 }
+
+/* ── Gallery ─────────────────────────────────────────────────────────────────
+ * The gallery was CSS masonry with no alternative: `columns-2 sm:columns-3
+ * lg:columns-4` with per-item minimum heights. Height therefore grew with the
+ * photo count, so a school with twenty pictures produced a section several
+ * screens tall that every visitor had to scroll past.
+ *
+ * Masonry stays the default so existing sites are unchanged. The other three
+ * cap the height however many photos there are.
+ */
+
+/* Uniform tiles. Rows are predictable, so the section height is a function of
+   the row count rather than of image proportions. */
+.ss-gallery--grid {
+  columns: unset !important;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (min-width: 640px) { .ss-gallery--grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .ss-gallery--grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.ss-gallery--grid > * { margin-bottom: 0 !important; }
+
+/* One swipeable row. Height is fixed whatever the photo count, which is the
+   real fix for a gallery that had become several screens tall. */
+.ss-gallery--carousel {
+  columns: unset !important;
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+}
+.ss-gallery--carousel::-webkit-scrollbar { display: none; }
+.ss-gallery--carousel > * {
+  flex: 0 0 78%;
+  margin-bottom: 0 !important;
+  scroll-snap-align: center;
+}
+@media (min-width: 640px) { .ss-gallery--carousel > * { flex-basis: 42%; } }
+@media (min-width: 1024px) { .ss-gallery--carousel > * { flex-basis: 30%; } }
+
+/* Compact row of thumbnails, for schools that want a hint of school life
+   rather than a photo album. */
+.ss-gallery--strip {
+  columns: unset !important;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ss-gallery--strip::-webkit-scrollbar { display: none; }
+/* Height comes from the tile, not the image. Forcing a fixed image height here
+   fought the shape rules' aspect-ratio and left the picture filling only the
+   top of an arch or circle. */
+.ss-gallery--strip > * {
+  flex: 0 0 9rem;
+  height: 6.5rem;
+  margin-bottom: 0 !important;
+}
+.ss-gallery--strip img { height: 100%; min-height: 0 !important; object-fit: cover; }
+
+/* A fixed strip height and a shape's aspect ratio cannot both hold. The shape
+   wins, so circles stay round rather than being squashed into the row. */
+.ss-gallery--strip.ss-gallery--shape-circle > *,
+.ss-gallery--strip.ss-gallery--shape-arch > *,
+.ss-gallery--strip.ss-gallery--shape-portrait > * { height: auto; flex-basis: 7rem; }
+
+/* ── Tile shape ──────────────────────────────────────────────────────────────
+ * min-height is overridden because the masonry default sets it per item, and
+ * a fixed aspect ratio cannot take effect while that is in force.
+ */
+.ss-gallery--shape-square img,
+.ss-gallery--shape-rounded img,
+.ss-gallery--shape-circle img,
+.ss-gallery--shape-arch img,
+.ss-gallery--shape-portrait img {
+  min-height: 0 !important;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.ss-gallery--shape-square > *   { aspect-ratio: 1 / 1; border-radius: 0; }
+.ss-gallery--shape-rounded > *  { aspect-ratio: 1 / 1; border-radius: var(--site-radius, 1rem); }
+.ss-gallery--shape-circle > *   { aspect-ratio: 1 / 1; border-radius: 9999px; }
+.ss-gallery--shape-portrait > * { aspect-ratio: 3 / 4; border-radius: var(--site-radius, 1rem); }
+
+/* Rounded at the top, square at the base — a doorway or window shape. */
+.ss-gallery--shape-arch > * {
+  aspect-ratio: 3 / 4;
+  border-radius: 999px 999px var(--site-radius, 1rem) var(--site-radius, 1rem);
+}
+
+/* Masonry keeps its natural proportions, so shape applies to corners only. */
+.ss-gallery--masonry.ss-gallery--shape-circle > * { aspect-ratio: 1 / 1; }

@@ -58,7 +58,22 @@ export type HeroLayout =
 
 export type StatsLayout = 'bar' | 'cards' | 'inline' | 'hidden';
 export type ProgramsLayout = 'grid' | 'list' | 'carousel' | 'feature';
-export type GalleryLayout = 'grid' | 'masonry' | 'carousel' | 'strip';
+/**
+ * Gallery arrangement.
+ *
+ * The gallery was CSS masonry with no alternative, so its height grew with
+ * every photo a school added — twenty pictures produced a section several
+ * screens tall that visitors had to scroll past. Three of these cap the height
+ * regardless of how many photos there are.
+ */
+export type GalleryLayout =
+  | 'masonry'    // varied heights, grows with the number of photos — as before
+  | 'grid'       // uniform tiles, fixed rows
+  | 'carousel'   // one swipeable row, height fixed whatever the count
+  | 'strip';     // compact single row of small thumbnails
+
+/** Tile shape. Not every school wants squares. */
+export type GalleryShape = 'square' | 'rounded' | 'circle' | 'arch' | 'portrait';
 export type StaffLayout = 'cards' | 'circles' | 'rows';
 
 /** Where the logo sits in the header — a small change that reads as identity. */
@@ -102,6 +117,9 @@ export interface SiteTheme {
   corners?: CornerStyle;
   headingFont?: HeadingFont;
   logoPlacement?: LogoPlacement;
+
+  /** Gallery tile shape. */
+  galleryShape?: GalleryShape;
 
   /** Login page arrangement. See AuthLayout. */
   authLayout?: AuthLayout;
@@ -158,6 +176,7 @@ export const DEFAULT_THEME: Required<Omit<SiteTheme, 'layouts' | 'sectionOrder'>
   headingFont: 'sans',
   logoPlacement: 'left',
   logoSize: 'md',
+  galleryShape: 'rounded',
   authLayout: 'split',
   footerStyle: 'brand',
   ctaStyle: 'brand',
