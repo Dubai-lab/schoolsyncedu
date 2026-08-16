@@ -3,29 +3,10 @@
     "development"
   ],
   "hints": {
-    "disown-opener": "off",
-    "typescript-config/strict": "off",
-    "typescript-config/is-valid": "off",
-    "no-inline-styles": "off",
-    "button-type": "off",
-    "axe/name-role-value": [
-      "default",
-      {
-        "button-name": "off"
-      }
-    ],
-    "axe/aria": [
-      "default",
-      {
-        "aria-valid-attr-value": "off",
-        "aria-required-children": "off",
-        "aria-required-parent": "off"
-      }
-    ],
     "axe/forms": [
-      "off",
+      "default",
       {
-        "label": "off"
+        "select-name": "off"
       }
     ]
   }

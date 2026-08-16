@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch, useMutate } from '@/hooks/useFetch';
+import { useLiveAttendance } from '@/hooks/useLiveAttendance';
 import { attendanceService } from '@/services/attendanceService';
 import { notify } from '@/components/shared/Toast';
 import type { AttendanceStatus, AttendanceEntry } from '@/types/attendance.types';
@@ -64,6 +65,10 @@ export default function AttendanceMarking() {
     () => attendanceService.getByClassDate(selectedClass, selectedDate, selectedSubject || undefined),
     { enabled: !!selectedClass && !!selectedSubject && !!selectedDate },
   );
+
+  // Live updates: rows written by SchoolSync Attend appear here as teachers
+  // tap cards, without anyone refreshing the page.
+  useLiveAttendance(selectedClass, ['attendance', selectedClass, selectedSubject, selectedDate]);
 
   // Pre-fill entries from existing records
   useEffect(() => {

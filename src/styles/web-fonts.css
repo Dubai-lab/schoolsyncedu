@@ -1,0 +1,8 @@
+/* Web-only webfont.
+ *
+ * Imported by src/main.tsx (the full web app) and NOT by the mobile entries.
+ * Keeping it out of index.css means the student app makes no request to
+ * fonts.googleapis.com — which would block first paint on a slow connection
+ * and fail completely when the app is offline.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');

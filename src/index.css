@@ -1,4 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Inter is loaded by styles/web-fonts.css, which only the web entry imports.
+   The mobile app deliberately skips it: fetching a font from Google blocks
+   first paint and fails outright offline inside a native shell. Without Inter
+   the body stack below falls through to system-ui, which renders as San
+   Francisco on iOS and Roboto on Android — the right look for an app anyway. */
 
 @tailwind base;
 @tailwind components;

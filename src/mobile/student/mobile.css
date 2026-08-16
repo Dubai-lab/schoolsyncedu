@@ -1,0 +1,28 @@
+/* Mobile-only overrides for screens shared with the web app.
+ *
+ * These pages live in src/pages/student and are rendered by BOTH the web
+ * dashboard and this app. Rather than fork them, the shell scopes a few
+ * corrections under .mobile-shell so the web layout is untouched.
+ */
+
+/* Breadcrumbs are a desktop affordance: they retrace a sidebar hierarchy that
+   does not exist here. The active tab already communicates location, so the
+   crumb trail is redundant and costs a row of vertical space on every screen. */
+.mobile-shell nav[aria-label='Breadcrumb'] {
+  display: none;
+}
+
+/* Shared pages cap themselves at desktop measures (max-w-5xl and friends) and
+   center via mx-auto. On a phone that centering can leave uneven gutters
+   beside the shell's own padding. */
+.mobile-shell [class*='max-w-'] {
+  max-width: 100%;
+}
+
+/* Wide content — grade tables, fee breakdowns — must scroll inside its own
+   box rather than pushing the page sideways. */
+.mobile-shell table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}

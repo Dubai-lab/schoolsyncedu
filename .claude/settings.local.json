@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:docs.thunes.com)",
+      "WebFetch(domain:www.thunes.com)",
+      "WebFetch(domain:momodeveloper.mtn.com)",
+      "WebFetch(domain:momoapi.mtn.co.rw)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.postman.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:momodevelopercommunity.mtn.com)",
+      "Bash(git commit -m 'fix: remove unused CreditCard import in SubscriptionPayment *)",
+      "Bash(git commit -m 'debug: log full MTN response on FAILED status to diagnose sandbox rejection *)",
+      "Bash(git commit -m 'fix: add X-Callback-Url header to MTN requestToPay to resolve INTERNAL_PROCESSING_ERROR *)",
+      "Bash(git commit -m 'feat: add MTN_SIMULATE_SANDBOX mode to bypass unreliable MTN sandbox *)",
+      "Bash(git commit -m 'fix: pass plan_id through payment flow so upgrades switch the plan *)",
+      "Bash(git commit -m 'fix: invalidate subscription/invoice queries after successful MTN payment *)",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(git commit -m 'fix: remove extra closing div causing build error in SchoolApplicationForm *)",
+      "Bash(supabase --version)",
+      "Bash(git commit -m 'fix: remove all Go to Dashboard buttons from billing emails, use plain login link *)",
+      "Bash(git commit -m 'fix: invalidate billing cache after payment confirmation so dashboard updates live *)",
+      "Bash(git commit -m 'fix: surface auth deletion failures when deleting a school *)",
+      "Bash(git -C c:/Users/eg821/Desktop/schoolsync status --short)",
+      "Bash(git -C c:/Users/eg821/Desktop/schoolsync ls-files netlify.toml)",
+      "Bash(git -C c:/Users/eg821/Desktop/schoolsync ls-files DLS/netlify.toml)",
+      "Bash(git commit -m 'fix: add functions-install plugin to DLS/netlify.toml for web-push dependency *)",
+      "Bash(git commit -m 'fix: restore root netlify.toml with secrets scan omit for VAPID and notify keys *)",
+      "Bash(git commit -m 'fix: add SECRETS_SCAN_OMIT_KEYS to DLS/netlify.toml to bypass secrets scanner *)",
+      "Bash(git commit -m 'feat: show active team name and add Change team button on notification bar *)",
+      "Bash(git commit -m 'fix: correctly delete old Firebase entry when player changes team subscription *)",
+      "Bash(git commit -m 'fix: bump cache to v2 and use network-first for HTML so updates load without reinstalling *)",
+      "Bash(git commit -m 'fix: only send fixture notification when a new matchday/fixture is published, not on score updates *)",
+      "Bash(xargs wc *)",
+      "Bash(git commit -m 'fix: drop get_payment_config_public before redefining to allow return type change *)",
+      "Bash(git commit -m 'fix: use PaymentConfigPublic type in registrarService to include mtn_has_api and orange_has_api *)",
+      "Bash(git commit -m 'fix: remove unused Building2 import from ProprietorDashboard *)",
+      "Bash(git commit -m 'fix: verify charged amount matches expected amount in school-flw-verify to prevent underpayment *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\eg821\\.claude\\projects\\c--Users-eg821-Desktop-schoolsync\\memory"
+    ]
+  }
+}

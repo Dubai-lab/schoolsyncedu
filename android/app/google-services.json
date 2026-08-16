@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1029122941464",
+    "project_id": "schoolsyncedu-851ff",
+    "storage_bucket": "schoolsyncedu-851ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1029122941464:android:4c664288c2cfb0fff3d96d",
+        "android_client_info": {
+          "package_name": "com.schoolsync.student"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvGnGwZ3_qOIY_qCIoAPyy_hRDr2yoPOI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

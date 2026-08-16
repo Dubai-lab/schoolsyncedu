@@ -22,6 +22,18 @@ export default function SchoolManagement() {
   const [mode, setMode]                   = useState<ModalMode>(null);
   const [deleteTarget, setDeleteTarget]   = useState<School | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+
+  // The confirmation exists to prove intent — that the admin knows which school
+  // they are erasing — not to test typing precision. A strict === comparison
+  // made the button impossible to enable whenever the stored name carried
+  // invisible whitespace (a trailing space, a double space, or a non-breaking
+  // space pasted in at registration), with nothing on screen to explain why.
+  const normalizeSchoolName = (s: string) =>
+    s.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+
+  const deleteNameMatches =
+    deleteTarget != null &&
+    normalizeSchoolName(deleteConfirmName) === normalizeSchoolName(deleteTarget.name ?? '');
   const [form, setForm]                   = useState<Partial<School>>({});
 
   // Suspend dialog
@@ -426,7 +438,7 @@ export default function SchoolManagement() {
             variant="danger"
             size="sm"
             loading={deleteMutation.isPending}
-            disabled={deleteConfirmName !== deleteTarget?.name}
+            disabled={!deleteNameMatches}
             onClick={handleDelete}
           >
             <Trash2 className="w-4 h-4 mr-1.5" /> Delete Everything

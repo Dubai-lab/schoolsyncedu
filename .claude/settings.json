@@ -26,7 +26,19 @@
       "Bash(npm run:*)",
       "Bash(grep -r \"academic_years\\\\|terms\\\\|CREATE TABLE.*term\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
       "Bash(grep -n \"term\\\\|Term\\\\|TERM\" /c/Users/eg821/desktop/schoolsync/db/migrations/*.sql)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -m 'fix: exclude www from platform subdomain detection in DomainContext *)",
+      "Bash(git commit -m 'fix: clean URL on custom subdomain — hide /school/slug from address bar *)",
+      "Bash(git commit -m 'fix: remove loading flash on dashboard pages for custom subdomains *)",
+      "Bash(git commit -m 'fix: correct generateTxRef and PaymentIntent call signatures in SubdomainAddonCard *)",
+      "Bash(git commit -m 'feat: add Add-ons tab to Billing Center for subdomain payments *)",
+      "Bash(git commit *)",
+      "Bash(README\" | head -20)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\eg821\\\\Desktop\\\\schoolsync\\\\db\\\\migrations\" | Where-Object { $_.Name -match \"^0[89]\\\\d|10[01]\" } | Select-Object Name | Sort-Object Name)",
+      "Bash(awk -F: '$2~/^<\\\\/div>$/')",
+      "Bash(node -e \"const wp = require\\('./DLS/netlify/functions/node_modules/web-push'\\); const keys = wp.generateVAPIDKeys\\(\\); console.log\\('PUBLIC:',keys.publicKey\\); console.log\\('PRIVATE:',keys.privateKey\\);\")",
+      "Bash(node -e \"const c=require\\('crypto'\\);console.log\\(c.randomBytes\\(32\\).toString\\('hex'\\)\\);\")"
     ]
   }
 }

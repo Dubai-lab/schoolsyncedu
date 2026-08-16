@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Core NFC tag reading.
+
+	  TAG selects NFCTagReaderSession, which is what reads a chip UID from raw
+	  MIFARE cards. The NDEF-only session would never see our cards, because
+	  they carry no NDEF message — nfc_cards.nfc_chip_id stores the chip serial.
+
+	  This entitlement requires a PAID Apple Developer account. On a free
+	  personal team, starting a tag session fails with "Sandbox restriction".
+	  Android has no equivalent restriction, which is why NFC testing happens
+	  there first.
+	-->
+	<key>com.apple.developer.nfc.readersession.formats</key>
+	<array>
+		<string>TAG</string>
+	</array>
+</dict>
+</plist>

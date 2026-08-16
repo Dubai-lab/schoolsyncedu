@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { ToastProvider } from '@/components/shared/Toast'
 import { DomainProvider } from '@/context/DomainContext'
+import './styles/web-fonts.css'
 import './index.css'
 import App from './App.tsx'
 
