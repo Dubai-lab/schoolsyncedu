@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
 import { buildSiteStyles, bandStyle } from '@/utils/siteThemeStyles';
+import HeroDividerShape from '@/components/shared/HeroDivider';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
 import { useParams, Link } from 'react-router-dom';
@@ -592,7 +593,7 @@ export default function SchoolSite() {
         <section
           id="home"
           ref={heroRef}
-          className={`ss-hero ss-hero--${siteStyles.theme.layouts.hero} relative flex min-h-screen items-center overflow-hidden`}
+          className={`ss-hero ss-hero--${siteStyles.theme.layouts.hero} ss-hero--h-${siteStyles.theme.heroHeight} ss-hero--d-${siteStyles.theme.heroDivider} relative flex min-h-screen items-center overflow-hidden`}
           style={!cfg.hero_image_url ? {
             background: `linear-gradient(145deg, ${primary} 0%, ${primary}e0 40%, ${primary}b0 100%)`,
           } : undefined}
@@ -733,9 +734,18 @@ export default function SchoolSite() {
           </div>
 
           {/* Scroll cue */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/30">
+          <div className="ss-hero-cue absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/30">
             <ChevronDown className="h-5 w-5 animate-bounce" />
           </div>
+
+          {/* Shaped bottom edge. Painted in the colour of the section below, so
+              it reads as that section rising into the hero — and because it is
+              an overlay rather than a clip, the slideshow controls and the
+              scroll cue above are untouched. */}
+          <HeroDividerShape
+            shape={siteStyles.theme.heroDivider}
+            color={siteStyles.isDark ? 'var(--site-page-bg)' : 'var(--site-surface)'}
+          />
         </section>
       )}
 

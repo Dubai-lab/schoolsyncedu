@@ -368,3 +368,43 @@
 .ss-auth-brand--deep,
 .ss-auth-brand--ink,
 .ss-auth-brand--surface { background-image: none !important; }
+
+/* ── Hero height ─────────────────────────────────────────────────────────────
+ * The hero was min-h-screen with no alternative, so it always filled the whole
+ * window and everything the school had written began below the fold. A visitor
+ * had to scroll past a full screen to reach any of it.
+ *
+ * Scoped under .ss-theme so these outrank Tailwind's min-h-screen without
+ * !important.
+ */
+.ss-theme .ss-hero--h-full    { min-height: 100dvh; }
+.ss-theme .ss-hero--h-tall    { min-height: 78dvh; }
+.ss-theme .ss-hero--h-medium  { min-height: 58dvh; }
+.ss-theme .ss-hero--h-compact { min-height: 44dvh; }
+
+/* Rounded base. Done with border-radius rather than an SVG overlay because it
+   curves the hero itself, which is the point of this one. */
+.ss-theme .ss-hero--d-round {
+  border-bottom-left-radius: clamp(1.5rem, 6vw, 5rem);
+  border-bottom-right-radius: clamp(1.5rem, 6vw, 5rem);
+  overflow: hidden;
+}
+
+/* A shaped edge needs clearance, or the content sits inside the curve. */
+.ss-hero--d-wave .ss-hero-content,
+.ss-hero--d-curve .ss-hero-content,
+.ss-hero--d-slant .ss-hero-content,
+.ss-hero--d-peak .ss-hero-content { padding-bottom: clamp(2rem, 6vw, 5rem); }
+
+/* The scroll cue sits at the very bottom centre — exactly where a shaped edge
+   is thickest (peak reaches its highest point dead centre). Rather than chase
+   per-shape offsets, drop the cue when there is a shape: the shape is itself
+   the signal that the page continues, and on the shorter heroes the next
+   section is already visible without one. */
+.ss-hero--d-wave  .ss-hero-cue,
+.ss-hero--d-curve .ss-hero-cue,
+.ss-hero--d-slant .ss-hero-cue,
+.ss-hero--d-peak  .ss-hero-cue,
+.ss-hero--d-round .ss-hero-cue,
+.ss-hero--h-medium .ss-hero-cue,
+.ss-hero--h-compact .ss-hero-cue { display: none; }

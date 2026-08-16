@@ -56,6 +56,30 @@ export type HeroLayout =
   | 'minimal'       // no image, colour field and type
   | 'card';         // text in a raised card over the image
 
+/**
+ * Shape of the hero's bottom edge.
+ *
+ * The hero was a rectangle with a straight cut across the bottom, on every
+ * school site. That hard horizontal line is one of the most recognisable
+ * things about a page, and it was identical everywhere.
+ */
+export type HeroDivider =
+  | 'straight'  // a flat edge — as before
+  | 'wave'      // a soft S-curve
+  | 'curve'     // one broad arc, rising at the edges
+  | 'slant'     // a single diagonal
+  | 'peak'      // a shallow triangle
+  | 'round';    // the whole block rounded at the base
+
+/**
+ * Hero height.
+ *
+ * It was min-h-screen with no alternative, so the hero always filled the whole
+ * window and everything else began below the fold. A visitor had to scroll
+ * past a full screen before reaching anything the school had written.
+ */
+export type HeroHeight = 'full' | 'tall' | 'medium' | 'compact';
+
 export type StatsLayout = 'bar' | 'cards' | 'inline' | 'hidden';
 export type ProgramsLayout = 'grid' | 'list' | 'carousel' | 'feature';
 /**
@@ -133,6 +157,11 @@ export interface SiteTheme {
   headingFont?: HeadingFont;
   logoPlacement?: LogoPlacement;
 
+  /** Shape of the hero's bottom edge. */
+  heroDivider?: HeroDivider;
+  /** How much of the window the hero fills. */
+  heroHeight?: HeroHeight;
+
   /** Section heading presentation. */
   sectionHeader?: SectionHeaderStyle;
 
@@ -197,6 +226,8 @@ export const DEFAULT_THEME: Required<Omit<SiteTheme, 'layouts' | 'sectionOrder'>
   headingFont: 'sans',
   logoPlacement: 'left',
   logoSize: 'md',
+  heroDivider: 'straight',
+  heroHeight: 'full',
   sectionHeader: 'centered',
   authPanelStyle: 'brand',
   galleryShape: 'rounded',

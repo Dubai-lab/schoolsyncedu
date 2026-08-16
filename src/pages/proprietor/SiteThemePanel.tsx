@@ -8,7 +8,7 @@ import {
   resolveTheme, PRESET_INFO, SURFACE_INFO,
   type SiteTheme, type ThemePreset, type SurfaceStyle,
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
-  type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape, type SectionHeaderStyle,
+  type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape, type SectionHeaderStyle, type HeroDivider, type HeroHeight,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
 import { Loader2, Check, Save } from 'lucide-react';
@@ -46,6 +46,22 @@ const HEROES: { value: HeroLayout; label: string; description: string }[] = [
   { value: 'full-image', label: 'Full image', description: 'Edge-to-edge photo, text low' },
   { value: 'minimal', label: 'Minimal', description: 'No photo — colour and type' },
   { value: 'card', label: 'Card', description: 'Text in a raised card' },
+];
+
+const DIVIDERS: { value: HeroDivider; label: string }[] = [
+  { value: 'straight', label: 'Straight' },
+  { value: 'wave',     label: 'Wave' },
+  { value: 'curve',    label: 'Curve' },
+  { value: 'slant',    label: 'Slant' },
+  { value: 'peak',     label: 'Peak' },
+  { value: 'round',    label: 'Rounded' },
+];
+
+const HEIGHTS: { value: HeroHeight; label: string; hint: string }[] = [
+  { value: 'full',    label: 'Full',    hint: '100%' },
+  { value: 'tall',    label: 'Tall',    hint: '78%' },
+  { value: 'medium',  label: 'Medium',  hint: '58%' },
+  { value: 'compact', label: 'Compact', hint: '44%' },
 ];
 
 const HEADERS: { value: SectionHeaderStyle; label: string; description: string }[] = [
@@ -289,6 +305,51 @@ export default function SiteThemePanel() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* Hero shape and height */}
+      <section>
+        <h2 className="text-sm font-bold text-slate-900">Hero shape &amp; height</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          The hero filled the whole window and ended in a straight cut. Shorten it so
+          your content starts above the fold, and shape its bottom edge.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {DIVIDERS.map((d) => {
+            const active = t.heroDivider === d.value;
+            return (
+              <button
+                key={d.value}
+                onClick={() => update('heroDivider', d.value)}
+                className={`overflow-hidden rounded-xl border-2 transition-all ${
+                  active ? 'border-primary-600 ring-2 ring-primary-600/20' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <DividerThumb shape={d.value} primary={colors.primary} />
+                <p className="border-t border-slate-100 bg-white p-2 text-[11px] font-medium text-slate-700">
+                  {d.label}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <h3 className="mb-2 mt-4 text-xs font-bold text-slate-900">Height</h3>
+        <div className="flex flex-wrap gap-2">
+          {HEIGHTS.map((h) => (
+            <button
+              key={h.value}
+              onClick={() => update('heroHeight', h.value)}
+              className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                t.heroHeight === h.value ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {h.label}
+              <span className="ml-1.5 opacity-60">{h.hint}</span>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -658,6 +719,38 @@ function HeroThumb({ layout, primary }: { layout: HeroLayout; primary: string })
             {bar('75%', 'h-1.5', 'bg-slate-400')}{bar('50%')}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Miniature of each hero edge, drawn with the same paths the site uses. */
+function DividerThumb({ shape, primary }: { shape: HeroDivider; primary: string }) {
+  const paths: Record<string, string> = {
+    wave: 'M0,64 C240,120 480,8 720,40 C960,72 1200,120 1440,72 L1440,120 L0,120 Z',
+    curve: 'M0,120 C360,0 1080,0 1440,120 L1440,120 L0,120 Z',
+    slant: 'M0,120 L1440,24 L1440,120 Z',
+    peak: 'M0,120 L720,24 L1440,120 Z',
+  };
+  return (
+    <div className="relative h-16 overflow-hidden bg-slate-50">
+      <div
+        className="absolute inset-x-0 top-0 h-11"
+        style={{
+          background: primary,
+          borderBottomLeftRadius: shape === 'round' ? '1rem' : undefined,
+          borderBottomRightRadius: shape === 'round' ? '1rem' : undefined,
+        }}
+      />
+      {paths[shape] && (
+        <svg
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          className="absolute inset-x-0 block w-full"
+          style={{ top: '1.25rem', height: '1.5rem' }}
+        >
+          <path d={paths[shape]} fill="#f8fafc" />
+        </svg>
       )}
     </div>
   );
