@@ -6,7 +6,7 @@ import { schoolSiteService } from '@/services/schoolSiteService';
 import { useDomainContext } from '@/context/DomainContext';
 import { getHomePath } from '@/middleware/requireAuth';
 import type { School, SiteConfig, AuthPageConfig } from '@/types/school.types';
-import { buildSiteStyles } from '@/utils/siteThemeStyles';
+import { buildSiteStyles, bandStyle } from '@/utils/siteThemeStyles';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
 import {
@@ -220,6 +220,12 @@ export default function SchoolLogin() {
   const heading = auth.welcome_heading || `Welcome to ${school.name}`;
   const subtext = auth.welcome_subtext || 'Sign in to access your school portal';
   const accentColor = auth.accent_color || primary;
+  // The branding panel was painted only with the school colour, so choosing a
+  // preset changed the form side and left this side untouched — which is why
+  // the login page read as colour without design. It now follows the same
+  // treatment the footer uses.
+  const panelBand = bandStyle(siteStyles.theme.authPanelStyle, primary, siteStyles.isDark);
+  const usePanelBand = siteStyles.theme.authPanelStyle !== 'brand' && !auth.background_image_url;
   const bgColor = auth.background_color || primary;
   const showStudentLogin = auth.show_student_login !== false;
   const showForgot = auth.show_forgot_password !== false;
@@ -240,11 +246,13 @@ export default function SchoolLogin() {
     >
       {/* ===== LEFT PANEL — School Branding ===== */}
       <div
-        className="ss-auth-brand hidden lg:flex lg:w-1/2 relative overflow-hidden"
+        className={`ss-auth-brand ${usePanelBand ? `ss-auth-brand--${siteStyles.theme.authPanelStyle}` : ''} hidden lg:flex lg:w-1/2 relative overflow-hidden`}
         style={{
           background: auth.background_image_url
             ? `url(${auth.background_image_url}) center/cover no-repeat`
-            : `linear-gradient(135deg, ${bgColor} 0%, ${bgColor}cc 50%, ${bgColor}99 100%)`,
+            : usePanelBand
+              ? panelBand.background
+              : `linear-gradient(135deg, ${bgColor} 0%, ${bgColor}cc 50%, ${bgColor}99 100%)`,
         }}
       >
         {/* Overlay for readability when using background image */}

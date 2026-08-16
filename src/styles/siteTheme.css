@@ -322,3 +322,49 @@
 
 /* Masonry keeps its natural proportions, so shape applies to corners only. */
 .ss-gallery--masonry.ss-gallery--shape-circle > * { aspect-ratio: 1 / 1; }
+
+/* ── Section headings ────────────────────────────────────────────────────────
+ * Every section opened the same way: a centred small-caps label between two
+ * short rules, then a large centred title. Identical on every school site and
+ * in every section, which is one of the strongest reasons two sites still read
+ * the same after colours and layouts differ.
+ *
+ * The markup is untouched — these reposition the existing label and title.
+ */
+
+/* Left aligned, rules dropped. */
+.ss-head--left .ss-section-head { text-align: left; }
+.ss-head--left .ss-section-label { justify-content: flex-start; }
+.ss-head--left .ss-section-label > span { display: none; }
+
+/* Left aligned with a coloured rule beneath the title. */
+.ss-head--underline .ss-section-head { text-align: left; }
+.ss-head--underline .ss-section-label { justify-content: flex-start; }
+.ss-head--underline .ss-section-label > span { display: none; }
+.ss-head--underline .ss-section-head h2 {
+  display: inline-block;
+  padding-bottom: 0.4rem;
+  border-bottom: 4px solid var(--site-primary);
+}
+
+/* Oversized title with the label beneath it, reversing the usual order. */
+.ss-head--stacked .ss-section-head { text-align: left; display: flex; flex-direction: column; }
+.ss-head--stacked .ss-section-label { order: 2; justify-content: flex-start; margin-top: 0.5rem; }
+.ss-head--stacked .ss-section-label > span { display: none; }
+.ss-head--stacked .ss-section-head h2 { order: 1; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.05; }
+
+/* Title only. */
+.ss-head--minimal .ss-section-label { display: none; }
+.ss-head--minimal .ss-section-head { text-align: left; }
+
+/* ── Login branding panel ────────────────────────────────────────────────────
+ * The panel was painted with an inline style using the school colour, so a
+ * chosen preset changed the form side and left the branding side untouched —
+ * which is why the login page read as "just colour, no design".
+ *
+ * The inline background is still applied when a school has uploaded an image;
+ * these only take over when the treatment is not 'brand'.
+ */
+.ss-auth-brand--deep,
+.ss-auth-brand--ink,
+.ss-auth-brand--surface { background-image: none !important; }

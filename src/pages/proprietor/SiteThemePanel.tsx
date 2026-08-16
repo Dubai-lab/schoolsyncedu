@@ -8,7 +8,7 @@ import {
   resolveTheme, PRESET_INFO, SURFACE_INFO,
   type SiteTheme, type ThemePreset, type SurfaceStyle,
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
-  type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape,
+  type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape, type SectionHeaderStyle,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
 import { Loader2, Check, Save } from 'lucide-react';
@@ -46,6 +46,14 @@ const HEROES: { value: HeroLayout; label: string; description: string }[] = [
   { value: 'full-image', label: 'Full image', description: 'Edge-to-edge photo, text low' },
   { value: 'minimal', label: 'Minimal', description: 'No photo — colour and type' },
   { value: 'card', label: 'Card', description: 'Text in a raised card' },
+];
+
+const HEADERS: { value: SectionHeaderStyle; label: string; description: string }[] = [
+  { value: 'centered',  label: 'Centred',   description: 'Label between rules — as before' },
+  { value: 'left',      label: 'Left',      description: 'Aligned left, no rules' },
+  { value: 'underline', label: 'Underline', description: 'Coloured rule under the title' },
+  { value: 'stacked',   label: 'Stacked',   description: 'Big title, label beneath' },
+  { value: 'minimal',   label: 'Minimal',   description: 'Title only' },
 ];
 
 const GALLERIES: { value: GalleryLayout; label: string; description: string }[] = [
@@ -284,6 +292,35 @@ export default function SiteThemePanel() {
         </div>
       </section>
 
+      {/* Section headings */}
+      <section>
+        <h2 className="text-sm font-bold text-slate-900">Section headings</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Every section opened with the same centred label and title. This is the
+          single change that most stops two sites reading alike.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {HEADERS.map((h) => {
+            const active = t.sectionHeader === h.value;
+            return (
+              <button
+                key={h.value}
+                onClick={() => update('sectionHeader', h.value)}
+                className={`overflow-hidden rounded-xl border-2 text-left transition-all ${
+                  active ? 'border-primary-600 ring-2 ring-primary-600/20' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <HeaderThumb variant={h.value} primary={colors.primary} secondary={colors.secondary} />
+                <div className="border-t border-slate-100 bg-white p-2.5">
+                  <p className="text-xs font-semibold text-slate-800">{h.label}</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{h.description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Gallery */}
       <section>
         <h2 className="text-sm font-bold text-slate-900">Photo gallery</h2>
@@ -380,6 +417,7 @@ export default function SiteThemePanel() {
           {([
             ['footerStyle', 'Footer'],
             ['ctaStyle', 'Call-to-action band'],
+            ['authPanelStyle', 'Login page panel'],
           ] as const).map(([key, label]) => (
             <Card key={key} className="p-4">
               <h3 className="mb-2.5 text-xs font-bold text-slate-900">{label}</h3>
@@ -479,6 +517,29 @@ export default function SiteThemePanel() {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Wireframe of each heading treatment. */
+function HeaderThumb({ variant, primary, secondary }: { variant: SectionHeaderStyle; primary: string; secondary: string }) {
+  const label = <span className="block h-1 w-8 rounded-full" style={{ background: secondary }} />;
+  const title = (w: string, h = '0.5rem') => (
+    <span className="block rounded-sm" style={{ height: h, width: w, background: '#334155' }} />
+  );
+  const align = variant === 'centered' ? 'items-center' : 'items-start';
+  return (
+    <div className={`flex h-20 flex-col justify-center gap-1.5 bg-slate-50 p-3 ${align}`}>
+      {variant === 'stacked' ? (
+        <>{title('80%', '0.85rem')}{label}</>
+      ) : variant === 'minimal' ? (
+        title('70%', '0.7rem')
+      ) : (
+        <>{label}{title('75%')}</>
+      )}
+      {variant === 'underline' && (
+        <span className="block h-1 w-16 rounded-full" style={{ background: primary }} />
+      )}
     </div>
   );
 }

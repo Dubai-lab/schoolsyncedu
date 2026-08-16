@@ -107,6 +107,21 @@ export type AuthLayout =
   | 'minimal'   // form on a plain surface, logo above
   | 'cover';    // full-screen image, form in a translucent panel
 
+/**
+ * How every section heading is presented.
+ *
+ * Each section opened with a centred small-caps label between two rules, then
+ * a large centred title — identical on every school site and in every section.
+ * It is one of the strongest reasons two sites read the same even after the
+ * colours and layouts differ.
+ */
+export type SectionHeaderStyle =
+  | 'centered'  // label between rules, centred title — as before
+  | 'left'      // aligned left, no rules
+  | 'underline' // left aligned with a coloured rule beneath the title
+  | 'stacked'   // oversized title, label beneath it
+  | 'minimal';  // title only, no label at all
+
 export type BandStyle = 'brand' | 'deep' | 'ink' | 'surface';
 
 // ── The theme object ─────────────────────────────────────────────────────────
@@ -117,6 +132,12 @@ export interface SiteTheme {
   corners?: CornerStyle;
   headingFont?: HeadingFont;
   logoPlacement?: LogoPlacement;
+
+  /** Section heading presentation. */
+  sectionHeader?: SectionHeaderStyle;
+
+  /** Treatment for the login page branding panel. */
+  authPanelStyle?: BandStyle;
 
   /** Gallery tile shape. */
   galleryShape?: GalleryShape;
@@ -176,6 +197,8 @@ export const DEFAULT_THEME: Required<Omit<SiteTheme, 'layouts' | 'sectionOrder'>
   headingFont: 'sans',
   logoPlacement: 'left',
   logoSize: 'md',
+  sectionHeader: 'centered',
+  authPanelStyle: 'brand',
   galleryShape: 'rounded',
   authLayout: 'split',
   footerStyle: 'brand',

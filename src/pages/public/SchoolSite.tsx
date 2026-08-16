@@ -433,7 +433,7 @@ export default function SchoolSite() {
         dark. Everything else reads the tokens, so a new preset needs no change
         here. */}
     <div
-      className="ss-theme min-h-screen bg-white antialiased"
+      className={`ss-theme ss-head--${siteStyles.theme.sectionHeader} min-h-screen bg-white antialiased`}
       data-preset={siteStyles.theme.preset}
       style={{
         '--school-primary': primary,
@@ -777,7 +777,7 @@ export default function SchoolSite() {
       {show('about') && (
         <section id="about" className="px-5 py-20 sm:px-8 sm:py-28">
           <div className="mx-auto max-w-6xl">
-            <div className="text-center mb-14">
+            <div className="ss-section-head text-center mb-14">
               <SectionLabel text="About Our School" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
                 {cfg.mission_text ? 'Our Story & Mission' : `About ${school.name}`}
@@ -887,7 +887,7 @@ export default function SchoolSite() {
       {show('programs') && (cfg.programs ?? []).length > 0 && (
         <section id="programs" className="px-5 py-20 sm:px-8 sm:py-28" style={{ backgroundColor: '#f8fafc' }}>
           <div className="mx-auto max-w-6xl">
-            <div className="text-center mb-14">
+            <div className="ss-section-head text-center mb-14">
               <SectionLabel text="What We Offer" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Academic Programs</h2>
             </div>
@@ -928,7 +928,7 @@ export default function SchoolSite() {
       {show('announcements') && (cfg.announcements ?? []).length > 0 && (
         <section className="px-5 py-20 sm:px-8 sm:py-28 bg-white">
           <div className="mx-auto max-w-6xl">
-            <div className="text-center mb-14">
+            <div className="ss-section-head text-center mb-14">
               <SectionLabel text="Stay Informed" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">News & Announcements</h2>
             </div>
@@ -978,7 +978,7 @@ export default function SchoolSite() {
       {show('gallery') && (cfg.gallery_images ?? []).length > 0 && (
         <section id="gallery" className="px-5 py-20 sm:px-8 sm:py-28" style={{ backgroundColor: '#f8fafc' }}>
           <div className="mx-auto max-w-6xl">
-            <div className="text-center mb-14">
+            <div className="ss-section-head text-center mb-14">
               <SectionLabel text="School Life" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Photo Gallery</h2>
             </div>
@@ -1082,7 +1082,7 @@ export default function SchoolSite() {
       {show('testimonials') && (cfg.testimonials ?? []).length > 0 && (
         <section className="px-5 py-20 sm:px-8 sm:py-28" style={{ backgroundColor: '#f8fafc' }}>
           <div className="mx-auto max-w-6xl">
-            <div className="text-center mb-14">
+            <div className="ss-section-head text-center mb-14">
               <SectionLabel text="What Parents Say" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
                 Testimonials
@@ -1180,7 +1180,7 @@ export default function SchoolSite() {
       {show('contact') && (
         <section id="contact" className="bg-white px-5 py-20 sm:px-8 sm:py-28">
           <div className="mx-auto max-w-5xl">
-            <div className="text-center mb-14">
+            <div className="ss-section-head text-center mb-14">
               <SectionLabel text="Get In Touch" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Contact Us</h2>
             </div>
