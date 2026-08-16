@@ -263,6 +263,7 @@ const navGroups: NavGroup[] = [
       { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'Schools', path: '/admin/schools', icon: Building2, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'Activations', path: '/admin/activation-requests', icon: Inbox, roles: [USER_ROLES.SUPER_ADMIN] },
+      { label: 'Messages', path: '/admin/messages', icon: MessageSquare, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'Pricing Plans', path: '/admin/pricing', icon: CreditCard, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'Billing', path: '/admin/billing', icon: CreditCard, roles: [USER_ROLES.SUPER_ADMIN] },
       { label: 'Discounts', path: '/admin/discounts', icon: DollarSign, roles: [USER_ROLES.SUPER_ADMIN] },

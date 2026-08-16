@@ -120,6 +120,7 @@ import AuditLogs from '@/pages/settings/AuditLogs';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import SchoolManagement from '@/pages/admin/SchoolManagement';
 import ActivationRequests from '@/pages/admin/ActivationRequests';
+import ContactMessages from '@/pages/admin/ContactMessages';
 import PricingPlans from '@/pages/admin/PricingPlans';
 import BillingCenter from '@/pages/admin/BillingCenter';
 import AdminDiscounts from '@/pages/admin/Discounts';
@@ -470,6 +471,7 @@ export default function App() {
           <Route path="/admin" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDashboard /></RequireRole>} />
           <Route path="/admin/schools" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SchoolManagement /></RequireRole>} />
           <Route path="/admin/activation-requests" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><ActivationRequests /></RequireRole>} />
+          <Route path="/admin/messages" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><ContactMessages /></RequireRole>} />
           <Route path="/admin/pricing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><PricingPlans /></RequireRole>} />
           <Route path="/admin/billing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><BillingCenter /></RequireRole>} />
           <Route path="/admin/discounts" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDiscounts /></RequireRole>} />

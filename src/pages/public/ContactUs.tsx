@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Mail, Phone, MapPin, Clock, Send, Loader2, CheckCircle, MessageSquare, Headphones, Building2 } from 'lucide-react';
 
 interface ContactForm {
@@ -42,10 +43,34 @@ export default function ContactUs() {
       return;
     }
     setSubmitting(true);
-    // Simulate form submission — wire to edge function or email service as needed
-    await new Promise((r) => setTimeout(r, 1200));
-    setSubmitted(true);
-    setSubmitting(false);
+    try {
+      // Was a 1200ms setTimeout followed by a success screen — every enquiry
+      // was discarded while the sender was told it had been sent. The row is
+      // now the guarantee; email notification is a convenience on top of it,
+      // so a mail problem can never lose a message again.
+      const { data, error: rpcErr } = await supabase.rpc('submit_contact_message', {
+        p_name: form.name.trim(),
+        p_email: form.email.trim(),
+        p_message: form.message.trim(),
+        p_subject: [form.category, form.subject].filter(Boolean).join(' — ') || null,
+        p_phone: null,
+        p_source_page: window.location.pathname,
+      });
+      if (rpcErr) throw rpcErr;
+
+      const result = data as { ok?: boolean; message?: string } | null;
+      if (!result?.ok) {
+        setError(result?.message ?? 'Could not send your message. Please try again.');
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      // A real failure now says so, instead of showing a success screen.
+      setError('Could not send your message. Please try again, or email support@schoolsyncedu.com.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
