@@ -7,7 +7,7 @@ import {
   markPrompted, type BiometricStatus,
 } from './biometric';
 import { teardownPush } from './push';
-import { LogOut, Loader2, Fingerprint } from 'lucide-react';
+import { LogOut, Loader2, Fingerprint, ScanFace } from 'lucide-react';
 
 /**
  * Profile tab for the mobile app.
@@ -29,7 +29,7 @@ export default function ProfileScreen() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const [bio, setBio] = useState<BiometricStatus>({ available: false, label: '' });
+  const [bio, setBio] = useState<BiometricStatus>({ available: false, label: '', kind: 'unknown' });
   const [lockOn, setLockOn] = useState(isBiometricEnabled);
 
   useEffect(() => { void checkBiometric().then(setBio); }, []);
@@ -68,7 +68,11 @@ export default function ProfileScreen() {
         <div className="mt-8 border-t border-slate-200 pt-6">
           <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50">
-              <Fingerprint className="h-5 w-5 text-primary-600" />
+              {bio.kind === 'face' ? (
+                <ScanFace className="h-5 w-5 text-primary-600" />
+              ) : (
+                <Fingerprint className="h-5 w-5 text-primary-600" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-slate-800">App lock</p>

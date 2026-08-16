@@ -29,32 +29,67 @@ function isCapacitorNative(): boolean {
 export interface BiometricStatus {
   /** Hardware present and enrolled, so a prompt would actually succeed. */
   available: boolean;
-  /** What the device calls it, for honest button copy. */
+  /** What this device calls it — "Face ID", "fingerprint", and so on. */
   label: string;
+  /** Which icon to show. A fingerprint glyph beside "Face ID" reads as a bug. */
+  kind: 'face' | 'fingerprint' | 'iris' | 'passcode' | 'unknown';
+}
+
+/**
+ * Name the sensor the way the platform does.
+ *
+ * Apple's marketing names are the words on the system prompt the student is
+ * about to see, so the app should use them too — "Unlock with Face ID", not
+ * "Unlock with biometrics". Android has no equivalent brand name, so it gets
+ * the plain description.
+ *
+ * BiometryType is a numeric enum (TOUCH_ID = 1, FACE_ID = 2, FINGERPRINT = 3,
+ * FACE_AUTHENTICATION = 4, IRIS = 5, MULTIPLE = 6, DEVICE_CREDENTIAL = 7).
+ */
+function describeBiometry(
+  type: number,
+  platform: string,
+): { label: string; kind: BiometricStatus['kind'] } {
+  switch (type) {
+    case 1: return { label: 'Touch ID', kind: 'fingerprint' };
+    case 2: return { label: 'Face ID', kind: 'face' };
+    case 3: return { label: 'fingerprint', kind: 'fingerprint' };
+    case 4: return { label: 'face unlock', kind: 'face' };
+    case 5: return { label: 'iris unlock', kind: 'iris' };
+    case 7: return { label: 'your screen lock', kind: 'passcode' };
+    case 6:
+      // Several sensors enrolled. iOS devices ship one or the other, so this
+      // is effectively Android — where "biometric unlock" is the term the
+      // system itself uses.
+      return platform === 'ios'
+        ? { label: 'Face ID', kind: 'face' }
+        : { label: 'biometric unlock', kind: 'fingerprint' };
+    default:
+      return platform === 'ios'
+        ? { label: 'Face ID', kind: 'face' }
+        : { label: 'biometric unlock', kind: 'fingerprint' };
+  }
 }
 
 export async function checkBiometric(): Promise<BiometricStatus> {
-  if (!isCapacitorNative()) return { available: false, label: '' };
+  if (!isCapacitorNative()) return { available: false, label: '', kind: 'unknown' };
 
   try {
     const { NativeBiometric } = await import('@capgo/capacitor-native-biometric');
     const result = await NativeBiometric.isAvailable({ useFallback: true });
-    if (!result.isAvailable) return { available: false, label: '' };
+    if (!result.isAvailable) return { available: false, label: '', kind: 'unknown' };
 
-    // biometryType is an enum; map the common cases to the name the user sees
-    // on their own device. Calling Face ID "biometrics" reads as generic and
-    // slightly untrustworthy.
-    const type = String((result as { biometryType?: unknown }).biometryType ?? '');
-    const label =
-      type.includes('FACE') || type === '1'
-        ? 'Face ID'
-        : type.includes('TOUCH') || type.includes('FINGERPRINT') || type === '3'
-          ? 'fingerprint'
-          : 'biometrics';
+    const cap = (globalThis as Record<string, unknown>).Capacitor as
+      | { getPlatform?: () => string }
+      | undefined;
+    const platform = cap?.getPlatform?.() ?? '';
 
-    return { available: true, label };
+    const type = Number((result as { biometryType?: unknown }).biometryType ?? 0);
+    const { label, kind } = describeBiometry(type, platform);
+
+    return { available: true, label, kind };
   } catch {
-    return { available: false, label: '' };
+    return { available: false, label: '', kind: 'unknown' };
   }
 }
 

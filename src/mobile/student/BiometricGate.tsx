@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { checkBiometric, isBiometricEnabled, verifyBiometric } from './biometric';
-import { Fingerprint, Loader2, LogOut } from 'lucide-react';
+import { checkBiometric, isBiometricEnabled, verifyBiometric, type BiometricStatus } from './biometric';
+import { Fingerprint, ScanFace, Loader2, LogOut } from 'lucide-react';
 
 /**
  * Holds the app locked until the student passes the device biometric check.
@@ -23,7 +23,15 @@ export default function BiometricGate({ children }: { children: ReactNode }) {
   const [locked, setLocked] = useState(() => isBiometricEnabled());
   const [checking, setChecking] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [label, setLabel] = useState('biometrics');
+  const [sensor, setSensor] = useState<{ label: string; kind: BiometricStatus['kind'] }>({
+    label: 'biometric unlock',
+    kind: 'unknown',
+  });
+
+  // Match the glyph to the sensor — a fingerprint icon above "Unlock with
+  // Face ID" looks like a bug, and on iOS the words on our screen should be
+  // the same ones on the system prompt that follows.
+  const SensorIcon = sensor.kind === 'face' ? ScanFace : Fingerprint;
 
   const attempt = useCallback(async () => {
     setChecking(true);
@@ -51,7 +59,7 @@ export default function BiometricGate({ children }: { children: ReactNode }) {
         return;
       }
 
-      setLabel(status.label);
+      setSensor({ label: status.label, kind: status.kind });
       void attempt();
     })();
 
@@ -66,7 +74,7 @@ export default function BiometricGate({ children }: { children: ReactNode }) {
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-50">
           {checking
             ? <Loader2 className="h-9 w-9 animate-spin text-primary-600" />
-            : <Fingerprint className="h-9 w-9 text-primary-600" />}
+            : <SensorIcon className="h-9 w-9 text-primary-600" />}
         </div>
 
         <h1 className="text-lg font-semibold text-slate-900">SchoolSync is locked</h1>
@@ -74,8 +82,8 @@ export default function BiometricGate({ children }: { children: ReactNode }) {
           {checking
             ? 'Waiting for verification…'
             : failed
-              ? `Unlock with ${label} to see your grades, fees and timetable.`
-              : `Use ${label} to unlock.`}
+              ? `Unlock with ${sensor.label} to see your grades, fees and timetable.`
+              : `Use ${sensor.label} to unlock.`}
         </p>
 
         {!checking && (
