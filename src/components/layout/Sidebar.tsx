@@ -32,7 +32,6 @@ import {
   X,
   ClipboardCheck,
   Layers,
-  KeyRound,
   AlertTriangle,
   ShieldOff,
   HeartPulse,
@@ -235,9 +234,10 @@ const navGroups: NavGroup[] = [
       { label: 'Generate Cards', path: '/it-admin/cards/generate', icon: ClipboardList, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'NFC Assignment', path: '/it-admin/cards/nfc', icon: Nfc, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'Student Accounts', path: '/it-admin/students', icon: GraduationCap, roles: [USER_ROLES.IT_ADMIN] },
-      { label: 'School Website', path: '/it-admin/site', icon: Globe, roles: [USER_ROLES.IT_ADMIN] },
+      // Site and login-page design moved to the proprietor. The school owner
+      // owns the brand, and having both roles edit it through different
+      // services meant they silently overwrote each other.
       { label: 'Fee Schedule', path: '/it-admin/fees', icon: DollarSign, roles: [USER_ROLES.IT_ADMIN] },
-      { label: 'Login Page', path: '/it-admin/login-page', icon: KeyRound, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'Email Settings', path: '/it-admin/email', icon: Mail, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'School Settings', path: '/it-admin/settings', icon: Settings, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'System', path: '/it-admin/system', icon: Shield, roles: [USER_ROLES.IT_ADMIN] },
@@ -248,9 +248,10 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Overview', path: '/proprietor', icon: LayoutDashboard, roles: [USER_ROLES.PROPRIETOR] },
       { label: 'IT Admin', path: '/proprietor/it-admin', icon: Monitor, roles: [USER_ROLES.PROPRIETOR] },
-      { label: 'School Site', path: '/proprietor/site', icon: Globe, roles: [USER_ROLES.PROPRIETOR] },
+      { label: 'School Website', path: '/proprietor/site', icon: Globe, roles: [USER_ROLES.PROPRIETOR] },
+      // Login page is now a tab inside School Website, not its own entry —
+      // it is one more surface of the same brand, not a separate product.
       { label: 'Fee Schedule', path: '/proprietor/fees', icon: DollarSign, roles: [USER_ROLES.PROPRIETOR] },
-      { label: 'Login Page', path: '/proprietor/login-page', icon: KeyRound, roles: [USER_ROLES.PROPRIETOR] },
       { label: 'Payment Methods', path: '/proprietor/payment-methods', icon: CreditCard, roles: [USER_ROLES.PROPRIETOR] },
       { label: 'Subscription', path: '/proprietor/subscription', icon: DollarSign, roles: [USER_ROLES.PROPRIETOR] },
       { label: 'Financial', path: '/proprietor/financial', icon: BarChart3, roles: [USER_ROLES.PROPRIETOR] },

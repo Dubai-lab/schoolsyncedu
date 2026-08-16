@@ -138,7 +138,7 @@ import OnboardingWizard from '@/pages/proprietor/OnboardingWizard';
 import SubscriptionManagement from '@/pages/proprietor/SubscriptionManagement';
 import FinancialOverview from '@/pages/proprietor/FinancialOverview';
 import AuditTrailViewer from '@/pages/proprietor/AuditTrailViewer';
-import SiteCustomizer from '@/pages/proprietor/SiteCustomizer';
+import SiteDesigner from '@/pages/proprietor/SiteDesigner';
 import PaymentMethods from '@/pages/proprietor/PaymentMethods';
 
 // WAEC pages
@@ -150,7 +150,6 @@ import ExamResults from '@/pages/waec/ExamResults';
 // IT Admin pages
 import ITAdminDashboard from '@/pages/it-admin/ITAdminDashboard';
 import UserManagement from '@/pages/it-admin/UserManagement';
-import SiteManagement from '@/pages/it-admin/SiteManagement';
 import SystemOverview from '@/pages/it-admin/SystemOverview';
 import ITCardDesigner from '@/pages/it-admin/ITCardDesigner';
 import ITCardGenerator from '@/pages/it-admin/ITCardGenerator';
@@ -158,7 +157,6 @@ import NfcAssignment from '@/pages/it-admin/NfcAssignment';
 import StudentAccounts from '@/pages/it-admin/StudentAccounts';
 import EmailSettings from '@/pages/it-admin/EmailSettings';
 import FeeScheduleEditor from '@/pages/it-admin/FeeScheduleEditor';
-import AuthPageDesigner from '@/pages/it-admin/AuthPageDesigner';
 import TranscriptDesigner from '@/pages/it-admin/TranscriptDesigner';
 
 // School public site
@@ -433,17 +431,21 @@ export default function App() {
           <Route path="/proprietor/subscription" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SubscriptionManagement /></RequireRole>} />
           <Route path="/proprietor/financial" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><FinancialOverview /></RequireRole>} />
           <Route path="/proprietor/audit" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><AuditTrailViewer /></RequireRole>} />
-          <Route path="/proprietor/site" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SiteCustomizer /></RequireRole>} />
+          <Route path="/proprietor/site" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SiteDesigner /></RequireRole>} />
           <Route path="/proprietor/fees" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><FeeScheduleEditor /></RequireRole>} />
-          <Route path="/proprietor/login-page" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><AuthPageDesigner /></RequireRole>} />
+          <Route path="/proprietor/login-page" element={<Navigate to="/proprietor/site?tab=login" replace />} />
           <Route path="/proprietor/payment-methods" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><PaymentMethods /></RequireRole>} />
           {/* IT Admin module — IT Admin only */}
           <Route path="/it-admin" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITAdminDashboard /></RequireRole>} />
           <Route path="/it-admin/users" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><UserManagement /></RequireRole>} />
           <Route path="/it-admin/users/new" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><UserManagement /></RequireRole>} />
-          <Route path="/it-admin/site" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SiteManagement /></RequireRole>} />
+          {/* Site design moved to the proprietor — the school owner owns the
+              brand, and having both roles write it through different services
+              meant they overwrote each other. Redirected rather than removed so
+              an existing bookmark lands somewhere useful. */}
+          <Route path="/it-admin/site" element={<Navigate to="/it-admin" replace />} />
           <Route path="/it-admin/fees" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><FeeScheduleEditor /></RequireRole>} />
-          <Route path="/it-admin/login-page" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><AuthPageDesigner /></RequireRole>} />
+          <Route path="/it-admin/login-page" element={<Navigate to="/it-admin" replace />} />
           <Route path="/it-admin/system" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SystemOverview /></RequireRole>} />
           <Route path="/it-admin/settings" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SchoolSettingsITAdmin /></RequireRole>} />
           <Route path="/it-admin/cards" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITCardDesigner /></RequireRole>} />
