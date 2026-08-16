@@ -1,3 +1,4 @@
+import AppShowcase from '@/components/shared/AppShowcase';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
@@ -293,6 +294,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ========== MOBILE APPS ========== */}
+      <AppShowcase />
 
       {/* ========== HOW IT WORKS ========== */}
       <section className="bg-slate-50 py-20 sm:py-28">

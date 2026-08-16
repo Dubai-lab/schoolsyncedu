@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import AppShowcase from '@/components/shared/AppShowcase';
 import { useParams, Link } from 'react-router-dom';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { useDomainContext } from '@/context/DomainContext';
@@ -1095,6 +1096,12 @@ export default function SchoolSite() {
           </div>
         </section>
       )}
+
+      {/* ===== STUDENT APP =====
+           Placed on the school's own site rather than the SchoolSync landing
+           page: students come here, not there, and this is where they will
+           look for their portal. */}
+      <AppShowcase variant="school" schoolName={school.name} />
 
       {/* ===== CTA BAND ===== */}
       <section

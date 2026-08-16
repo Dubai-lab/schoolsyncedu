@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AppLinksCard from '@/components/shared/AppLinksCard';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
@@ -124,11 +125,17 @@ export default function ProprietorDashboard() {
     <div className="space-y-6">
       <Breadcrumb items={[{ label: 'Proprietor Dashboard' }]} />
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Proprietor Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Welcome back. Here's an overview of your school.
-        </p>
+      {/* Ruled header panel. A page that opens on a bare white margin reads as
+          unfinished; the grid gives the title block a surface to sit on without
+          adding a colour the rest of the page has to answer for. */}
+      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white px-5 py-6">
+        <div aria-hidden className="bg-grid pointer-events-none absolute inset-0" />
+        <div className="relative">
+          <h1 className="text-2xl font-bold text-gray-900">Proprietor Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Welcome back. Here's an overview of your school.
+          </p>
+        </div>
       </div>
 
       {/* ── SUSPENDED: school is offline ─────────────────────────────── */}
@@ -256,6 +263,8 @@ export default function ProprietorDashboard() {
           </Button>
         </div>
       )}
+
+      <AppLinksCard />
 
       {/* ── Subscription status card ─────────────────────────────────── */}
       {subscription && !isSuspended && !isGrace && (
