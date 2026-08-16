@@ -276,7 +276,7 @@ export default function SchoolLogin() {
           </div>
         )}
 
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
+        <div className="ss-auth-brand-body relative z-10 flex flex-col justify-between p-12 text-white w-full">
           {/* School logo & name */}
           <div className="flex items-center gap-3">
             {school.logo_url ? (
@@ -330,14 +330,16 @@ export default function SchoolLogin() {
         {/* Back to school site */}
         <Link
           to={`/school/${slug}`}
-          className="absolute top-6 left-6 flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          className="ss-auth-back absolute top-6 left-6 flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to School Site
         </Link>
 
-        {/* Mobile logo */}
-        <div className="mb-8 flex items-center gap-3 lg:hidden">
+        {/* School identity above the form. Hidden on desktop in the split
+            layout only, where the branding panel beside it already carries it —
+            every other layout has no panel to carry it, so it stays. */}
+        <div className="ss-auth-ident mb-8 flex items-center gap-3 lg:hidden">
           {school.logo_url ? (
             <img src={school.logo_url} alt={school.name} className="h-10 w-10 rounded-lg object-cover" />
           ) : (

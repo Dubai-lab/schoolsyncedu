@@ -177,6 +177,41 @@
  * written or uploaded is affected by switching between them.
  */
 
+/* The login page borrows .ss-theme for its colour tokens, but .ss-theme also
+   turns its element into a stacked column so the *site's* footer can be pinned
+   to the bottom. On the login page that stacking is wrong: it dropped the form
+   beneath the branding panel instead of beside it. The panels are laid out as a
+   row here, and each layout below overrides that where it needs to. */
+.ss-theme[class*='ss-auth--'] { flex-direction: row; }
+
+/* Layouts that float the form over a full-bleed backdrop. The branding panel
+   stops being a panel and becomes that backdrop, so its foreground — headline,
+   feature tiles, footer line — is dropped: at full size behind a centred form
+   it collided with the form instead of sitting behind it. The school's identity
+   is not lost, it moves into the form (see .ss-auth-ident below). */
+.ss-auth--centered .ss-auth-brand-body,
+.ss-auth--card .ss-auth-brand-body,
+.ss-auth--cover .ss-auth-brand-body { display: none; }
+
+/* Only the split layout has a panel beside the form to carry the logo and
+   name, so every other layout keeps them above the form at all widths. */
+.ss-auth--centered .ss-auth-ident,
+.ss-auth--card .ss-auth-ident,
+.ss-auth--cover .ss-auth-ident,
+.ss-auth--minimal .ss-auth-ident { display: flex; }
+
+/* Pinned to the page corner the back link is fine; pinned to the corner of a
+   420px card it lands on the heading. In the floating layouts it sits in flow
+   above the form instead. */
+.ss-auth--centered .ss-auth-back,
+.ss-auth--card .ss-auth-back,
+.ss-auth--cover .ss-auth-back,
+.ss-auth--minimal .ss-auth-back {
+  position: static;
+  align-self: flex-start;
+  margin-bottom: 1.5rem;
+}
+
 /* Form centred on the branded background; the panel becomes the backdrop. */
 .ss-auth--centered { position: relative; }
 .ss-auth--centered .ss-auth-brand {
@@ -209,9 +244,17 @@
   box-shadow: 0 30px 70px -25px rgba(0, 0, 0, 0.55);
 }
 
-/* No branding panel at all — plain surface, logo above the form. */
+/* No branding panel at all — plain surface, logo above the form. The wrapper
+   has to paint the page itself here: with the panel gone and the form narrowed
+   to a column, nothing else was covering the sides. */
+.ss-auth--minimal { background: var(--site-page-bg, #f8fafc); }
 .ss-auth--minimal .ss-auth-brand { display: none; }
-.ss-auth--minimal .ss-auth-form { margin: auto; max-width: 26rem; width: 100%; }
+.ss-auth--minimal .ss-auth-form {
+  margin: auto;
+  max-width: 26rem;
+  width: 100%;
+  background: transparent;
+}
 
 /* Full-screen image with a translucent form panel over it. */
 .ss-auth--cover .ss-auth-brand { position: absolute; inset: 0; display: flex; width: 100%; }
@@ -221,7 +264,13 @@
   margin: auto;
   max-width: 26rem;
   width: 100%;
+  /* Follows the theme's surface rather than being fixed white: on a dark
+     preset the text is re-pointed to a light colour, and a hardcoded white
+     panel made the heading and school name invisible. The rgba line is the
+     fallback for browsers without color-mix. */
   background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--site-surface, #ffffff) 90%, transparent);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-radius: var(--site-radius, 0.75rem);
 }
