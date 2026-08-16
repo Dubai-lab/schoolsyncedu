@@ -57,6 +57,21 @@ export default function ActivationRequests() {
   const [showResolved, setShowResolved] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const [activating, setActivating] = useState<Row | null>(null);
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('mtn_momo');
+  const [payRef, setPayRef] = useState('');
+
+  // Prefill the method the school said they would use — usually correct, and
+  // one fewer field to get wrong at the moment money actually changed hands.
+  useEffect(() => {
+    if (activating) {
+      setMethod(activating.preferred_method ?? 'manual');
+      setAmount('');
+      setPayRef('');
+    }
+  }, [activating]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -96,6 +111,38 @@ export default function ActivationRequests() {
       await load();
     } catch {
       notify.error('Could not update the request.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function confirmActivate() {
+    if (!activating) return;
+    setBusy(activating.id);
+    try {
+      const { data, error } = await supabase.rpc('activate_school_from_request', {
+        p_request_id: activating.id,
+        p_amount_usd: amount ? Number(amount) : 0,
+        p_payment_method: method,
+        p_reference: payRef.trim() || null,
+      });
+      if (error) throw error;
+
+      const result = data as { ok?: boolean; message?: string; invoice_number?: string } | null;
+      if (!result?.ok) {
+        notify.error(result?.message ?? 'Could not activate the subscription.');
+        return;
+      }
+
+      notify.success(
+        result.invoice_number
+          ? `Subscription active. Invoice ${result.invoice_number} issued.`
+          : 'Subscription active.',
+      );
+      setActivating(null);
+      await load();
+    } catch {
+      notify.error('Could not activate the subscription.');
     } finally {
       setBusy(null);
     }
@@ -210,12 +257,10 @@ export default function ActivationRequests() {
                       <Button
                         size="sm"
                         disabled={busy === r.id}
-                        onClick={() => resolve(r.id, 'activated')}
+                        onClick={() => setActivating(r)}
                       >
-                        {busy === r.id
-                          ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                          : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
-                        Mark activated
+                        <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                        Activate
                       </Button>
                       <Button
                         size="sm" variant="outline"
@@ -228,16 +273,85 @@ export default function ActivationRequests() {
                   )}
                 </div>
 
-                {r.status === 'activated' && (
-                  <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">
-                    Marking this activated records that you handled it. Activate the
-                    subscription itself in School Management.
-                  </p>
-                )}
               </Card>
             ))}
           </div>
         </>
+      )}
+
+      {/* Activation is an explicit confirmation rather than a one-click button:
+          it charges nothing, but it does record a payment, issue an invoice and
+          extend the school's expiry, so the amount and method should be typed
+          by the person who actually took the money. */}
+      {activating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-slate-900">Activate subscription</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {activating.schools?.name} · {activating.reference}
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  Amount received (USD)
+                </label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="15.00"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  How they paid
+                </label>
+                <select
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+                >
+                  <option value="mtn_momo">MTN Mobile Money</option>
+                  <option value="orange_money">Orange Money</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="manual">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  Reference <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  value={payRef}
+                  onChange={(e) => setPayRef(e.target.value)}
+                  placeholder="Transaction ID, receipt number…"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+                />
+              </div>
+
+              <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500">
+                This sets the subscription to <strong>active</strong>, extends the expiry by the
+                plan's billing cycle, issues a paid invoice, and emails the school. It is the same
+                path an online card payment takes.
+              </p>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setActivating(null)} disabled={!!busy}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={confirmActivate} disabled={!!busy}>
+                {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                Activate subscription
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
