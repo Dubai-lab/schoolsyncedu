@@ -64,6 +64,21 @@ export default function ContactUs() {
         return;
       }
 
+      // Notification only — the message is already stored, so this is allowed
+      // to fail. Deliberately not awaited into the success path: a slow or
+      // misconfigured mail server must not make the visitor think their
+      // message failed, nor keep them staring at a spinner.
+      void supabase.functions
+        .invoke('notify-contact-message', {
+          body: {
+            name: form.name.trim(),
+            email: form.email.trim(),
+            subject: [form.category, form.subject].filter(Boolean).join(' — '),
+            message: form.message.trim(),
+          },
+        })
+        .catch(() => { /* the row in contact_messages is the record that matters */ });
+
       setSubmitted(true);
     } catch {
       // A real failure now says so, instead of showing a success screen.
