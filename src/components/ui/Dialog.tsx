@@ -42,12 +42,23 @@ export default function Dialog({ open, onClose, children, className, persistent 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
         onClick={persistent ? undefined : onClose}
       />
-      {/* Panel */}
+      {/* Panel
+       *
+       * The height cap and column layout are what keep the footer reachable.
+       * Without them a tall dialog simply grew past the viewport, and because
+       * the panel is vertically centred it overflowed equally top and bottom —
+       * putting the buttons off-screen with body scroll locked, so there was
+       * no way to reach them at all. The body scrolls instead; header and
+       * footer stay put.
+       *
+       * dvh rather than vh so mobile browser chrome is accounted for.
+       */}
       <div
         role="dialog"
         aria-modal="true"
         className={cn(
-          'relative z-10 w-full max-w-lg rounded-xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200',
+          'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col',
+          'rounded-xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200',
           className,
         )}
       >
@@ -61,7 +72,7 @@ export default function Dialog({ open, onClose, children, className, persistent 
 
 export function DialogHeader({ children, onClose, className }: { children: ReactNode; onClose?: () => void; className?: string }) {
   return (
-    <div className={cn('flex items-start justify-between border-b border-slate-100 px-5 py-4', className)}>
+    <div className={cn('flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-4', className)}>
       <div>{children}</div>
       {onClose && (
         <button
@@ -80,12 +91,26 @@ export function DialogTitle({ children, className }: { children: ReactNode; clas
 }
 
 export function DialogBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('px-5 py-4', className)}>{children}</div>;
+  // min-h-0 is required, not decorative: a flex child defaults to min-height
+  // auto, which refuses to shrink below its content and would push the footer
+  // out again even with the cap on the panel.
+  return (
+    <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4', className)}>
+      {children}
+    </div>
+  );
 }
 
 export function DialogFooter({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-3', className)}>
+    <div
+      className={cn(
+        // shrink-0 keeps the buttons at full height when the body is long;
+        // without it flex would compress the footer before scrolling the body.
+        'flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-white px-5 py-3',
+        className,
+      )}
+    >
       {children}
     </div>
   );
