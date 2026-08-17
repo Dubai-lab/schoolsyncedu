@@ -1,4 +1,5 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, Suspense } from 'react';
+import { lazyWithReload } from '@/utils/lazyWithReload';
 import { useSearchParams } from 'react-router-dom';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { Loader2, Palette, LayoutTemplate, FileText, KeyRound, ExternalLink } from 'lucide-react';
@@ -26,10 +27,10 @@ import { useAuth } from '@/hooks/useAuth';
  * screen with one navigation, instead of four entries in two sidebars.
  */
 
-const BrandPanel   = lazy(() => import('./SiteCustomizer'));
-const ContentPanel = lazy(() => import('@/pages/it-admin/SiteManagement'));
-const LoginPanel   = lazy(() => import('@/pages/it-admin/AuthPageDesigner'));
-const ThemePanel   = lazy(() => import('./SiteThemePanel'));
+const BrandPanel   = lazyWithReload(() => import('./SiteCustomizer'));
+const ContentPanel = lazyWithReload(() => import('@/pages/it-admin/SiteManagement'));
+const LoginPanel   = lazyWithReload(() => import('@/pages/it-admin/AuthPageDesigner'));
+const ThemePanel   = lazyWithReload(() => import('./SiteThemePanel'));
 
 type Tab = 'design' | 'brand' | 'content' | 'login';
 

@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyWithReload } from '@/utils/lazyWithReload';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
 import { USER_ROLES } from '@/utils/constants';
@@ -18,10 +19,10 @@ import StaffLogin from './StaffLogin';
  * with no changes at all — they were already built mobile-first and dark.
  */
 
-const KioskLogin     = lazy(() => import('@/pages/kiosk/KioskLogin'));
-const KioskScanner   = lazy(() => import('@/pages/kiosk/KioskScanner'));
-const TeacherSession = lazy(() => import('./TeacherSession'));
-const CardAssignment = lazy(() => import('./CardAssignment'));
+const KioskLogin     = lazyWithReload(() => import('@/pages/kiosk/KioskLogin'));
+const KioskScanner   = lazyWithReload(() => import('@/pages/kiosk/KioskScanner'));
+const TeacherSession = lazyWithReload(() => import('./TeacherSession'));
+const CardAssignment = lazyWithReload(() => import('./CardAssignment'));
 
 const TEACHING_ROLES = [
   USER_ROLES.TEACHER,

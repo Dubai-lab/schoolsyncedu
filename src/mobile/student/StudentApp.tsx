@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyWithReload } from '@/utils/lazyWithReload';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
 import RequireStudent from './RequireStudent';
@@ -21,16 +22,16 @@ import LoginScreen from './LoginScreen';
  * user sees, and a spinner before the login form is a poor cold start.
  */
 
-const Dashboard      = lazy(() => import('@/pages/student/StudentDashboard'));
-const MyGrades       = lazy(() => import('@/pages/student/MyGrades'));
-const MyAttendance   = lazy(() => import('@/pages/student/MyAttendance'));
-const MyFees         = lazy(() => import('@/pages/student/MyFees'));
-const MyTimetable    = lazy(() => import('@/pages/student/MyTimetable'));
-const MyLibrary      = lazy(() => import('@/pages/student/MyLibrary'));
-const MyIDCard       = lazy(() => import('@/pages/student/MyIDCard'));
+const Dashboard      = lazyWithReload(() => import('@/pages/student/StudentDashboard'));
+const MyGrades       = lazyWithReload(() => import('@/pages/student/MyGrades'));
+const MyAttendance   = lazyWithReload(() => import('@/pages/student/MyAttendance'));
+const MyFees         = lazyWithReload(() => import('@/pages/student/MyFees'));
+const MyTimetable    = lazyWithReload(() => import('@/pages/student/MyTimetable'));
+const MyLibrary      = lazyWithReload(() => import('@/pages/student/MyLibrary'));
+const MyIDCard       = lazyWithReload(() => import('@/pages/student/MyIDCard'));
 // Profile goes through a mobile wrapper that adds sign-out — the shared page
 // has none, because on the web that lives in the dashboard Header.
-const ProfileScreen  = lazy(() => import('./ProfileScreen'));
+const ProfileScreen  = lazyWithReload(() => import('./ProfileScreen'));
 
 function ScreenFallback() {
   return (

@@ -6,9 +6,14 @@ import { queryClient } from '@/lib/queryClient'
 import { ToastProvider } from '@/components/shared/Toast'
 import { DomainProvider } from '@/context/DomainContext'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
+import { installChunkReloadHandler } from '@/utils/lazyWithReload'
 import './styles/web-fonts.css'
 import './index.css'
 import App from './App.tsx'
+
+// A tab open across a deploy asks for chunks the server has replaced.
+// Reload once rather than showing the proprietor a module URL.
+installChunkReloadHandler()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
