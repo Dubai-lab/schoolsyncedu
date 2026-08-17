@@ -234,7 +234,10 @@ const navGroups: NavGroup[] = [
       { label: 'Application Fees', path: '/bursar/application-fees', icon: ClipboardList, roles: [USER_ROLES.BURSAR] },
       { label: 'Record Payment', path: '/fees/payment', icon: CreditCard, roles: [USER_ROLES.BURSAR] },
       { label: 'Fee Structures', path: '/bursar/fee-structures', icon: Layers, roles: [USER_ROLES.BURSAR] },
-      { label: 'Student Fees', path: '/fees', icon: DollarSign, roles: [USER_ROLES.BURSAR] },
+      // 'Student Fees' removed. It pointed at /fees, the per-student balance
+      // list, and sat beside Fee Structures as though it were a second place to
+      // define fees. The route is still reachable — Record Payment and the
+      // dashboard link into it — it simply no longer has its own menu entry.
       { label: 'Bank Transfer Proofs', path: '/bursar/bank-transfers', icon: Landmark, roles: [USER_ROLES.BURSAR] },
       { label: 'Reg Fee Confirmation', path: '/bursar/reg-fee-confirmation', icon: UserCheck, roles: [USER_ROLES.BURSAR] },
       { label: 'Fee Correction', path: '/bursar/fee-correction', icon: PenLine, roles: [USER_ROLES.BURSAR] },

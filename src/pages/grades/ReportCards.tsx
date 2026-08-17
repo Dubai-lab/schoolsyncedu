@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
 import { gradeService } from '@/services/gradeService';
 import { registrarService } from '@/services/registrarService';
+import { academicCalendarService } from '@/services/classService';
 import { itAdminSiteService } from '@/services/itAdminService';
 import { supabase } from '@/lib/supabase';
 import Breadcrumb from '@/components/shared/Breadcrumb';
@@ -97,6 +98,47 @@ export default function ReportCards() {
     { enabled: !!schoolId },
   );
   useEffect(() => { if (settingYear && !academicYear) setAcademicYear(settingYear as string); }, [settingYear, academicYear]);
+
+  // ── Which years can be reported on ────────────────────────────────────────
+  // Closing an academic year only rewrites a setting; every grade, report card
+  // and class assignment keeps its academic_year and stays in the database. But
+  // this screen asked for the year as free text, so last year's report cards
+  // could only be reached by typing '2025-2026' exactly — one typo and it looked
+  // as though the data had gone with the year.
+  //
+  // Two sources, because neither is complete alone: the calendar covers years
+  // the Principal set periods for, including ones with no grades yet, and the
+  // student's own class assignments cover years they were enrolled for even if
+  // no calendar was configured. Promotion inserts an assignment per year and
+  // never removes the old one, so that second list is the full history.
+  const { data: calendarRows = [] } = useFetch(
+    ['academic-calendar-all', schoolId],
+    () => academicCalendarService.list(schoolId),
+    { enabled: !!schoolId },
+  );
+
+  const { data: studentYears = [] } = useFetch(
+    ['student-academic-years', selectedId],
+    () => gradeService.getStudentAcademicYears(selectedId),
+    { enabled: !!selectedId },
+  );
+
+  const yearOptions = (() => {
+    const years = new Set<string>();
+    for (const row of calendarRows as { academic_year?: string }[]) {
+      if (row.academic_year) years.add(row.academic_year);
+    }
+    for (const row of studentYears as { academic_year?: string }[]) {
+      if (row.academic_year) years.add(row.academic_year);
+    }
+    if (settingYear) years.add(settingYear as string);
+    // Whatever is currently chosen stays selectable, so an unusual year typed
+    // before this change does not silently reset itself.
+    if (academicYear) years.add(academicYear);
+    return [...years]
+      .sort((a, b) => b.localeCompare(a))
+      .map((y) => ({ label: y === settingYear ? `${y} (current)` : y, value: y }));
+  })();
 
   // School info — same service as Transcript
   const { data: school } = useFetch(
@@ -307,16 +349,14 @@ export default function ReportCards() {
             icon={<Search className="h-4 w-4" />}
           />
         </div>
-        <div className="w-40">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Academic Year</label>
-          <input
-            type="text"
-            value={academicYear}
-            onChange={(e) => setAcademicYear(e.target.value)}
-            placeholder="e.g. 2025-2026"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
-          />
-        </div>
+        <Select
+          label="Academic Year"
+          options={yearOptions}
+          value={academicYear}
+          onChange={(e) => setAcademicYear(e.target.value)}
+          placeholder={yearOptions.length === 0 ? 'No years yet' : 'Select year'}
+          className="w-44"
+        />
         <Select
           label="Report Type"
           options={REPORT_MODE_OPTIONS.map((m) => ({ label: m.label, value: m.value }))}
