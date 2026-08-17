@@ -531,8 +531,8 @@ export default function PricingPage() {
             {[
               { q: 'Is there a free trial?', a: 'Yes! Every standard plan comes with a free trial period. You can explore all features during the trial with no payment required.' },
               { q: 'Can I change my plan later?', a: 'Absolutely. You can upgrade or downgrade at any time from the billing settings in your admin dashboard.' },
-              { q: 'What payment methods do you accept?', a: 'We accept Visa, Mastercard, and mobile money (Orange Money, MTN, Lonestar). All payments are processed securely.' },
-              { q: 'What happens when my trial ends?', a: "You'll receive email reminders before your trial expires. If you don't subscribe, your school enters a grace period where you can still access data but some features are limited." },
+              { q: 'How do I pay for my subscription?', a: 'Subscriptions are arranged directly with us. Register your school, then request activation from the payment page or your dashboard — we will contact you to confirm payment and switch your school on. Paying online by card or mobile money is coming.' },
+              { q: 'What happens when my trial ends?', a: "You keep full access through a grace period, and we email you before it runs out. If the subscription is not activated by then the school portal goes offline — nothing is deleted, and everything is exactly as you left it the moment you activate." },
               { q: 'Is my school data secure?', a: 'Yes. All data is encrypted at rest and in transit. Each school has isolated data with row-level security policies. We use Supabase, which is SOC2 compliant.' },
               { q: 'Who is the Enterprise plan for?', a: "Large schools, school networks, or government institutions that need more than 2,500 students, custom modules, dedicated support, or custom billing terms. Contact us and we'll design a plan around your needs." },
             ].map((item) => (

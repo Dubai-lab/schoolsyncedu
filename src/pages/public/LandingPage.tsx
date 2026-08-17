@@ -87,7 +87,7 @@ const FEATURES = [
   { icon: GraduationCap, title: 'Student Management', desc: 'Enrollment, profiles, academic records, and class assignments in one place.' },
   { icon: CalendarCheck, title: 'Attendance Tracking', desc: 'Digital attendance marking with NFC cards and automated absence alerts.' },
   { icon: FileText, title: 'Grade Management', desc: 'Grade entry, report cards, transcripts, and GPA calculations.' },
-  { icon: DollarSign, title: 'Fee Collection', desc: 'Automated fee billing, mobile money payments, receipts, and financial reports.' },
+  { icon: DollarSign, title: 'Fee Collection', desc: 'Fee structures per class, balances, receipts, and financial reports.' },
   { icon: Mail, title: 'Communications', desc: 'Announcements, messaging, letter templates, and automated notifications.' },
   { icon: Library, title: 'Library System', desc: 'Book catalog, checkout tracking, overdue management, and reports.' },
   { icon: Nfc, title: 'Smart ID Cards', desc: 'NFC-enabled student and staff ID cards with built-in attendance scanning.' },
@@ -98,11 +98,18 @@ const FEATURES = [
   { icon: Zap, title: 'Multi-Tenant SaaS', desc: 'Each school gets its own environment — isolated, secure, and scalable.' },
 ];
 
+// Four things a school head can act on, each true of the product today.
+//
+// These were engineering figures — '74 Database Tables', '14 User Roles',
+// '99.9% Uptime Target'. A principal does not buy a schema, 'user roles' is
+// internal vocabulary, and calling uptime a *target* quietly admits it is a
+// hope rather than a record. Replaced with what the system actually does for
+// the person reading, and nothing that is not already built.
 const STATS = [
-  { value: '20+', label: 'Modules' },
-  { value: '74', label: 'Database Tables' },
-  { value: '14', label: 'User Roles' },
-  { value: '99.9%', label: 'Uptime Target' },
+  { value: 'Free',    label: 'Website for every school' },
+  { value: 'Offline', label: 'Attendance without internet' },
+  { value: 'NFC',     label: 'Tap to mark attendance' },
+  { value: '2 apps',  label: 'Student portal & attendance' },
 ];
 
 const TESTIMONIALS = [
@@ -531,7 +538,7 @@ export default function LandingPage() {
               <p className="mt-4 text-base leading-relaxed text-slate-500">
                 SchoolSync is part of the EduLiberia initiative to digitize education management across Liberia.
                 Our platform is designed with the unique challenges and needs of Liberian schools in mind —
-                from WAEC exam registration to mobile money fee collection.
+                from WAEC exam registration to Liberian Dollar fee tracking and attendance that keeps working when the internet does not.
               </p>
               <p className="mt-4 text-base leading-relaxed text-slate-500">
                 We support schools from kindergarten through senior secondary, whether private, public, or faith-based.
