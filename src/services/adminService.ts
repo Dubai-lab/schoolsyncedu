@@ -403,41 +403,39 @@ export const discountService = {
     if (error) throw error;
   },
 
-  /** Validate a coupon code for a given plan. Returns the discount if valid, null otherwise. */
+  /**
+   * Validate a coupon code for a given plan.
+   *
+   * Goes through validate_coupon rather than querying the table. The discounts
+   * table used to be readable by anyone while is_active was true, so dropping
+   * the coupon_code filter from this query returned every live code and its
+   * value — a school could read the codes instead of being given one. The
+   * function answers about the code it is handed and nothing else, and the
+   * table is now closed to everyone but the platform owner. See migration 228.
+   */
   async validateCoupon(couponCode: string, planId: UUID): Promise<Discount | null> {
-    const today = new Date().toISOString().split('T')[0];
-    // Note: applicable_plans is JSONB — PostgREST array operators are unreliable
-    // for JSONB. Fetch candidates by code + active + date, then filter in code.
-    const { data, error } = await supabase
-      .from('discounts')
-      .select('*')
-      .eq('coupon_code', couponCode.trim().toUpperCase())
-      .eq('is_active', true)
-      .or(`start_date.is.null,start_date.lte.${today}`)
-      .or(`end_date.is.null,end_date.gte.${today}`);
-    if (error || !data || data.length === 0) return null;
-
-    // Check applicable_plans in code:
-    // empty array / null = applies to all plans; otherwise must include planId
-    const match = data.find((row) => {
-      const plans = row.applicable_plans as string[] | null;
-      return !plans || plans.length === 0 || plans.includes(planId);
+    const { data, error } = await supabase.rpc('validate_coupon', {
+      p_code:    couponCode.trim(),
+      p_plan_id: planId,
     });
-    if (!match) return null;
-
-    const d = match as Discount;
-    if (d.max_uses !== null && d.current_uses >= d.max_uses) return null;
-    return d;
+    if (error) throw error;
+    return (data as Discount | null) ?? null;
   },
 
-  /** Increment uses after applying a discount (fetch current value then +1) */
-  async incrementCouponUses(id: UUID) {
-    const { data } = await supabase.from('discounts').select('current_uses').eq('id', id).single();
-    if (!data) return;
-    await supabase
-      .from('discounts')
-      .update({ current_uses: (data.current_uses as number) + 1 })
-      .eq('id', id);
+  /**
+   * Count a redemption. Returns false when the coupon has run out.
+   *
+   * This used to read current_uses and write back current_uses + 1 directly,
+   * which required is_super_admin() — and the person redeeming a coupon never
+   * is. The update was filtered to zero rows and reported success, so the
+   * counter never moved and max_uses was never enforced: a code limited to one
+   * use could be used forever. The function increments under a row lock, so
+   * two schools claiming the last use cannot both be told yes.
+   */
+  async redeemCoupon(id: UUID): Promise<boolean> {
+    const { data, error } = await supabase.rpc('redeem_coupon', { p_discount_id: id });
+    if (error) throw error;
+    return data === true;
   },
 };
 
