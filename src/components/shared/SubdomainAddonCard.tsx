@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { supabase } from '@/lib/supabase';
 import { schoolSiteService } from '@/services/schoolSiteService';
 import { subdomainAddonService } from '@/services/subdomainAddonService';
 import type { SubdomainPricing, SubdomainPayment } from '@/services/subdomainAddonService';
-import { generateTxRef } from '@/services/stripeService';
 import { notify } from '@/components/shared/Toast';
 import {
   Lock,
@@ -16,7 +13,6 @@ import {
   Loader2,
   ArrowRight,
   RotateCcw,
-  ShieldCheck,
   Calendar,
   Sparkles,
   TrendingUp,
@@ -29,7 +25,6 @@ import type { School } from '@/types/school.types';
 
 // ── Stripe singleton ───────────────────────────────────────────────────────────
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY as string);
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -63,125 +58,128 @@ function getStatus(school: School): SubdomainStatus {
   return 'expired';
 }
 
-// ── Card payment form ──────────────────────────────────────────────────────────
+// ── Request form ──────────────────────────────────────────────────────────────
+//
+// This was a Stripe card form. The card was decoration: it confirmed in the
+// browser and then the browser called activate_subdomain_addon, which had no
+// caller check and was granted to every signed-in user — so the add-on could be
+// switched on for nothing by calling the RPC directly. There is also no Stripe
+// account operating here, so there was never a charge to reconcile against.
+//
+// It now does what the subscription does: the school asks, we are paid the way
+// schools here actually pay, and only then is anything switched on. Same queue,
+// same admin screen, same bell.
 
-interface CardPaymentFormProps {
-  schoolId: string;
+interface RequestFormProps {
   subdomain: string;
   plan: 'monthly' | 'yearly';
   amountUsd: number;
-  onSuccess: (paidUntil: string) => void;
+  onSubmitted: (reference: string) => void;
   onCancel: () => void;
 }
 
-function CardPaymentForm({ schoolId, subdomain, plan, amountUsd, onSuccess, onCancel }: CardPaymentFormProps) {
-  const stripe   = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [cardError, setCardError]   = useState('');
+const METHODS = ['Mobile money', 'Bank transfer', 'Cash', 'Not sure yet'];
 
-  const handlePay = async () => {
-    if (!stripe || !elements) return;
-    const cardEl = elements.getElement(CardElement);
-    if (!cardEl) return;
-    setProcessing(true);
-    setCardError('');
+function RequestForm({ subdomain, plan, amountUsd, onSubmitted, onCancel }: RequestFormProps) {
+  const [name, setName]     = useState('');
+  const [email, setEmail]   = useState('');
+  const [phone, setPhone]   = useState('');
+  const [method, setMethod] = useState(METHODS[0]);
+  const [note, setNote]     = useState('');
+  const [busy, setBusy]     = useState(false);
+  const [error, setError]   = useState('');
+
+  useEffect(() => {
+    // Prefill from the signed-in account — the person asking is almost always
+    // the person we will be contacting.
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setEmail((e) => e || data.user!.email!);
+    });
+  }, []);
+
+  const submit = async () => {
+    setBusy(true);
+    setError('');
     try {
-      const txRef = generateTxRef(schoolId);
-      const { data: piData, error: piError } = await supabase.functions.invoke(
-        'create-stripe-payment-intent',
-        { body: { amount_usd: amountUsd, school_id: schoolId, plan_name: 'subdomain-addon', tx_ref: txRef, subdomain, subdomain_plan: plan } },
-      );
-      if (piError) throw new Error(piError.message);
-      if (piData?.error) throw new Error(String(piData.error));
-      const { clientSecret, paymentIntentId } = piData as { clientSecret: string; paymentIntentId: string };
-
-      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardEl },
+      const { data, error: rpcError } = await supabase.rpc('submit_subdomain_request', {
+        p_subdomain:        subdomain,
+        p_billing_cycle:    plan,
+        p_contact_name:     name.trim() || null,
+        p_contact_email:    email.trim(),
+        p_contact_phone:    phone.trim() || null,
+        p_preferred_method: method,
+        p_note:             note.trim() || null,
       });
-      if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
-      if (paymentIntent?.status !== 'succeeded') throw new Error('Payment did not complete');
-
-      const { data: result, error: rpcError } = await supabase.rpc('activate_subdomain_addon', {
-        p_school_id:   schoolId,
-        p_subdomain:   subdomain,
-        p_gateway_ref: paymentIntentId,
-        p_tx_ref:      txRef,
-        p_plan:        plan,
-        p_amount_usd:  amountUsd,
-      });
-
       if (rpcError) throw new Error(rpcError.message);
-      if (!result?.success) throw new Error(result?.error ?? 'Activation failed');
-
-      // Fire receipt email — non-blocking so UI isn't delayed if email is slow
-      supabase.functions.invoke('process-subscription-notifications', {
-        body: {
-          trigger:     'subdomain_payment_confirmed',
-          school_id:   schoolId,
-          owner_email: (await supabase.auth.getUser()).data.user?.email ?? null,
-          subdomain,
-          amount_usd:  amountUsd,
-          plan,
-          paid_until:  result.paid_until,
-        },
-      }).then(({ error: fnErr }) => {
-        if (fnErr) console.warn('Subdomain receipt email error:', fnErr.message);
-      }).catch((e) => console.warn('Subdomain receipt invoke failed:', e));
-
-      onSuccess(result.paid_until as string);
+      const res = data as { ok: boolean; message?: string; reference?: string };
+      if (!res?.ok) throw new Error(res?.message ?? 'Could not send the request.');
+      onSubmitted(res.reference ?? '');
     } catch (err) {
-      setCardError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Could not send the request.');
     } finally {
-      setProcessing(false);
+      setBusy(false);
     }
   };
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Card Details</p>
-      <div className="rounded-lg border border-gray-300 bg-white px-3 py-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
-        <CardElement
-          options={{
-            hidePostalCode: true,
-            style: {
-              base: { fontSize: '14px', color: '#1e293b', fontFamily: 'ui-sans-serif, system-ui, sans-serif', '::placeholder': { color: '#94a3b8' } },
-              invalid: { color: '#dc2626' },
-            },
-          }}
-        />
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Request this subdomain</p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <span className="font-semibold text-slate-700">{subdomain}.eduliberia.com</span> — {plan},
+          ${amountUsd.toFixed(2)}. Tell us how to reach you and we will arrange payment,
+          then switch it on.
+        </p>
       </div>
-      {cardError && (
-        <p className="flex items-center gap-1.5 text-xs text-red-600">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {cardError}
+
+      <input
+        value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+      />
+      <input
+        value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+      />
+      <input
+        value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+      />
+      <select
+        value={method} onChange={(e) => setMethod(e.target.value)}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+      >
+        {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+      </select>
+      <textarea
+        value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+        placeholder="Anything we should know (optional)"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none"
+      />
+
+      {error && (
+        <p className="flex items-start gap-1.5 text-xs text-red-600">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
         </p>
       )}
+
       <div className="flex gap-2">
         <button
-          type="button"
-          onClick={handlePay}
-          disabled={!stripe || processing}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white shadow transition hover:bg-blue-700 disabled:opacity-50"
+          type="button" onClick={submit} disabled={busy || !email.trim()}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 py-2.5 text-sm font-bold text-white shadow transition hover:bg-primary-700 disabled:opacity-50"
         >
-          {processing
-            ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
-            : <><ShieldCheck className="h-4 w-4" /> Pay ${amountUsd.toFixed(2)} &amp; Activate</>}
+          {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</> : <>Send request</>}
         </button>
         <button
-          type="button"
-          onClick={onCancel}
-          disabled={processing}
+          type="button" onClick={onCancel} disabled={busy}
           className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
         >
           Cancel
         </button>
       </div>
-      <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-        <ShieldCheck className="h-3.5 w-3.5" /> Secure payment powered by Stripe
-      </p>
     </div>
   );
 }
+
 
 // ── Plan picker ────────────────────────────────────────────────────────────────
 
@@ -390,10 +388,17 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
     }
   };
 
-  const handlePaySuccess = (paidUntil: string) => {
+  // Nothing is active yet — the request is queued and the platform owner
+  // switches it on once payment has actually been received. Saying "activated"
+  // here would be the same lie the card form told.
+  const handleRequested = (reference: string) => {
     setShowPayForm(false);
     setShowUpgrade(false);
-    notify.success(`Subdomain activated! Paid until ${formatDate(paidUntil)}.`);
+    notify.success(
+      reference
+        ? `Request sent — reference ${reference}. We will contact you to arrange payment.`
+        : 'Request sent. We will contact you to arrange payment.',
+    );
     onRefresh();
   };
 
@@ -498,16 +503,13 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
             </button>
           </>
         ) : (
-          <Elements stripe={stripePromise}>
-            <CardPaymentForm
-              schoolId={schoolId}
-              subdomain={school.subdomain!}
-              plan={selectedPlan}
-              amountUsd={amountForPlan(selectedPlan)}
-              onSuccess={handlePaySuccess}
-              onCancel={() => setShowPayForm(false)}
-            />
-          </Elements>
+          <RequestForm
+            subdomain={school.subdomain!}
+            plan={selectedPlan}
+            amountUsd={amountForPlan(selectedPlan)}
+            onSubmitted={handleRequested}
+            onCancel={() => setShowPayForm(false)}
+          />
         )}
         <PaymentHistory schoolId={schoolId} />
       </div>
@@ -654,16 +656,13 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
 
         {/* Renew payment form */}
         {showPayForm && (
-          <Elements stripe={stripePromise}>
-            <CardPaymentForm
-              schoolId={schoolId}
-              subdomain={school.subdomain!}
-              plan={school.subdomain_plan ?? 'monthly'}
-              amountUsd={amountForPlan(school.subdomain_plan ?? 'monthly')}
-              onSuccess={handlePaySuccess}
-              onCancel={() => setShowPayForm(false)}
-            />
-          </Elements>
+          <RequestForm
+            subdomain={school.subdomain!}
+            plan={school.subdomain_plan ?? 'monthly'}
+            amountUsd={amountForPlan(school.subdomain_plan ?? 'monthly')}
+            onSubmitted={handleRequested}
+            onCancel={() => setShowPayForm(false)}
+          />
         )}
 
         {/* Upgrade to yearly form */}
@@ -679,16 +678,13 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
                 </p>
               </div>
             </div>
-            <Elements stripe={stripePromise}>
-              <CardPaymentForm
-                schoolId={schoolId}
+            <RequestForm
                 subdomain={school.subdomain!}
                 plan="yearly"
                 amountUsd={yearlyPrice}
-                onSuccess={handlePaySuccess}
+                onSubmitted={handleRequested}
                 onCancel={() => setShowUpgrade(false)}
               />
-            </Elements>
           </div>
         )}
 
@@ -880,16 +876,13 @@ export default function SubdomainAddonCard({ school, onRefresh }: SubdomainAddon
               </>}
         </button>
       ) : (
-        <Elements stripe={stripePromise}>
-          <CardPaymentForm
-            schoolId={schoolId}
+        <RequestForm
             subdomain={nameInput}
             plan={selectedPlan}
             amountUsd={amountForPlan(selectedPlan)}
-            onSuccess={handlePaySuccess}
-            onCancel={() => setShowPayForm(false)}
+            onSubmitted={handleRequested}
+                onCancel={() => setShowPayForm(false)}
           />
-        </Elements>
       )}
 
       {isExpired && <PaymentHistory schoolId={schoolId} />}

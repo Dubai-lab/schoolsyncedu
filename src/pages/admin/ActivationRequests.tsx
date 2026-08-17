@@ -35,6 +35,11 @@ type Row = {
   created_at: string;
   handled_at: string | null;
   schools: { name: string; school_code: string } | null;
+  // Added in 229. A subdomain request carries the name asked for and the
+  // cycle; a subscription request leaves both null.
+  request_type: 'subscription' | 'subdomain';
+  subdomain: string | null;
+  billing_cycle: 'monthly' | 'yearly' | null;
 };
 
 const METHOD_LABEL: Record<string, string> = {
@@ -121,17 +126,31 @@ export default function ActivationRequests() {
     if (!activating) return;
     setBusy(activating.id);
     try {
-      const { data, error } = await supabase.rpc('activate_school_from_request', {
-        p_request_id: activating.id,
-        p_amount_usd: amount ? Number(amount) : 0,
-        p_payment_method: method,
-        p_reference: payRef.trim() || null,
-      });
+      // Two kinds of request, two functions. A subdomain request must not go
+      // through the subscription path — it would activate the wrong thing and
+      // bill the school for a plan it did not ask for.
+      const isSubdomain = activating.request_type === 'subdomain';
+
+      const { data, error } = await supabase.rpc(
+        isSubdomain ? 'activate_subdomain_from_request' : 'activate_school_from_request',
+        {
+          p_request_id: activating.id,
+          p_amount_usd: amount ? Number(amount) : 0,
+          p_payment_method: method,
+          p_reference: payRef.trim() || null,
+        },
+      );
       if (error) throw error;
 
-      const result = data as { ok?: boolean; message?: string; invoice_number?: string } | null;
-      if (!result?.ok) {
-        notify.error(result?.message ?? 'Could not activate the subscription.');
+      // The two functions report differently: the subscription one answers
+      // { ok }, the subdomain one { success }.
+      const result = data as
+        { ok?: boolean; success?: boolean; error?: string; message?: string; invoice_number?: string } | null;
+      if (!(result?.ok ?? result?.success)) {
+        notify.error(
+          result?.message ?? result?.error ??
+          (isSubdomain ? 'Could not activate the subdomain.' : 'Could not activate the subscription.'),
+        );
         return;
       }
 
@@ -219,6 +238,19 @@ export default function ActivationRequests() {
                         {r.reference}
                       </span>
                       <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
+                      {/* Which kind of request this is. Without it the two are
+                          indistinguishable in the queue, and activating a
+                          subdomain request as a subscription would charge the
+                          school for a plan it never asked for. */}
+                      {r.request_type === 'subdomain' ? (
+                        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                          Subdomain{r.billing_cycle ? ` · ${r.billing_cycle}` : ''}
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          Subscription
+                        </span>
+                      )}
                       <span className="text-xs text-slate-400">
                         {new Date(r.created_at).toLocaleDateString()}
                       </span>
@@ -233,6 +265,16 @@ export default function ActivationRequests() {
                         </span>
                       )}
                     </p>
+
+                    {/* The name the school asked for. Worth checking it is
+                        still free before taking payment — it was validated
+                        when they asked, and someone else may have taken it
+                        since. */}
+                    {r.request_type === 'subdomain' && r.subdomain && (
+                      <p className="mt-1 font-mono text-sm font-semibold text-amber-700">
+                        {r.subdomain}.eduliberia.com
+                      </p>
+                    )}
 
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                       {r.contact_name && <span>{r.contact_name}</span>}
