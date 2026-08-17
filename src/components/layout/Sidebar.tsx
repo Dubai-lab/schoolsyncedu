@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUiStore } from '@/store/ui.store';
 import { USER_ROLES, type UserRole } from '@/utils/constants';
+import { canAccess } from '@/config/routeAccess';
 import { clsx } from 'clsx';
 import {
   BookOpen,
@@ -175,6 +176,12 @@ const navGroups: NavGroup[] = [
       { label: 'Letter Approvals', path: '/letters/approvals', icon: ClipboardCheck, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Communications', path: '/communications', icon: MessageSquare, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Reports', path: '/reports', icon: BarChart3, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      // Financial oversight without the chequebook. The Principal used to hold
+      // the Bursar's write access — corrections, bank-proof verification, fee
+      // deletion — with no second pair of eyes. These two are read-only, so
+      // every figure stays visible while the Bursar does the moving.
+      { label: 'Finance Overview', path: '/reports/financial', icon: DollarSign, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
+      { label: 'Payment History', path: '/fees/history', icon: FileText, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Year-End Promotion', path: '/registrar/promotion', icon: GraduationCap, roles: [USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL] },
       { label: 'Analytics', path: '/dashboard/analytics', icon: BarChart3, roles: [USER_ROLES.PRINCIPAL] },
       { label: 'Settings', path: '/settings', icon: Settings, roles: [USER_ROLES.PRINCIPAL] },
@@ -287,7 +294,12 @@ export default function Sidebar() {
   let filteredGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => item.roles.includes(role)),
+      // Two conditions, not one. item.roles decides which section a link
+      // belongs in; canAccess decides whether the router will actually open
+      // it. Checking both means the menu can never offer a page that bounces
+      // the user straight back — the two used to disagree, and the menu was
+      // the only thing standing between a role and a page it should not see.
+      items: group.items.filter((item) => item.roles.includes(role) && canAccess(item.path, role)),
     }))
     .filter((group) => group.items.length > 0);
 

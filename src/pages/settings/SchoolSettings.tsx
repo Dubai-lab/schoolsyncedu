@@ -8,11 +8,13 @@ import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import { notify } from '@/components/shared/Toast';
+import { USER_ROLES } from '@/utils/constants';
 import { Save, Building2 } from 'lucide-react';
 
 export default function SchoolSettings() {
   const { user } = useAuth();
   const schoolId = user?.school_id ?? '';
+  const isProprietor = user?.role === USER_ROLES.PROPRIETOR;
 
   const { data: school, isLoading } = useFetch<School>(
     ['school-settings', schoolId],
@@ -163,7 +165,13 @@ export default function SchoolSettings() {
         </div>
       </Card>
 
-      {/* Branding */}
+      {/* Branding — Proprietor only.
+          The logo and these two colours are what the public school site and
+          the sign-in page are built from, and site design belongs to the
+          owner. Leaving it here meant the Principal could repaint the school's
+          public face from a settings page while the Proprietor's designer said
+          otherwise. */}
+      {isProprietor ? (
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branding</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -199,6 +207,15 @@ export default function SchoolSettings() {
           </div>
         </div>
       </Card>
+      ) : (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Branding</h2>
+          <p className="text-sm text-gray-500">
+            The school logo and colours are set by the Proprietor, in Site Designer,
+            alongside the rest of the public site.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

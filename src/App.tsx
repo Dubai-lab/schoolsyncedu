@@ -4,8 +4,7 @@ import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { useEffect } from 'react';
 import { useDomainContext } from '@/context/DomainContext';
 import { AuthProvider } from '@/context/AuthContext';
-import { RequireAuth, RequireRole } from '@/middleware/requireAuth';
-import { USER_ROLES } from '@/utils/constants';
+import { RequireAuth, RequireRouteAccess } from '@/middleware/requireAuth';
 import ScrollToTop from '@/components/shared/ScrollToTop';
 
 // Layouts
@@ -337,11 +336,17 @@ export default function App() {
           <Route path="/auth/student-login" element={<StudentLogin />} />
         </Route>
 
-        {/* Protected — App shell with Sidebar + Header */}
+        {/* Protected — App shell with Sidebar + Header.
+            RequireAuth proves you are signed in; RequireRouteAccess decides
+            whether your role may open this particular page, from the shared
+            matrix in config/routeAccess.ts. Every route below is covered by
+            it, including any added later — an unlisted path is denied. */}
         <Route
           element={
             <RequireAuth>
-              <DashboardLayout />
+              <RequireRouteAccess>
+                <DashboardLayout />
+              </RequireRouteAccess>
             </RequireAuth>
           }
         >
@@ -425,60 +430,60 @@ export default function App() {
           <Route path="/settings/system" element={<SystemConfig />} />
           <Route path="/settings/audit" element={<AuditLogs />} />
           {/* Proprietor module — Proprietor only */}
-          <Route path="/proprietor" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><ProprietorDashboard /></RequireRole>} />
-          <Route path="/proprietor/setup" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><OnboardingWizard /></RequireRole>} />
-          <Route path="/proprietor/it-admin" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><ITAdminSetup /></RequireRole>} />
-          <Route path="/proprietor/subscription" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SubscriptionManagement /></RequireRole>} />
-          <Route path="/proprietor/financial" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><FinancialOverview /></RequireRole>} />
-          <Route path="/proprietor/audit" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><AuditTrailViewer /></RequireRole>} />
-          <Route path="/proprietor/site" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><SiteDesigner /></RequireRole>} />
-          <Route path="/proprietor/fees" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><FeeScheduleEditor /></RequireRole>} />
+          <Route path="/proprietor" element={<ProprietorDashboard />} />
+          <Route path="/proprietor/setup" element={<OnboardingWizard />} />
+          <Route path="/proprietor/it-admin" element={<ITAdminSetup />} />
+          <Route path="/proprietor/subscription" element={<SubscriptionManagement />} />
+          <Route path="/proprietor/financial" element={<FinancialOverview />} />
+          <Route path="/proprietor/audit" element={<AuditTrailViewer />} />
+          <Route path="/proprietor/site" element={<SiteDesigner />} />
+          <Route path="/proprietor/fees" element={<FeeScheduleEditor />} />
           <Route path="/proprietor/login-page" element={<Navigate to="/proprietor/site?tab=login" replace />} />
-          <Route path="/proprietor/payment-methods" element={<RequireRole roles={[USER_ROLES.PROPRIETOR]}><PaymentMethods /></RequireRole>} />
+          <Route path="/proprietor/payment-methods" element={<PaymentMethods />} />
           {/* IT Admin module — IT Admin only */}
-          <Route path="/it-admin" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITAdminDashboard /></RequireRole>} />
-          <Route path="/it-admin/users" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><UserManagement /></RequireRole>} />
-          <Route path="/it-admin/users/new" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><UserManagement /></RequireRole>} />
+          <Route path="/it-admin" element={<ITAdminDashboard />} />
+          <Route path="/it-admin/users" element={<UserManagement />} />
+          <Route path="/it-admin/users/new" element={<UserManagement />} />
           {/* Site design moved to the proprietor — the school owner owns the
               brand, and having both roles write it through different services
               meant they overwrote each other. Redirected rather than removed so
               an existing bookmark lands somewhere useful. */}
           <Route path="/it-admin/site" element={<Navigate to="/it-admin" replace />} />
-          <Route path="/it-admin/fees" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><FeeScheduleEditor /></RequireRole>} />
+          <Route path="/it-admin/fees" element={<FeeScheduleEditor />} />
           <Route path="/it-admin/login-page" element={<Navigate to="/it-admin" replace />} />
-          <Route path="/it-admin/system" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SystemOverview /></RequireRole>} />
-          <Route path="/it-admin/settings" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><SchoolSettingsITAdmin /></RequireRole>} />
-          <Route path="/it-admin/cards" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITCardDesigner /></RequireRole>} />
-          <Route path="/it-admin/cards/generate" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><ITCardGenerator /></RequireRole>} />
-          <Route path="/it-admin/cards/nfc" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><NfcAssignment /></RequireRole>} />
-          <Route path="/it-admin/students" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><StudentAccounts /></RequireRole>} />
-          <Route path="/it-admin/email" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><EmailSettings /></RequireRole>} />
-          <Route path="/it-admin/transcript" element={<RequireRole roles={[USER_ROLES.IT_ADMIN]}><TranscriptDesigner /></RequireRole>} />
+          <Route path="/it-admin/system" element={<SystemOverview />} />
+          <Route path="/it-admin/settings" element={<SchoolSettingsITAdmin />} />
+          <Route path="/it-admin/cards" element={<ITCardDesigner />} />
+          <Route path="/it-admin/cards/generate" element={<ITCardGenerator />} />
+          <Route path="/it-admin/cards/nfc" element={<NfcAssignment />} />
+          <Route path="/it-admin/students" element={<StudentAccounts />} />
+          <Route path="/it-admin/email" element={<EmailSettings />} />
+          <Route path="/it-admin/transcript" element={<TranscriptDesigner />} />
           {/* Registrar module */}
-          <Route path="/registrar" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><RegistrarDashboard /></RequireRole>} />
-          <Route path="/registrar/applications" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><ApplicationReview /></RequireRole>} />
-          <Route path="/registrar/applications/:id" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><ApplicationDetail /></RequireRole>} />
-          <Route path="/registrar/promotion" element={<RequireRole roles={[USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><StudentPromotion /></RequireRole>} />
-          <Route path="/registrar/promoted" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><PromotedStudents /></RequireRole>} />
-          <Route path="/registrar/import" element={<RequireRole roles={[USER_ROLES.REGISTRAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BulkStudentImport /></RequireRole>} />
+          <Route path="/registrar" element={<RegistrarDashboard />} />
+          <Route path="/registrar/applications" element={<ApplicationReview />} />
+          <Route path="/registrar/applications/:id" element={<ApplicationDetail />} />
+          <Route path="/registrar/promotion" element={<StudentPromotion />} />
+          <Route path="/registrar/promoted" element={<PromotedStudents />} />
+          <Route path="/registrar/import" element={<BulkStudentImport />} />
           {/* Bursar / Finance module */}
-          <Route path="/bursar" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BursarDashboard /></RequireRole>} />
-          <Route path="/bursar/fee-structures" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><FeeStructures /></RequireRole>} />
-          <Route path="/bursar/application-fees" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><ApplicationFeePayments /></RequireRole>} />
-          <Route path="/bursar/bank-transfers" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><BankTransferVerification /></RequireRole>} />
-          <Route path="/bursar/reg-fee-confirmation" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><RegFeeConfirmation /></RequireRole>} />
-          <Route path="/bursar/fee-correction" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><FeeCorrection /></RequireRole>} />
-          <Route path="/bursar/kiosk-settings" element={<RequireRole roles={[USER_ROLES.BURSAR, USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><KioskSettings /></RequireRole>} />
+          <Route path="/bursar" element={<BursarDashboard />} />
+          <Route path="/bursar/fee-structures" element={<FeeStructures />} />
+          <Route path="/bursar/application-fees" element={<ApplicationFeePayments />} />
+          <Route path="/bursar/bank-transfers" element={<BankTransferVerification />} />
+          <Route path="/bursar/reg-fee-confirmation" element={<RegFeeConfirmation />} />
+          <Route path="/bursar/fee-correction" element={<FeeCorrection />} />
+          <Route path="/bursar/kiosk-settings" element={<KioskSettings />} />
           {/* Admin module — Super Admin only */}
-          <Route path="/admin" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDashboard /></RequireRole>} />
-          <Route path="/admin/schools" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SchoolManagement /></RequireRole>} />
-          <Route path="/admin/activation-requests" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><ActivationRequests /></RequireRole>} />
-          <Route path="/admin/messages" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><ContactMessages /></RequireRole>} />
-          <Route path="/admin/pricing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><PricingPlans /></RequireRole>} />
-          <Route path="/admin/billing" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><BillingCenter /></RequireRole>} />
-          <Route path="/admin/discounts" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><AdminDiscounts /></RequireRole>} />
-          <Route path="/admin/health" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SystemHealth /></RequireRole>} />
-          <Route path="/admin/social-media" element={<RequireRole roles={[USER_ROLES.SUPER_ADMIN]}><SocialMediaSettings /></RequireRole>} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/schools" element={<SchoolManagement />} />
+          <Route path="/admin/activation-requests" element={<ActivationRequests />} />
+          <Route path="/admin/messages" element={<ContactMessages />} />
+          <Route path="/admin/pricing" element={<PricingPlans />} />
+          <Route path="/admin/billing" element={<BillingCenter />} />
+          <Route path="/admin/discounts" element={<AdminDiscounts />} />
+          <Route path="/admin/health" element={<SystemHealth />} />
+          <Route path="/admin/social-media" element={<SocialMediaSettings />} />
           {/* WAEC module */}
           <Route path="/waec" element={<WaecDashboard />} />
           <Route path="/waec/register" element={<CandidateRegistration />} />
@@ -486,40 +491,40 @@ export default function App() {
           <Route path="/waec/results" element={<ExamResults />} />
 
           {/* Librarian module */}
-          <Route path="/librarian" element={<RequireRole roles={[USER_ROLES.LIBRARIAN]}><LibrarianDashboard /></RequireRole>} />
-          <Route path="/librarian/nfc-checkout" element={<RequireRole roles={[USER_ROLES.LIBRARIAN]}><NfcLibrary /></RequireRole>} />
+          <Route path="/librarian" element={<LibrarianDashboard />} />
+          <Route path="/librarian/nfc-checkout" element={<NfcLibrary />} />
 
           {/* Principal / Vice Principal module */}
-          <Route path="/principal" element={<RequireRole roles={[USER_ROLES.PRINCIPAL, USER_ROLES.VICE_PRINCIPAL]}><PrincipalDashboard /></RequireRole>} />
+          <Route path="/principal" element={<PrincipalDashboard />} />
 
           {/* Dean of Students module */}
-          <Route path="/dean" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanDashboard /></RequireRole>} />
-          <Route path="/dean/incidents" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanIncidentLog /></RequireRole>} />
-          <Route path="/dean/referrals" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanTeacherReferrals /></RequireRole>} />
-          <Route path="/dean/suspensions" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanSuspensionManager /></RequireRole>} />
-          <Route path="/dean/meetings" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanParentMeetings /></RequireRole>} />
-          <Route path="/dean/welfare" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanStudentWelfare /></RequireRole>} />
-          <Route path="/dean/attendance" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanAttendanceMonitor /></RequireRole>} />
-          <Route path="/dean/reports" element={<RequireRole roles={[USER_ROLES.DEAN]}><DeanReports /></RequireRole>} />
+          <Route path="/dean" element={<DeanDashboard />} />
+          <Route path="/dean/incidents" element={<DeanIncidentLog />} />
+          <Route path="/dean/referrals" element={<DeanTeacherReferrals />} />
+          <Route path="/dean/suspensions" element={<DeanSuspensionManager />} />
+          <Route path="/dean/meetings" element={<DeanParentMeetings />} />
+          <Route path="/dean/welfare" element={<DeanStudentWelfare />} />
+          <Route path="/dean/attendance" element={<DeanAttendanceMonitor />} />
+          <Route path="/dean/reports" element={<DeanReports />} />
 
           {/* Teacher portal */}
-          <Route path="/teacher" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherDashboard /></RequireRole>} />
-          <Route path="/teacher/classes" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherClasses /></RequireRole>} />
-          <Route path="/teacher/schedule" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherSchedule /></RequireRole>} />
-          <Route path="/teacher/attendance" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherAttendance /></RequireRole>} />
-          <Route path="/teacher/nfc-attendance" element={<RequireRole roles={[USER_ROLES.TEACHER]}><NfcAttendance /></RequireRole>} />
-          <Route path="/teacher/grades" element={<RequireRole roles={[USER_ROLES.TEACHER]}><TeacherGradeEntry /></RequireRole>} />
+          <Route path="/teacher" element={<TeacherDashboard />} />
+          <Route path="/teacher/classes" element={<TeacherClasses />} />
+          <Route path="/teacher/schedule" element={<TeacherSchedule />} />
+          <Route path="/teacher/attendance" element={<TeacherAttendance />} />
+          <Route path="/teacher/nfc-attendance" element={<NfcAttendance />} />
+          <Route path="/teacher/grades" element={<TeacherGradeEntry />} />
 
           {/* Student portal */}
-          <Route path="/student/dashboard" element={<RequireRole roles={[USER_ROLES.STUDENT]}><StudentDashboard /></RequireRole>} />
+          <Route path="/student/dashboard" element={<StudentDashboard />} />
           <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="/student/grades" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyGrades /></RequireRole>} />
-          <Route path="/student/attendance" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyAttendance /></RequireRole>} />
-          <Route path="/student/fees" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyFees /></RequireRole>} />
-          <Route path="/student/timetable" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyTimetable /></RequireRole>} />
-          <Route path="/student/id-card" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyIDCard /></RequireRole>} />
-          <Route path="/student/library" element={<RequireRole roles={[USER_ROLES.STUDENT]}><MyLibrary /></RequireRole>} />
-          <Route path="/student/profile" element={<RequireRole roles={[USER_ROLES.STUDENT]}><StudentProfile /></RequireRole>} />
+          <Route path="/student/grades" element={<MyGrades />} />
+          <Route path="/student/attendance" element={<MyAttendance />} />
+          <Route path="/student/fees" element={<MyFees />} />
+          <Route path="/student/timetable" element={<MyTimetable />} />
+          <Route path="/student/id-card" element={<MyIDCard />} />
+          <Route path="/student/library" element={<MyLibrary />} />
+          <Route path="/student/profile" element={<StudentProfile />} />
         </Route>
 
         {/* Error pages */}

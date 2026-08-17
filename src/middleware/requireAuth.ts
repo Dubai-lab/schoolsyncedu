@@ -4,6 +4,7 @@ import { createElement, type ReactNode } from 'react';
 import { USER_ROLES, type UserRole } from '@/utils/constants';
 import { getPersistedSchoolSlug } from '@/store/auth.store';
 import { useDomainContext } from '@/context/DomainContext';
+import { canAccess } from '@/config/routeAccess';
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -54,6 +55,35 @@ export function RequireAuth({ children }: RequireAuthProps) {
       state: { from: location },
       replace: true,
     });
+  }
+
+  return children;
+}
+
+/**
+ * Applies the shared route matrix to whatever page the address bar is asking
+ * for.
+ *
+ * Placed once around the dashboard shell rather than route by route. Guarding
+ * each route individually is what produced the problem it fixes: 93 of the 107
+ * routes were never given a role, so signing in was the only requirement to
+ * open the system's configuration, the fee ledger or the permissions screen.
+ * One wrapper cannot be forgotten on a new page — an unlisted path is denied.
+ *
+ * The redirect goes to the caller's own home rather than an error, so a
+ * stale bookmark lands somewhere useful instead of a wall.
+ */
+export function RequireRouteAccess({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const location = useLocation();
+  const role = (user?.role ?? '') as UserRole;
+
+  if (!canAccess(location.pathname, role)) {
+    const home = getHomePath(role);
+    // Never bounce to a home the same check would reject, or the redirect
+    // loops. /unauthorized is always reachable.
+    const target = canAccess(home, role) ? home : '/unauthorized';
+    return createElement(Navigate, { to: target, replace: true });
   }
 
   return children;

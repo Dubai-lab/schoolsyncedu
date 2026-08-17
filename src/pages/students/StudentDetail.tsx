@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { canAccess } from '@/config/routeAccess';
+import type { UserRole } from '@/utils/constants';
 import { useFetch } from '@/hooks/useFetch';
 import { studentService, enrollmentService, studentDocumentService } from '@/services/studentService';
 import type { StudentDocument } from '@/services/studentService';
@@ -58,6 +60,7 @@ export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const role = (user?.role ?? '') as UserRole;
 
   // Upload modal state
   const [showUpload,    setShowUpload]    = useState(false);
@@ -169,9 +172,11 @@ export default function StudentDetail() {
             </div>
           </div>
         </div>
-        <Button size="sm" icon={<Pencil className="h-4 w-4" />} onClick={() => navigate(`/students/${id}/edit`)}>
-          Edit Student
-        </Button>
+        {canAccess(`/students/${id}/edit`, role) && (
+          <Button size="sm" icon={<Pencil className="h-4 w-4" />} onClick={() => navigate(`/students/${id}/edit`)}>
+            Edit Student
+          </Button>
+        )}
       </div>
 
       {/* Pending Registration Fee Warning */}

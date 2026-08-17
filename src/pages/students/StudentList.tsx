@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { canAccess } from '@/config/routeAccess';
+import type { UserRole } from '@/utils/constants';
 import { useFetch } from '@/hooks/useFetch';
 import { useDebounce } from '@/hooks/useDebounce';
 import { studentService } from '@/services/studentService';
@@ -134,6 +136,7 @@ const genderOptions = [
 
 export default function StudentList() {
   const { user } = useAuth();
+  const role = (user?.role ?? '') as UserRole;
   const navigate = useNavigate();
   const schoolId = user?.school_id ?? '';
 
@@ -174,9 +177,13 @@ export default function StudentList() {
           <Button variant="outline" size="sm" icon={<Download className="h-4 w-4" />}>
             Export
           </Button>
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/students/new')}>
-            Add Student
-          </Button>
+          {/* Creating a student record is the Registrar's work, so leadership
+              sees the roster without a button that would only bounce them. */}
+          {canAccess('/students/new', role) && (
+            <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/students/new')}>
+              Add Student
+            </Button>
+          )}
         </div>
       </div>
 
