@@ -789,12 +789,12 @@ export default function SchoolSite() {
       )}
 
       {/* ===== STATS ===== */}
-      {show('stats') && (cfg.stats ?? []).length > 0 && (
+      {show('stats') && (cfg.stats ?? []).length > 0 && siteStyles.theme.layouts.stats !== 'hidden' && (
         <section className="relative bg-white" style={{ order: orderOf('stats') }}>
           <div className="absolute -top-px left-0 right-0 h-1" style={{ backgroundColor: secondary }} />
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <div ref={statsRef}
-              className="grid divide-x divide-gray-100"
+              className={`ss-stats ss-stats--${siteStyles.theme.layouts.stats} grid divide-x divide-gray-100`}
               style={{ gridTemplateColumns: `repeat(${Math.min((cfg.stats ?? []).length, 5)}, minmax(0, 1fr))` }}
             >
               {(cfg.stats ?? []).map((s, i) => {
@@ -944,7 +944,7 @@ export default function SchoolSite() {
               <SectionLabel text="What We Offer" color={secondary} />
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Academic Programs</h2>
             </div>
-            <div ref={progsRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div ref={progsRef} className={`ss-programs ss-programs--${siteStyles.theme.layouts.programs} grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3`}>
               {(cfg.programs ?? []).map((prog, i) => {
                 const Icon = getIcon(prog.icon);
                 return (

@@ -9,6 +9,7 @@ import {
   type SiteTheme, type ThemePreset, type SurfaceStyle,
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
   type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape, type SectionHeaderStyle, type HeroDivider, type HeroHeight,
+  type StatsLayout, type ProgramsLayout,
   DEFAULT_SECTION_ORDER, SECTION_LABELS, PINNED_SECTIONS,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
@@ -72,6 +73,20 @@ const HEADERS: { value: SectionHeaderStyle; label: string; description: string }
   { value: 'underline', label: 'Underline', description: 'Coloured rule under the title' },
   { value: 'stacked',   label: 'Stacked',   description: 'Big title, label beneath' },
   { value: 'minimal',   label: 'Minimal',   description: 'Title only' },
+];
+
+const STATS: { value: StatsLayout; label: string; description: string }[] = [
+  { value: 'bar',    label: 'Band',   description: 'One divided row — as before' },
+  { value: 'cards',  label: 'Cards',  description: 'Each figure in its own box' },
+  { value: 'inline', label: 'Compact', description: 'Smaller, no icons' },
+  { value: 'hidden', label: 'Hidden', description: 'Do not show numbers yet' },
+];
+
+const PROGRAMS: { value: ProgramsLayout; label: string; description: string }[] = [
+  { value: 'grid',     label: 'Grid',     description: 'Three across — as before' },
+  { value: 'list',     label: 'List',     description: 'One per row, room to explain' },
+  { value: 'carousel', label: 'Carousel', description: 'One swipeable row' },
+  { value: 'feature',  label: 'Feature',  description: 'First programme leads, larger' },
 ];
 
 const GALLERIES: { value: GalleryLayout; label: string; description: string }[] = [
@@ -163,7 +178,12 @@ export default function SiteThemePanel() {
 
   function updateLayout(key: 'hero', value: HeroLayout): void;
   function updateLayout(key: 'gallery', value: GalleryLayout): void;
-  function updateLayout(key: 'hero' | 'gallery', value: HeroLayout | GalleryLayout) {
+  function updateLayout(key: 'stats', value: StatsLayout): void;
+  function updateLayout(key: 'programs', value: ProgramsLayout): void;
+  function updateLayout(
+    key: 'hero' | 'gallery' | 'stats' | 'programs',
+    value: HeroLayout | GalleryLayout | StatsLayout | ProgramsLayout,
+  ) {
     setTheme((t) => ({ ...t, layouts: { ...(t.layouts ?? {}), [key]: value } }));
     setDirty(true);
   }
@@ -430,6 +450,58 @@ export default function SiteThemePanel() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* Key numbers and programmes */}
+      <section>
+        <h2 className="text-sm font-bold text-slate-900">Key numbers &amp; programmes</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Two of the largest blocks on the page, and the same shape for every school
+          until now. &ldquo;Hidden&rdquo; matters if your school has just opened — better no
+          numbers than unconvincing ones.
+        </p>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Card className="p-4">
+            <h3 className="mb-2.5 text-xs font-bold text-slate-900">Key numbers</h3>
+            <div className="space-y-1.5">
+              {STATS.map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => updateLayout('stats', o.value)}
+                  className={`flex w-full items-start gap-2 rounded-lg border-2 px-3 py-2 text-left transition-all ${
+                    t.layouts.stats === o.value ? 'border-primary-600 bg-primary-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold text-slate-800">{o.label}</span>
+                    <span className="block text-[11px] text-slate-500">{o.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-2.5 text-xs font-bold text-slate-900">Programmes</h3>
+            <div className="space-y-1.5">
+              {PROGRAMS.map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => updateLayout('programs', o.value)}
+                  className={`flex w-full items-start gap-2 rounded-lg border-2 px-3 py-2 text-left transition-all ${
+                    t.layouts.programs === o.value ? 'border-primary-600 bg-primary-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold text-slate-800">{o.label}</span>
+                    <span className="block text-[11px] text-slate-500">{o.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Card>
         </div>
       </section>
 

@@ -477,3 +477,85 @@
 .ss-hero--d-round .ss-hero-cue,
 .ss-hero--h-medium .ss-hero-cue,
 .ss-hero--h-compact .ss-hero-cue { display: none; }
+
+/* ── Key numbers ──────────────────────────────────────────────────────────────
+ * The band was a fixed row of divided columns for every school. 'hidden' is
+ * handled in the component rather than here — a school that has just opened
+ * has no numbers worth showing, and display:none would still leave the
+ * coloured rule and the section's padding behind.
+ *
+ * The grid-template-columns is set inline from the stat count, so these
+ * override it.
+ */
+.ss-theme .ss-stats--cards {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)) !important;
+  gap: 1rem;
+  padding: 2.5rem 0;
+}
+.ss-theme .ss-stats--cards > * {
+  border-radius: var(--site-radius, 0.75rem);
+  border: 1px solid var(--site-border, #e2e8f0);
+  background: var(--site-surface, #fff);
+  padding: 1.5rem 1rem;
+}
+/* divide-x draws borders between children; separate cards do not want them. */
+.ss-theme .ss-stats--cards > * + * { border-left-width: 1px; }
+
+/* Compact — one line per figure, no icon. For a school with a long list, or
+   one that would rather the numbers did not dominate the top of the page. */
+.ss-theme .ss-stats--inline {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)) !important;
+}
+.ss-theme .ss-stats--inline > * { padding: 1.5rem 0.75rem; }
+.ss-theme .ss-stats--inline > * > div:first-child { display: none; }
+.ss-theme .ss-stats--inline > * p:first-of-type { font-size: 1.5rem; }
+
+
+/* ── Programmes ───────────────────────────────────────────────────────────────
+ * The largest block of content on most school sites, and a fixed three-column
+ * grid for everyone.
+ */
+
+/* One per row: the icon beside the text rather than above it, so a long
+   description reads as a paragraph instead of a cramped card. */
+.ss-theme .ss-programs--list { grid-template-columns: 1fr !important; }
+.ss-theme .ss-programs--list > * {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 1.25rem 1.5rem;
+}
+.ss-theme .ss-programs--list > * > div:nth-child(2) { margin-bottom: 0; grid-row: span 3; }
+.ss-theme .ss-programs--list > * > h3,
+.ss-theme .ss-programs--list > * > p,
+.ss-theme .ss-programs--list > * > div:last-child { grid-column: 2; }
+
+/* One swipeable row. Same trick the gallery carousel uses: the grid becomes a
+   flex track and each card is given a width, because a grid child cannot be
+   scrolled past its own column. */
+.ss-theme .ss-programs--carousel {
+  display: flex !important;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-bottom: 0.75rem;
+}
+.ss-theme .ss-programs--carousel > * {
+  flex: 0 0 min(20rem, 78%);
+  scroll-snap-align: start;
+}
+
+/* The first programme is the one the school leads with — a flagship stream, or
+   the intake it is recruiting for — and gets the space to say so. */
+@media (min-width: 1024px) {
+  .ss-theme .ss-programs--feature { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .ss-theme .ss-programs--feature > *:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .ss-theme .ss-programs--feature > *:first-child h3 { font-size: 1.5rem; }
+  .ss-theme .ss-programs--feature > *:first-child p  { font-size: 1rem; line-height: 1.8; }
+}
