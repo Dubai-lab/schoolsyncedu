@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { notify } from '@/components/shared/Toast';
@@ -12,7 +12,8 @@ import {
   DEFAULT_SECTION_ORDER, SECTION_LABELS, PINNED_SECTIONS,
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
-import { Loader2, Check, Save, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
+import { Loader2, Check, Save, ArrowUp, ArrowDown, GripVertical, Monitor, Smartphone, ExternalLink } from 'lucide-react';
+import { PREVIEW_MESSAGE, PREVIEW_READY } from '@/hooks/usePreviewTheme';
 
 /**
  * Choose how the school's site looks.
@@ -124,6 +125,9 @@ export default function SiteThemePanel() {
 
   const [theme, setTheme] = useState<SiteTheme>({});
   const [colors, setColors] = useState({ primary: '#2d4fd6', secondary: '#f59e0b' });
+  const [slug, setSlug] = useState('');
+  const [previewWide, setPreviewWide] = useState(true);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -134,7 +138,7 @@ export default function SiteThemePanel() {
     try {
       const { data } = await supabase
         .from('schools')
-        .select('site_config, primary_color, secondary_color')
+        .select('site_config, primary_color, secondary_color, slug')
         .eq('id', schoolId)
         .maybeSingle();
 
@@ -144,6 +148,7 @@ export default function SiteThemePanel() {
         primary: data?.primary_color ?? '#2d4fd6',
         secondary: data?.secondary_color ?? '#f59e0b',
       });
+      setSlug((data?.slug as string) ?? '');
     } finally {
       setLoading(false);
     }
@@ -162,6 +167,32 @@ export default function SiteThemePanel() {
     setTheme((t) => ({ ...t, layouts: { ...(t.layouts ?? {}), [key]: value } }));
     setDirty(true);
   }
+
+  /**
+   * Push the working theme into the preview frame.
+   *
+   * Sent on every change so the page answers each click, and again when the
+   * frame reports itself ready — it finishes loading after the first send, so
+   * without the second it would open showing the saved theme and only catch up
+   * once something was touched.
+   */
+  const pushPreview = useCallback(() => {
+    frameRef.current?.contentWindow?.postMessage(
+      { type: PREVIEW_MESSAGE, theme },
+      window.location.origin,
+    );
+  }, [theme]);
+
+  useEffect(() => { pushPreview(); }, [pushPreview]);
+
+  useEffect(() => {
+    const onReady = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if ((e.data as { type?: string })?.type === PREVIEW_READY) pushPreview();
+    };
+    window.addEventListener('message', onReady);
+    return () => window.removeEventListener('message', onReady);
+  }, [pushPreview]);
 
   // Section order. Falls back to the default so a school that has never
   // touched it sees the arrangement it already has, rather than an empty list.
@@ -215,7 +246,9 @@ export default function SiteThemePanel() {
   const t = resolveTheme(theme);
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="xl:flex xl:items-start xl:gap-8">
+      {/* Controls */}
+      <div className="min-w-0 flex-1 space-y-6 pb-24">
       {/* Style */}
       <section>
         <h2 className="text-sm font-bold text-slate-900">Style</h2>
@@ -652,6 +685,84 @@ export default function SiteThemePanel() {
           </Button>
         </div>
       </div>
+      </div>
+
+      {/*
+        Live preview.
+
+        Until now a proprietor picked from thumbnails the size of a postage
+        stamp and then opened the site in another tab to find out what they had
+        actually chosen. This is the real page — same component, same content,
+        same rendering path — answering each control as it is clicked, before
+        anything is saved. A mock would have been easier and would have drifted
+        from the real site until it stopped being worth trusting.
+
+        Sticky rather than fixed, so it scrolls with the controls and stops at
+        the top. Hidden below xl: a preview narrower than a phone is not a
+        preview, and the controls need the width more.
+      */}
+      {slug && (
+        <aside className="hidden xl:block xl:w-[440px] xl:shrink-0">
+          <div className="sticky top-6">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Live preview
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPreviewWide(true)}
+                  aria-label="Desktop preview"
+                  className={`rounded-md border p-1.5 transition-colors ${previewWide ? 'border-primary-300 bg-primary-50 text-primary-600' : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+                >
+                  <Monitor className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setPreviewWide(false)}
+                  aria-label="Phone preview"
+                  className={`rounded-md border p-1.5 transition-colors ${!previewWide ? 'border-primary-300 bg-primary-50 text-primary-600' : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+                >
+                  <Smartphone className="h-3.5 w-3.5" />
+                </button>
+                <a
+                  href={`/school/${slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open the live site in a new tab"
+                  className="rounded-md border border-slate-200 p-1.5 text-slate-400 transition-colors hover:bg-slate-50"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
+              {/*
+                The frame renders at a full desktop width and is scaled down,
+                rather than being served a 440px viewport — otherwise every
+                preview would show the mobile layout and none of the choices
+                being made here would be visible.
+              */}
+              <div className="relative h-[560px] overflow-hidden">
+                <iframe
+                  ref={frameRef}
+                  title="Preview of your school site"
+                  src={`/school/${slug}`}
+                  className="absolute left-0 top-0 origin-top-left border-0"
+                  style={
+                    previewWide
+                      ? { width: 1280, height: 1600, transform: 'scale(0.3438)' }
+                      : { width: 390,  height: 1630, transform: 'scale(1.128)' }
+                  }
+                />
+              </div>
+            </div>
+
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+              Shows your unsaved choices. Scroll inside it to see the whole page.
+            </p>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

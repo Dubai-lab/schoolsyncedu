@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
 import { buildSiteStyles, bandStyle } from '@/utils/siteThemeStyles';
 import { DEFAULT_SECTION_ORDER } from '@/types/siteTheme';
+import { usePreviewTheme } from '@/hooks/usePreviewTheme';
 import HeroDividerShape from '@/components/shared/HeroDivider';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
@@ -194,6 +195,8 @@ export default function SchoolSite() {
   const [showBackTop, setShowBackTop] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   const heroRef = useRef<HTMLElement>(null);
+  // Non-null only inside the designer's preview frame.
+  const previewTheme = usePreviewTheme();
 
   const [statsRef,  statsVisible]  = useInView();
   const [aboutRef,  aboutVisible]  = useInView();
@@ -351,8 +354,13 @@ export default function SchoolSite() {
   // Theme lives inside site_config alongside the page content. resolveTheme
   // fills every gap with the previous hardcoded values, so a school that has
   // chosen nothing renders exactly as it did before.
+  // A draft theme handed over by the designer's preview frame takes precedence
+  // over the saved one, so a proprietor sees the choice before committing to
+  // it. Nothing else changes: same component, same data, same rendering path —
+  // which is the point, because a preview built out of a separate mock would
+  // drift from the real page and stop being worth trusting.
   const siteStyles = buildSiteStyles(
-    (cfg as Record<string, unknown>).theme as SiteTheme | undefined,
+    previewTheme ?? ((cfg as Record<string, unknown>).theme as SiteTheme | undefined),
     primary,
     secondary,
   );
