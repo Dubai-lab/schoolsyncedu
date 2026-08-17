@@ -131,13 +131,20 @@ export default function TeacherGradeEntry() {
     { enabled: !!schoolId && !!academicYear },
   );
 
-  const periods = (dbPeriods as unknown as AcademicCalendar[])
+  // Copied before sorting. .sort() mutates in place, and this array is the one
+  // React Query is holding in its cache — reordering it during render rewrites
+  // shared state while other subscribers are reading it.
+  const periods = [...(dbPeriods as unknown as AcademicCalendar[])]
     .sort((a, b) => (a.period_number ?? 0) - (b.period_number ?? 0));
 
-  const termOptions = periods.map((t) => ({
-    label: MARKING_PERIOD_LABELS[t.term_name] ?? t.term_name.toUpperCase(),
-    value: t.term_name,
-  }));
+  const termOptions = periods
+    // A period with no name has nothing to show and would throw on the
+    // toUpperCase below, taking the whole page down with it.
+    .filter((t) => !!t.term_name)
+    .map((t) => ({
+      label: MARKING_PERIOD_LABELS[t.term_name] ?? t.term_name.toUpperCase(),
+      value: t.term_name,
+    }));
 
   // Dates for the currently selected period (needed to fetch attendance)
   const activePeriod = periods.find((p) => p.term_name === semester);
