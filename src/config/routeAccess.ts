@@ -60,7 +60,11 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
 
   // ── Grades — teachers enter, leadership approves ───────────────────────────
   '/grades':                       [...HEADS, ADMIN_STAFF, PARENT],
-  '/grades/entry':                 [TEACHER, ADMIN_STAFF],
+  // Not the teacher's. This page lists every class in the school, while
+  // /teacher/grades lists only theirs — and the database now refuses a grade
+  // for a class they do not take, so sending them here would offer a choice
+  // that fails on save. Their own screen is the one that works.
+  '/grades/entry':                 [ADMIN_STAFF],
   '/grades/approval':              HEADS,
   '/grades/reports':               [...HEADS, ADMIN_STAFF, REGISTRAR],
   // Students included: the page already detects the student role and hides the
@@ -69,7 +73,8 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/grades/transcript':            [...HEADS, ADMIN_STAFF, REGISTRAR, STUDENT],
 
   '/attendance':                   [...HEADS, ADMIN_STAFF, DEAN, PARENT],
-  '/attendance/mark':              [TEACHER, ADMIN_STAFF],
+  // Same reasoning as /grades/entry — /teacher/attendance is the scoped one.
+  '/attendance/mark':              [ADMIN_STAFF],
   '/attendance/reports':           [...HEADS, ADMIN_STAFF, DEAN],
 
   // ── Finance — the Bursar acts, leadership reads ────────────────────────────
