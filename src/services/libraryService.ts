@@ -196,10 +196,14 @@ export const checkoutService = {
     if (error) throw error;
 
     // Update copy status
-    await supabase
+    // Checked, like every other write here. An unnoticed failure would leave
+    // the copy reading 'available' while a student holds it, and the next
+    // borrower would be handed a book that is already out.
+    const { error: copyOutError } = await supabase
       .from('book_copies')
       .update({ status: 'checked_out' })
       .eq('id', entry.book_copy_id);
+    if (copyOutError) throw copyOutError;
 
     return data as BookCheckout;
   },
@@ -227,19 +231,36 @@ export const checkoutService = {
     // what is still on loan with `!return_date`, so setting only the boolean
     // left every returned book on their screen forever, eventually shown as
     // overdue. See migration 213.
-    await supabase
+    // The result is checked. This call had no error handling at all, and there
+    // was no UPDATE policy on book_checkouts for it to satisfy — so it matched
+    // zero rows every time and said nothing, leaving the loan open while the
+    // book sat back on the shelf. See migration 223.
+    const { data: closed, error: closeError } = await supabase
       .from('book_checkouts')
       .update({ is_returned: true, return_date: new Date().toISOString().split('T')[0] })
       .eq('book_copy_id', entry.book_copy_id)
       .eq('student_id', entry.student_id)
-      .eq('is_returned', false);
+      .eq('is_returned', false)
+      .select('id');
+
+    if (closeError) throw closeError;
+
+    // Zero rows is not success. Either the loan was already closed or the
+    // write was refused; both need saying rather than reporting a return that
+    // did not happen.
+    if (!closed || closed.length === 0) {
+      throw new Error(
+        'The return was recorded but the loan could not be closed. Refresh and check the student still has this copy on loan.',
+      );
+    }
 
     // Update copy status based on condition
     const copyStatus = entry.condition === 'damaged' ? 'damaged' : 'available';
-    await supabase
+    const { error: copyInError } = await supabase
       .from('book_copies')
       .update({ status: copyStatus })
       .eq('id', entry.book_copy_id);
+    if (copyInError) throw copyInError;
 
     return returnData as BookReturn;
   },
