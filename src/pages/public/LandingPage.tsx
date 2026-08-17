@@ -610,14 +610,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ========== FINAL CTA ========== */}
-      <section className="bg-primary-900 py-20">
+      {/* ========== FINAL CTA ==========
+           On the ruled backdrop rather than a flat primary-900 block, so the
+           page closes on the same ground it opened on.
+
+           The line under the heading read "Join schools across Liberia that are
+           already using SchoolSync" — the same claim the invented testimonials
+           made, and just as untrue. Replaced with what actually happens when
+           the button is pressed. */}
+      <GridBackdrop glow="amber" className="py-20 sm:py-24">
         <div ref={ctaRef} className="reveal mx-auto max-w-3xl text-center px-4">
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
             Ready to modernize your school?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-white/60">
-            Join schools across Liberia that are already using SchoolSync to manage enrollment, grades, attendance, fees, and more.
+            Register in minutes — your school and its website go live straight away,
+            and we will be with you while you set the rest up.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
@@ -634,7 +642,7 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </GridBackdrop>
     </div>
   );
 }
