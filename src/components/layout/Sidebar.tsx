@@ -263,7 +263,6 @@ const navGroups: NavGroup[] = [
       // Site and login-page design moved to the proprietor. The school owner
       // owns the brand, and having both roles edit it through different
       // services meant they silently overwrote each other.
-      { label: 'Fee Schedule', path: '/it-admin/fees', icon: DollarSign, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'Email Settings', path: '/it-admin/email', icon: Mail, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'School Settings', path: '/it-admin/settings', icon: Settings, roles: [USER_ROLES.IT_ADMIN] },
       { label: 'System', path: '/it-admin/system', icon: Shield, roles: [USER_ROLES.IT_ADMIN] },

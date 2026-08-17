@@ -449,7 +449,9 @@ export default function App() {
               meant they overwrote each other. Redirected rather than removed so
               an existing bookmark lands somewhere useful. */}
           <Route path="/it-admin/site" element={<Navigate to="/it-admin" replace />} />
-          <Route path="/it-admin/fees" element={<FeeScheduleEditor />} />
+          {/* /it-admin/fees removed — it rendered the same FeeScheduleEditor as
+              /proprietor/fees, which publishes the fee table on the school's
+              public site. Site content belongs to the Proprietor. */}
           <Route path="/it-admin/login-page" element={<Navigate to="/it-admin" replace />} />
           <Route path="/it-admin/system" element={<SystemOverview />} />
           <Route path="/it-admin/settings" element={<SchoolSettingsITAdmin />} />

@@ -43,8 +43,8 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
   // Registrar's clerical work, so those three are not theirs.
   '/students':                     [...HEADS, ADMIN_STAFF, DEAN, REGISTRAR, COUNSELOR],
   '/students/:id':                 [...HEADS, ADMIN_STAFF, DEAN, REGISTRAR, COUNSELOR],
-  '/students/new':                 [REGISTRAR, ADMIN_STAFF, IT_ADMIN],
-  '/students/:id/edit':            [REGISTRAR, ADMIN_STAFF, IT_ADMIN],
+  '/students/new':                 [REGISTRAR, ADMIN_STAFF],
+  '/students/:id/edit':            [REGISTRAR, ADMIN_STAFF],
   '/students/enrollment':          [REGISTRAR, ADMIN_STAFF],
   '/students/idcards':             [ADMIN_STAFF, IT_ADMIN, REGISTRAR],
 
@@ -196,7 +196,10 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/it-admin':                     [IT_ADMIN],
   '/it-admin/users':               [IT_ADMIN],
   '/it-admin/users/new':           [IT_ADMIN],
-  '/it-admin/fees':                [IT_ADMIN],
+  // Removed from IT. This route renders the same FeeScheduleEditor as
+  // /proprietor/fees: it publishes the fee table on the school's public site,
+  // which is site content, and site content is the Proprietor's.
+  // '/it-admin/fees' intentionally absent — the Proprietor keeps /proprietor/fees.
   '/it-admin/system':              [IT_ADMIN],
   '/it-admin/settings':            [IT_ADMIN],
   '/it-admin/cards':               [IT_ADMIN],
