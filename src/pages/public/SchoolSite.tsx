@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
-import { buildSiteStyles, bandStyle, readableBrandColor } from '@/utils/siteThemeStyles';
+import { buildSiteStyles, bandStyle, readableBrandColor, brandTint } from '@/utils/siteThemeStyles';
 import { DEFAULT_SECTION_ORDER } from '@/types/siteTheme';
 import { usePreviewTheme } from '@/hooks/usePreviewTheme';
 import HeroDividerShape from '@/components/shared/HeroDivider';
@@ -380,6 +380,14 @@ export default function SchoolSite() {
   // The stat figures are 30–40px, so they clear contrast at a lower luminance
   // than the small caps labels do.
   const primaryDisplay = readableBrandColor(primary, siteStyles.isDark, 'large');
+  // Icons are graphics, so they take the 3:1 threshold rather than 4.5:1 —
+  // same rule the size argument encodes for text.
+  const primaryIcon   = readableBrandColor(primary, siteStyles.isDark, 'large');
+  const secondaryIcon = readableBrandColor(secondary, siteStyles.isDark, 'large');
+  // Tints for the rounded tiles the icons sit on. Still the school's colour,
+  // still a wash — just one that exists on a dark ground.
+  const primaryTint   = brandTint(primary, siteStyles.isDark);
+  const secondaryTint = brandTint(secondary, siteStyles.isDark);
 
   const vis = cfg.sections_visible ?? {};
   const show = (section: string) => vis[section] !== false;
@@ -815,9 +823,9 @@ export default function SchoolSite() {
                   >
                     <div
                       className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl transition-transform group-hover:scale-110"
-                      style={{ backgroundColor: accent + '15' }}
+                      style={{ backgroundColor: brandTint(accent, siteStyles.isDark) }}
                     >
-                      <Icon className="h-5 w-5" style={{ color: accent }} />
+                      <Icon className="h-5 w-5" style={{ color: readableBrandColor(accent, siteStyles.isDark, 'large') }} />
                     </div>
                     <p className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: primaryDisplay }}>
                       <StatValue raw={s.value} active={statsVisible} />
@@ -855,7 +863,7 @@ export default function SchoolSite() {
                 {cfg.mission_text && (
                   <div
                     className="relative overflow-hidden rounded-2xl p-6"
-                    style={{ backgroundColor: primary + '08', borderLeft: `4px solid ${primary}` }}
+                    style={{ backgroundColor: primaryTint, borderLeft: `4px solid ${primaryIcon}` }}
                   >
                     <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: primaryText }}>Our Mission</p>
                     <p className="text-sm leading-7 text-gray-600">{cfg.mission_text}</p>
@@ -865,7 +873,7 @@ export default function SchoolSite() {
                 {cfg.vision_text && (
                   <div
                     className="relative overflow-hidden rounded-2xl p-6"
-                    style={{ backgroundColor: secondary + '0c', borderLeft: `4px solid ${secondary}` }}
+                    style={{ backgroundColor: secondaryTint, borderLeft: `4px solid ${secondaryIcon}` }}
                   >
                     <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: secondaryText }}>Our Vision</p>
                     <p className="text-sm leading-7 text-gray-600">{cfg.vision_text}</p>
@@ -883,8 +891,8 @@ export default function SchoolSite() {
                         style={{ outlineColor: primary }}
                       />
                     ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: primary + '15' }}>
-                        <Users className="h-6 w-6" style={{ color: primary }} />
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: primaryTint }}>
+                        <Users className="h-6 w-6" style={{ color: primaryIcon }} />
                       </div>
                     )}
                     <div>
@@ -969,9 +977,9 @@ export default function SchoolSite() {
                     />
                     <div
                       className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl transition-transform group-hover:scale-110"
-                      style={{ backgroundColor: primary + '10' }}
+                      style={{ backgroundColor: primaryTint }}
                     >
-                      <Icon className="h-6 w-6" style={{ color: primary }} />
+                      <Icon className="h-6 w-6" style={{ color: primaryIcon }} />
                     </div>
                     <h3 className="text-lg font-bold text-gray-900">{prog.name}</h3>
                     <p className="mt-2 text-sm leading-7 text-gray-500">{prog.description}</p>
@@ -1004,7 +1012,7 @@ export default function SchoolSite() {
                     style={fadeUp(i * 90, newsVisible)}
                   >
                     {/* Date band */}
-                    <div className="flex items-center gap-3 px-5 py-3.5" style={{ backgroundColor: primary + '08' }}>
+                    <div className="flex items-center gap-3 px-5 py-3.5" style={{ backgroundColor: primaryTint }}>
                       <div
                         className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl text-white"
                         style={{ backgroundColor: primary }}
@@ -1120,9 +1128,9 @@ export default function SchoolSite() {
                         ) : (
                           <div
                             className="flex h-full w-full items-center justify-center"
-                            style={{ backgroundColor: primary + '15' }}
+                            style={{ backgroundColor: primaryTint }}
                           >
-                            <Users className="h-9 w-9" style={{ color: primary }} />
+                            <Users className="h-9 w-9" style={{ color: primaryIcon }} />
                           </div>
                         )}
                       </div>
@@ -1263,8 +1271,8 @@ export default function SchoolSite() {
                   className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
                   style={fadeUp(0, contVisible)}
                 >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: primary + '12' }}>
-                    <MapPin className="h-6 w-6" style={{ color: primary }} />
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: primaryTint }}>
+                    <MapPin className="h-6 w-6" style={{ color: primaryIcon }} />
                   </div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Address</p>
                   <p className="text-sm font-medium leading-relaxed text-gray-700">{school.address}</p>
@@ -1276,8 +1284,8 @@ export default function SchoolSite() {
                   className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
                   style={fadeUp(80, contVisible)}
                 >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: secondary + '15' }}>
-                    <Phone className="h-6 w-6" style={{ color: secondary }} />
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: secondaryTint }}>
+                    <Phone className="h-6 w-6" style={{ color: secondaryIcon }} />
                   </div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Phone</p>
                   <p className="text-sm font-medium text-gray-700">{school.phone}</p>

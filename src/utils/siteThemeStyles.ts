@@ -190,32 +190,33 @@ function darken(hex: string, ratio: number): string {
 }
 
 /**
- * The school's colour, or the theme's text colour when the school's would not
- * be readable.
+ * The school's own colour, lifted only as far as it must be to stay visible.
  *
- * The page paints headline figures and small labels with the school's own
- * primary through an inline style, and an inline style cannot be re-pointed by
- * the theme layer. A school whose brand colour is a deep navy therefore gets
- * near-black numbers on the near-black 'bold' page — present, selectable,
- * invisible, which is exactly the fault reported on the contact cards.
+ * Figures, labels and icons are painted with the school's colour through an
+ * inline style, which no stylesheet can re-point. A school whose brand is a
+ * deep navy gets near-black marks on the near-black 'bold' page — present,
+ * selectable, invisible.
  *
- * Rather than override the brand colour for every dark site, this measures it:
- * a colour with enough luminance to carry on a dark ground is left alone, and
- * only one that would disappear falls back. Most schools keep their colour;
- * the ones that would have lost their text get readable text instead.
+ * The first attempt at this swapped the colour for the theme's text colour
+ * whenever it failed. That fixed the reading and quietly took the school's
+ * decision away: every navy school on a dark preset would have got the same
+ * white numbers, with no way to ask for navy ones. Hard-coding a look is
+ * exactly what this design system exists to avoid — the school chooses, and
+ * the only thing that should happen automatically is that their choice stays
+ * legible on the preset they chose.
  *
- * Relative luminance by the WCAG formula, without the full contrast-ratio
- * calculation — the page background is a known constant per preset, so the
- * threshold is what matters, not the exact ratio.
+ * So the hue is kept and raised toward white until it clears the threshold:
+ * the same navy, light enough to see. A colour that already passes — most of
+ * them — is returned untouched, and nothing happens at all on a light preset.
  */
 export function readableBrandColor(
   hex: string,
   isDark: boolean,
   /**
-   * WCAG asks 4.5:1 of body text and 3:1 of large text, and the difference
-   * matters here: a red brand at 3.6:1 is fine on a 40px figure and not fine
-   * on an 11px label. Without the distinction one threshold either strips the
-   * colour from headlines that could carry it, or leaves labels unreadable.
+   * WCAG asks 4.5:1 of body text and 3:1 of large text and of icons, and the
+   * difference decides real cases: a red brand at 3.6:1 carries a 40px figure
+   * and not an 11px label. A single threshold would either dull headlines that
+   * could hold the colour, or leave small text unreadable.
    */
   size: 'small' | 'large' = 'small',
 ): string {
@@ -225,18 +226,53 @@ export function readableBrandColor(
   const full = c.length === 3 ? c.split('').map((x) => x + x).join('') : c;
   if (!/^[0-9a-f]{6}$/i.test(full)) return hex;
 
+  const rgb = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+
   const channel = (v: number) => {
     const s = v / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   };
-  const [r, g, b] = [0, 2, 4].map((i) => channel(parseInt(full.slice(i, i + 2), 16)));
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const luminance = (v: number[]) =>
+    0.2126 * channel(v[0]) + 0.7152 * channel(v[1]) + 0.0722 * channel(v[2]);
 
   // Solved against the 'bold' page background rather than guessed: with the
   // page at roughly L=0.011, contrast = (L + 0.05) / (0.011 + 0.05), so 3:1
   // needs L >= 0.133 and 4.5:1 needs L >= 0.225.
   const floor = size === 'large' ? 0.133 : 0.225;
-  return luminance < floor ? 'var(--site-text)' : hex;
+  if (luminance(rgb) >= floor) return hex;
+
+  // Mixed toward white in small steps, stopping at the first that clears.
+  // Stepped rather than solved because luminance is not linear in the channel
+  // values, and 4% lands close enough that the extra lift is not visible.
+  const toHex = (v: number[]) =>
+    '#' + v.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('');
+
+  for (let mix = 0.04; mix < 1; mix += 0.04) {
+    const lifted = rgb.map((v) => v + (255 - v) * mix);
+    if (luminance(lifted) >= floor) return toHex(lifted);
+  }
+  return '#ffffff';
+}
+
+/**
+ * A tint of the school's colour for the small rounded tiles behind icons.
+ *
+ * The page builds these as `primary + '12'` — the brand colour at 7% over
+ * whatever is behind. On a light page that reads as a soft wash; on a dark one
+ * a dark colour at 7% over a dark ground is nothing at all, which is why the
+ * icons in the report sat on tiles that were not there.
+ *
+ * Derived from the lifted colour and given more opacity on a dark preset, so
+ * the tile is still the school's colour and still just a tint — only visible.
+ */
+export function brandTint(hex: string, isDark: boolean): string {
+  const base = readableBrandColor(hex, isDark, 'large');
+  if (base.startsWith('var(')) return 'rgba(255,255,255,0.08)';
+  const c = base.replace('#', '');
+  const full = c.length === 3 ? c.split('').map((x) => x + x).join('') : c;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return hex + '12';
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${isDark ? 0.16 : 0.07})`;
 }
 
 /**
