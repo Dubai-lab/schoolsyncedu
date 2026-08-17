@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 import { supabase } from '@/lib/supabase';
 import { Mail, Phone, MapPin, Clock, Send, Loader2, CheckCircle, MessageSquare, Headphones, Building2 } from 'lucide-react';
 
@@ -91,14 +92,14 @@ export default function ContactUs() {
   return (
     <div>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600 py-16 sm:py-20">
+      <GridBackdrop glow="amber" className="py-16 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <h1 className="text-3xl font-extrabold text-white sm:text-5xl">Contact Us</h1>
           <p className="mx-auto mt-4 max-w-xl text-lg text-white/70">
             Have a question or need help? We're here for you. Reach out and we'll get back to you within 1–2 business days.
           </p>
         </div>
-      </section>
+      </GridBackdrop>
 
       {/* Contact options */}
       <section className="py-12">
@@ -111,7 +112,7 @@ export default function ContactUs() {
                 value: 'support@schoolsyncedu.com',
                 sub: 'For general & technical questions',
                 href: 'mailto:support@schoolsyncedu.com',
-                color: 'bg-blue-100 text-blue-600',
+                color: 'bg-amber-100 text-amber-600',
               },
               {
                 icon: Headphones,
@@ -119,7 +120,7 @@ export default function ContactUs() {
                 value: 'support@schoolsyncedu.com',
                 sub: 'Custom plans & partnerships',
                 href: 'mailto:support@schoolsyncedu.com',
-                color: 'bg-violet-100 text-violet-600',
+                color: 'bg-amber-100 text-amber-600',
               },
               {
                 icon: Clock,
@@ -127,7 +128,7 @@ export default function ContactUs() {
                 value: '1 – 2 Business Days',
                 sub: 'Monday – Friday, 8am – 5pm WAT',
                 href: null,
-                color: 'bg-green-100 text-green-600',
+                color: 'bg-amber-100 text-amber-600',
               },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
@@ -136,7 +137,7 @@ export default function ContactUs() {
                 </div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
                 {item.href ? (
-                  <a href={item.href} className="mt-1 block text-sm font-semibold text-primary-600 hover:underline">
+                  <a href={item.href} className="mt-1 block text-sm font-semibold text-amber-600 hover:underline">
                     {item.value}
                   </a>
                 ) : (
@@ -194,7 +195,7 @@ export default function ContactUs() {
                           type="text" required value={form.name}
                           onChange={(e) => update('name', e.target.value)}
                           placeholder="John Doe"
-                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                         />
                       </div>
                       <div>
@@ -203,7 +204,7 @@ export default function ContactUs() {
                           type="email" required value={form.email}
                           onChange={(e) => update('email', e.target.value)}
                           placeholder="you@example.com"
-                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                         />
                       </div>
                     </div>
@@ -213,7 +214,7 @@ export default function ContactUs() {
                       <select
                         value={form.category}
                         onChange={(e) => update('category', e.target.value)}
-                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                       >
                         <option value="">Select a category</option>
                         {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -226,7 +227,7 @@ export default function ContactUs() {
                         type="text" value={form.subject}
                         onChange={(e) => update('subject', e.target.value)}
                         placeholder="Brief description of your inquiry"
-                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
 
@@ -236,13 +237,13 @@ export default function ContactUs() {
                         required rows={5} value={form.message}
                         onChange={(e) => update('message', e.target.value)}
                         placeholder="Describe your question or issue in detail..."
-                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
 
                     <button
                       type="submit" disabled={submitting}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-6 py-3 text-sm font-semibold text-white hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {submitting ? (
                         <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
@@ -260,7 +261,7 @@ export default function ContactUs() {
               {/* Office info */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
                 <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-primary-600" /> Our Office
+                  <Building2 className="h-4 w-4 text-amber-600" /> Our Office
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
@@ -274,7 +275,7 @@ export default function ContactUs() {
                     <Mail className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                     <div>
                       <p className="text-xs text-slate-500">General inquiries</p>
-                      <a href="mailto:support@schoolsyncedu.com" className="text-sm font-medium text-primary-600 hover:underline">
+                      <a href="mailto:support@schoolsyncedu.com" className="text-sm font-medium text-amber-600 hover:underline">
                         support@schoolsyncedu.com
                       </a>
                     </div>
@@ -292,7 +293,7 @@ export default function ContactUs() {
               {/* Quick help */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
                 <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-primary-600" /> Quick Help
+                  <MessageSquare className="h-4 w-4 text-amber-600" /> Quick Help
                 </h3>
                 {[
                   { q: 'How do I register my school?', href: '/register' },
@@ -302,10 +303,10 @@ export default function ContactUs() {
                   <a
                     key={item.q}
                     href={item.href}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 text-sm text-slate-700 hover:border-primary-200 hover:bg-primary-50 transition-colors"
+                    className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 text-sm text-slate-700 hover:border-amber-200 hover:bg-amber-50 transition-colors"
                   >
                     {item.q}
-                    <span className="text-primary-500">→</span>
+                    <span className="text-amber-600">→</span>
                   </a>
                 ))}
               </div>
@@ -315,7 +316,7 @@ export default function ContactUs() {
                 <Phone className="mx-auto h-6 w-6 text-slate-400 mb-2" />
                 <p className="text-sm text-slate-500">
                   Phone support coming soon. Email us in the meantime at{' '}
-                  <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline font-medium">
+                  <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline font-medium">
                     support@schoolsyncedu.com
                   </a>
                 </p>

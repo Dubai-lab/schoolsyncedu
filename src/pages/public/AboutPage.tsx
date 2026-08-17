@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
@@ -62,11 +63,18 @@ function useStaggerReveal(count: number) {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
+// These read "50+ Schools Active", "12,000+ Students Managed", "8 Counties
+// Covered" — presented as measurements, and none of them true. That is the
+// same claim the invented testimonials made, except stated as data, which is
+// harder to walk back if a school or a ministry checks.
+//
+// Replaced with what the platform does, which is verifiable by opening it.
+// When there are real schools to count, these become the numbers worth showing.
 const STATS = [
-  { value: '50+',     label: 'Schools Active' },
-  { value: '12,000+', label: 'Students Managed' },
-  { value: '8',       label: 'Counties Covered' },
-  { value: '20+',     label: 'Platform Modules' },
+  { value: '14',  label: 'Roles, each scoped' },
+  { value: '20+', label: 'Modules' },
+  { value: '2',   label: 'Mobile apps' },
+  { value: 'LRD', label: 'And USD supported' },
 ];
 
 const FEATURES_SUMMARY = [
@@ -138,7 +146,7 @@ export default function AboutPage() {
   return (
     <div>
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600 py-20 sm:py-28">
+      <GridBackdrop glow="amber" className="relative py-20 sm:py-28">
         {/* Animated blobs */}
         <div className="absolute inset-0">
           <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-white/5 blur-3xl animate-blob-float" />
@@ -171,11 +179,11 @@ export default function AboutPage() {
             className={`mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70 ${heroBase} ${heroVisible ? heroShow : heroHide}`}
             style={{ transitionDelay: '240ms' }}
           >
-            SchoolSync is the leading school management platform for Liberian schools. We give principals,
+            SchoolSync is a school management platform built in Liberia, for Liberian schools. We give principals,
             registrars, bursars, teachers, students, and parents one unified system to run the entire school — digitally.
           </p>
         </div>
-      </section>
+      </GridBackdrop>
 
       {/* ── Stats bar ────────────────────────────────────────────────────────── */}
       <section className="border-b border-slate-100 bg-white py-12">
@@ -183,7 +191,7 @@ export default function AboutPage() {
           <div ref={statsRef} className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {STATS.map((s) => (
               <div key={s.label} className="reveal text-center">
-                <p className="text-3xl font-extrabold text-primary-600">{s.value}</p>
+                <p className="text-3xl font-extrabold text-amber-600">{s.value}</p>
                 <p className="mt-1 text-sm text-slate-500">{s.label}</p>
               </div>
             ))}
@@ -195,7 +203,7 @@ export default function AboutPage() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div ref={storyTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Our Story</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Our Story</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Why we built SchoolSync
             </h2>
@@ -228,14 +236,14 @@ export default function AboutPage() {
       <section className="bg-slate-50 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div ref={valuesTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">What drives us</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">What drives us</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Mission, Vision & Values</h2>
           </div>
           <div ref={valuesRef} className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {VALUES.map((v) => (
               <div key={v.title} className="reveal rounded-2xl border border-slate-200 bg-white p-8 shadow-sm hover:shadow-md transition-shadow">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100">
-                  <v.icon className="h-6 w-6 text-primary-600" />
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
+                  <v.icon className="h-6 w-6 text-amber-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">{v.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-slate-500">{v.body}</p>
@@ -250,7 +258,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div ref={serveLeftRef} className="reveal reveal-left">
-              <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Who we serve</p>
+              <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Who we serve</p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
                 Every school in Liberia
               </h2>
@@ -274,7 +282,7 @@ export default function AboutPage() {
                 ))}
               </ul>
             </div>
-            <div ref={serveRightRef} className="reveal reveal-right rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 p-8">
+            <div ref={serveRightRef} className="reveal reveal-right rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 p-8">
               <div className="space-y-3">
                 {[
                   { role: 'Principal / Head Teacher', desc: 'Full oversight — enrollment, staff, reports, and school-wide analytics.' },
@@ -303,7 +311,7 @@ export default function AboutPage() {
       <section className="bg-slate-50 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div ref={featTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Platform</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Platform</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               One platform. Every module your school needs.
             </h2>
@@ -315,8 +323,8 @@ export default function AboutPage() {
           <div ref={featRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES_SUMMARY.map((f) => (
               <div key={f.title} className="reveal rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100">
-                  <f.icon className="h-5 w-5 text-primary-600" />
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
+                  <f.icon className="h-5 w-5 text-amber-600" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">{f.title}</h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{f.desc}</p>
@@ -324,7 +332,7 @@ export default function AboutPage() {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <a href="/#features" className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:underline">
+            <a href="/#features" className="inline-flex items-center gap-2 text-sm font-medium text-amber-600 hover:underline">
               See all features <ArrowRight className="h-4 w-4" />
             </a>
           </div>
@@ -335,15 +343,15 @@ export default function AboutPage() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div ref={whyTitleRef} className="reveal mx-auto max-w-2xl text-center mb-12">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Why choose us</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Why choose us</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               What makes SchoolSync different
             </h2>
           </div>
           <div ref={whyRef} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {WHY_US.map((item) => (
-              <div key={item} className="reveal flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all">
-                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
+              <div key={item} className="reveal flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:border-amber-200 hover:shadow-md transition-all">
+                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <p className="text-sm leading-relaxed text-slate-600">{item}</p>
               </div>
             ))}
@@ -378,7 +386,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <div ref={teamLeftRef} className="reveal reveal-left">
-              <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">The team</p>
+              <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">The team</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Passionate about Liberian education</h2>
               <p className="mt-4 text-sm leading-relaxed text-slate-500">
                 The EduLiberia team is made up of software engineers, educators, and administrators
@@ -392,7 +400,7 @@ export default function AboutPage() {
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/contact"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 hover:-translate-y-0.5 transition-all shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-600 hover:-translate-y-0.5 transition-all shadow-sm"
                 >
                   <Mail className="h-4 w-4" /> Get in Touch
                 </Link>
@@ -413,7 +421,7 @@ export default function AboutPage() {
                   </div>
                   <p className="text-sm font-semibold text-slate-800">Email Us</p>
                 </div>
-                <a href="mailto:support@schoolsyncedu.com" className="text-sm text-primary-600 hover:underline">
+                <a href="mailto:support@schoolsyncedu.com" className="text-sm text-amber-600 hover:underline">
                   support@schoolsyncedu.com
                 </a>
                 <p className="mt-1 text-xs text-slate-400">Response within 1–2 business days</p>
@@ -430,7 +438,7 @@ export default function AboutPage() {
                   Sign up online in minutes. Your school portal includes a free trial —
                   no payment needed to get started.
                 </p>
-                <Link to="/register" className="mt-2 block text-sm text-primary-600 hover:underline">
+                <Link to="/register" className="mt-2 block text-sm text-amber-600 hover:underline">
                   Start free trial →
                 </Link>
               </div>
@@ -440,7 +448,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Final CTA ────────────────────────────────────────────────────────── */}
-      <section className="bg-primary-900 py-20">
+      <GridBackdrop glow="amber" className="py-20">
         <div ref={ctaRef} className="reveal mx-auto max-w-3xl px-4 text-center">
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
             Ready to modernize your school?
@@ -463,7 +471,7 @@ export default function AboutPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </GridBackdrop>
     </div>
   );
 }
