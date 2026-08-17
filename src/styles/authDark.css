@@ -1,0 +1,120 @@
+/* Dark treatment for the platform auth screens.
+ *
+ * AuthLayout now sits on the ruled backdrop from the marketing pages instead of
+ * a blue panel beside a white one. The four forms it hosts — Login,
+ * ForgotPassword, PasswordReset, StudentLogin — were written for a white card
+ * and use fixed light utilities throughout: text-slate-900 headings, bg-white
+ * inputs, slate borders.
+ *
+ * Rather than rewrite four files, this re-points those utilities inside
+ * .auth-dark, the same approach siteTheme.css takes for school sites.
+ * `.auth-dark .text-slate-900` outranks `.text-slate-900`, so it wins without
+ * !important and only inside these screens.
+ */
+
+/* ── Type ─────────────────────────────────────────────────────────────────── */
+.auth-dark .text-slate-900,
+.auth-dark .text-gray-900 { color: #f1f5f9; }
+
+.auth-dark .text-slate-700,
+.auth-dark .text-slate-600 { color: rgba(241, 245, 249, 0.78); }
+
+.auth-dark .text-slate-500,
+.auth-dark .text-slate-400 { color: rgba(241, 245, 249, 0.55); }
+
+/* ── Inputs ───────────────────────────────────────────────────────────────
+ * Translucent rather than a flat dark fill, so the grid stays faintly visible
+ * through the field and the form reads as part of the backdrop.
+ */
+.auth-dark input[type='text'],
+.auth-dark input[type='email'],
+.auth-dark input[type='password'],
+.auth-dark input[type='tel'],
+.auth-dark select,
+.auth-dark textarea {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+}
+
+.auth-dark input::placeholder,
+.auth-dark textarea::placeholder { color: rgba(241, 245, 249, 0.35); }
+
+.auth-dark input:focus,
+.auth-dark select:focus,
+.auth-dark textarea:focus {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Chrome paints its own colour over autofilled fields. An inset shadow the
+   size of the box is the only reliable way to keep them dark. */
+.auth-dark input:-webkit-autofill,
+.auth-dark input:-webkit-autofill:hover,
+.auth-dark input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0 1000px #10182b inset;
+  caret-color: #f1f5f9;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ── Surfaces and borders ─────────────────────────────────────────────────── */
+.auth-dark .bg-white { background-color: rgba(255, 255, 255, 0.04); }
+.auth-dark .bg-slate-50,
+.auth-dark .bg-gray-50 { background-color: rgba(255, 255, 255, 0.03); }
+
+.auth-dark .border-slate-300,
+.auth-dark .border-slate-200,
+.auth-dark .border-slate-100,
+.auth-dark .border-gray-200 { border-color: rgba(255, 255, 255, 0.14); }
+
+/* ── Status messages ──────────────────────────────────────────────────────
+ * The tinted boxes are 50-weight fills with 700/800 text — invisible on a dark
+ * ground both ways round. Kept in their own hues so the meaning survives, but
+ * as a translucent wash with light text.
+ */
+.auth-dark .bg-red-50    { background-color: rgba(239, 68, 68, 0.12); }
+.auth-dark .border-red-200 { border-color: rgba(239, 68, 68, 0.35); }
+.auth-dark .text-red-700,
+.auth-dark .text-red-800  { color: #fca5a5; }
+
+.auth-dark .bg-green-50  { background-color: rgba(34, 197, 94, 0.12); }
+.auth-dark .border-green-200 { border-color: rgba(34, 197, 94, 0.35); }
+.auth-dark .text-green-700,
+.auth-dark .text-green-800 { color: #86efac; }
+
+.auth-dark .bg-blue-50   { background-color: rgba(59, 130, 246, 0.14); }
+.auth-dark .border-blue-200 { border-color: rgba(59, 130, 246, 0.38); }
+.auth-dark .text-blue-700,
+.auth-dark .text-blue-800 { color: #93c5fd; }
+
+.auth-dark .bg-amber-50  { background-color: rgba(245, 158, 11, 0.12); }
+.auth-dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.35); }
+.auth-dark .text-amber-700,
+.auth-dark .text-amber-800 { color: #fcd34d; }
+
+/* A white button on a tinted alert box disappears here. */
+.auth-dark .bg-blue-50 .bg-white { background-color: rgba(255, 255, 255, 0.08); }
+
+/* ── Links ────────────────────────────────────────────────────────────────
+ * primary-600 is a mid blue chosen against white; it goes muddy on near-black.
+ */
+.auth-dark .text-primary-600 { color: #93c5fd; }
+.auth-dark .text-primary-600:hover,
+.auth-dark .hover\:text-primary-700:hover { color: #bfdbfe; }
+
+/* ── The submit button ────────────────────────────────────────────────────
+ * All three auth forms use bg-primary-600, which was the last blue block left
+ * once the panels went dark — and a mid blue on near-black is the one thing
+ * that still read as the old design. Amber instead: it is the accent already
+ * carrying "Liberia" in the headline beside it and the primary call to action
+ * on the landing page, so the sign-in button now matches the button that sent
+ * the visitor here.
+ */
+.auth-dark .bg-primary-600 { background-color: #f59e0b; color: #1c1300; }
+.auth-dark .hover\:bg-primary-700:hover { background-color: #d97706; }
+.auth-dark .bg-primary-600 svg { color: #1c1300; }
+
+/* ── Dividers ─────────────────────────────────────────────────────────────── */
+.auth-dark hr,
+.auth-dark .divide-slate-200 > * + * { border-color: rgba(255, 255, 255, 0.12); }
