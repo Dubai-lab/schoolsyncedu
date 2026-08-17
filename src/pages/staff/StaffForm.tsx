@@ -40,7 +40,12 @@ const ROLE_OPTIONS = [
   { label: 'Registrar', value: USER_ROLES.REGISTRAR },
   { label: 'Bursar', value: USER_ROLES.BURSAR },
   { label: 'Dean of Students', value: USER_ROLES.DEAN },
-  { label: 'Admin Staff', value: USER_ROLES.ADMIN_STAFF },
+  // 'Admin Staff' is not offered. It is a support-staff role carried since the
+  // first schema that accumulated the Bursar's fee corrections, the Principal's
+  // grade approval and the ability to change user roles — more reach than the
+  // Principal, and no school was ever meant to hand it out. It stays in the
+  // enum so any existing holder keeps working and stays visible in the staff
+  // list, but nobody new can be created as one.
   { label: 'IT Admin', value: USER_ROLES.IT_ADMIN },
   { label: 'Teacher', value: USER_ROLES.TEACHER },
   { label: 'Librarian', value: USER_ROLES.LIBRARIAN },

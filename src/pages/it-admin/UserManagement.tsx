@@ -38,7 +38,8 @@ const MANAGEABLE_ROLES: { label: string; value: string }[] = [
   { label: 'Registrar', value: USER_ROLES.REGISTRAR },
   { label: 'Bursar', value: USER_ROLES.BURSAR },
   { label: 'Dean of Students', value: USER_ROLES.DEAN },
-  { label: 'Admin Staff', value: USER_ROLES.ADMIN_STAFF },
+  // 'Admin Staff' withdrawn — see StaffForm. Existing holders keep the role;
+  // it simply cannot be assigned to anyone new from here either.
   { label: 'Teacher', value: USER_ROLES.TEACHER },
   { label: 'Librarian', value: USER_ROLES.LIBRARIAN },
   { label: 'Guidance Counselor', value: USER_ROLES.COUNSELOR },
