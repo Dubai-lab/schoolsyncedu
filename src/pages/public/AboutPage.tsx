@@ -416,8 +416,8 @@ export default function AboutPage() {
             <div ref={teamRightRef} className="reveal reveal-right space-y-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
-                    <Mail className="h-4 w-4 text-blue-600" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100">
+                    <Mail className="h-4 w-4 text-amber-600" />
                   </div>
                   <p className="text-sm font-semibold text-slate-800">Email Us</p>
                 </div>

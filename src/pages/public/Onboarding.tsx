@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 import { Link } from 'react-router-dom';
 import {
   motion,
@@ -36,9 +37,9 @@ const STEPS = [
     icon: Building2,
     title: 'Register Your School',
     desc: 'Fill in your school details — name, county, principal, contact info. Takes under 3 minutes.',
-    color: 'from-blue-500 to-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'Have your MOE registration number ready if you want to include it.',
   },
   {
@@ -46,9 +47,9 @@ const STEPS = [
     icon: Mail,
     title: 'Verify Your Email',
     desc: 'We send a 6-digit OTP to your email. Enter it to confirm your identity and secure your account.',
-    color: 'from-violet-500 to-violet-600',
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'Check your spam folder if you don\'t receive the code within a minute.',
   },
   {
@@ -56,9 +57,9 @@ const STEPS = [
     icon: Shield,
     title: 'Choose a Plan',
     desc: 'Pick the plan that fits your school size. Every plan starts with a free trial — no credit card required.',
-    color: 'from-emerald-500 to-emerald-600',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'Not sure which plan? Start with Basic and upgrade anytime.',
   },
   {
@@ -66,7 +67,7 @@ const STEPS = [
     icon: Nfc,
     title: 'Brand Your School',
     desc: 'Upload your school logo, set your colors, and write your motto. Your portal is uniquely yours.',
-    color: 'from-amber-500 to-amber-600',
+    color: 'from-accent-500 to-accent-600',
     bg: 'bg-amber-50',
     border: 'border-amber-200',
     tip: 'A good logo and clear motto builds trust with parents.',
@@ -76,9 +77,9 @@ const STEPS = [
     icon: UserPlus,
     title: 'Add Your IT Admin',
     desc: 'Create the IT Admin account — they manage users, settings, and system configuration.',
-    color: 'from-rose-500 to-rose-600',
-    bg: 'bg-rose-50',
-    border: 'border-rose-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'The IT Admin is your technical point of contact inside the school.',
   },
   {
@@ -86,9 +87,9 @@ const STEPS = [
     icon: Users,
     title: 'Invite Staff & Teachers',
     desc: 'Add your registrar, bursar, teachers, and librarian. Assign each person the right role and permissions.',
-    color: 'from-cyan-500 to-cyan-600',
-    bg: 'bg-cyan-50',
-    border: 'border-cyan-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'Staff receive a welcome email with login instructions automatically.',
   },
   {
@@ -96,9 +97,9 @@ const STEPS = [
     icon: GraduationCap,
     title: 'Enroll Students',
     desc: 'Import your student roster or add students one by one. Assign them to classes and academic terms.',
-    color: 'from-primary-500 to-primary-600',
-    bg: 'bg-primary-50',
-    border: 'border-primary-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'Use bulk import for large rosters — CSV upload supported.',
   },
   {
@@ -106,9 +107,9 @@ const STEPS = [
     icon: Zap,
     title: 'You\'re Live!',
     desc: 'Start taking attendance, entering grades, collecting fees, and communicating with parents. Your school is fully digital.',
-    color: 'from-green-500 to-green-600',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
+    color: 'from-accent-500 to-accent-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
     tip: 'Share your school portal link with parents so they can track their children.',
   },
 ];
@@ -118,8 +119,8 @@ const MODULES = [
     id: 'attendance',
     label: 'Attendance',
     icon: CalendarCheck,
-    color: 'text-blue-600',
-    activeBg: 'bg-blue-600',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-600',
     title: 'Digital Attendance Tracking',
     desc: 'Mark attendance in seconds using NFC smart ID cards or manual entry. Automated absence alerts notify parents immediately.',
     features: ['NFC tap-in / tap-out', 'Manual override per teacher', 'Parent SMS/email alerts', 'Absence & late reports', 'Period-by-period tracking'],
@@ -129,8 +130,8 @@ const MODULES = [
     id: 'grades',
     label: 'Grades',
     icon: GraduationCap,
-    color: 'text-violet-600',
-    activeBg: 'bg-violet-600',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-600',
     title: 'Grade Management & Report Cards',
     desc: 'Teachers enter grades per subject and term. The system automatically calculates GPAs, class rank, and generates printable report cards.',
     features: ['Multi-subject grade entry', 'Automatic GPA calculation', 'Class ranking', 'Printable report cards', 'WAEC exam registration'],
@@ -140,8 +141,8 @@ const MODULES = [
     id: 'fees',
     label: 'Fees',
     icon: DollarSign,
-    color: 'text-emerald-600',
-    activeBg: 'bg-emerald-600',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-600',
     title: 'Fee Collection & Billing',
     desc: 'Bill parents automatically, track payments, issue digital receipts. Accept mobile money (Orange, MTN, Lonestar) and cash.',
     features: ['Automated fee billing', 'Mobile money payments', 'Digital receipt generation', 'Outstanding balance tracking', 'Financial dashboards'],
@@ -297,7 +298,7 @@ function BarChart({ bars, label }: { bars: number[]; label: string }) {
               initial={{ height: 0 }}
               animate={isInView ? { height: `${h}%` } : { height: 0 }}
               transition={{ duration: 0.7, delay: i * 0.08, ease: 'easeOut' }}
-              className="w-full rounded-t bg-primary-500 min-h-[4px]"
+              className="w-full rounded-t bg-accent-500 min-h-[4px]"
               style={{ height: `${h}%` }}
             />
             <span className="text-[10px] text-slate-500">{days[i]}</span>
@@ -365,7 +366,7 @@ export default function Onboarding() {
     <div className="overflow-x-hidden">
 
       {/* ── HERO ── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600">
+      <GridBackdrop glow="amber" className="relative min-h-screen flex items-center"><div ref={heroRef} className="w-full">
         {/* Animated background blobs */}
         <motion.div
           animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
@@ -375,7 +376,7 @@ export default function Onboarding() {
         <motion.div
           animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
           transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-3xl"
+          className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-amber-500/10 blur-3xl"
         />
 
         {/* Grid pattern */}
@@ -494,7 +495,7 @@ export default function Onboarding() {
             </motion.div>
           </motion.div>
         </motion.div>
-      </section>
+      </div></GridBackdrop>
 
       {/* ── STATS BAR ── */}
       <motion.section
@@ -513,7 +514,7 @@ export default function Onboarding() {
               { value: '99.9%', label: 'Platform uptime' },
             ].map((s) => (
               <motion.div key={s.label} variants={scaleIn} className="text-center">
-                <p className="text-3xl font-extrabold text-primary-600">{s.value}</p>
+                <p className="text-3xl font-extrabold text-amber-600">{s.value}</p>
                 <p className="mt-1 text-sm text-slate-500">{s.label}</p>
               </motion.div>
             ))}
@@ -531,7 +532,7 @@ export default function Onboarding() {
             variants={stagger}
             className="text-center mb-16"
           >
-            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-primary-600">
+            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-amber-600">
               Step by Step
             </motion.p>
             <motion.h2 variants={fadeUp} className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
@@ -560,7 +561,7 @@ export default function Onboarding() {
             variants={stagger}
             className="text-center mb-12"
           >
-            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-primary-600">Modules</motion.p>
+            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-amber-600">Modules</motion.p>
             <motion.h2 variants={fadeUp} className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
               Everything your school needs
             </motion.h2>
@@ -660,7 +661,7 @@ export default function Onboarding() {
             variants={stagger}
             className="text-center mb-12"
           >
-            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-primary-600">User Roles</motion.p>
+            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-amber-600">User Roles</motion.p>
             <motion.h2 variants={fadeUp} className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
               The right access for everyone
             </motion.h2>
@@ -677,14 +678,14 @@ export default function Onboarding() {
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
           >
             {[
-              { role: 'Proprietor', desc: 'Full ownership & billing', icon: Shield, color: 'bg-violet-100 text-violet-700' },
-              { role: 'IT Admin', desc: 'System config & users', icon: Globe, color: 'bg-blue-100 text-blue-700' },
-              { role: 'Principal', desc: 'School-wide oversight', icon: GraduationCap, color: 'bg-primary-100 text-primary-700' },
-              { role: 'Registrar', desc: 'Enrollment & records', icon: BookOpen, color: 'bg-emerald-100 text-emerald-700' },
+              { role: 'Proprietor', desc: 'Full ownership & billing', icon: Shield, color: 'bg-amber-100 text-amber-700' },
+              { role: 'IT Admin', desc: 'System config & users', icon: Globe, color: 'bg-amber-100 text-amber-700' },
+              { role: 'Principal', desc: 'School-wide oversight', icon: GraduationCap, color: 'bg-amber-100 text-amber-700' },
+              { role: 'Registrar', desc: 'Enrollment & records', icon: BookOpen, color: 'bg-amber-100 text-amber-700' },
               { role: 'Bursar', desc: 'Fees & finance', icon: DollarSign, color: 'bg-amber-100 text-amber-700' },
-              { role: 'Teacher', desc: 'Grades & attendance', icon: Users, color: 'bg-rose-100 text-rose-700' },
-              { role: 'Parent', desc: 'Child progress view', icon: Star, color: 'bg-pink-100 text-pink-700' },
-              { role: 'Student', desc: 'Own academic records', icon: Zap, color: 'bg-cyan-100 text-cyan-700' },
+              { role: 'Teacher', desc: 'Grades & attendance', icon: Users, color: 'bg-amber-100 text-amber-700' },
+              { role: 'Parent', desc: 'Child progress view', icon: Star, color: 'bg-amber-100 text-amber-700' },
+              { role: 'Student', desc: 'Own academic records', icon: Zap, color: 'bg-amber-100 text-amber-700' },
             ].map((r) => (
               <motion.div
                 key={r.role}
@@ -713,7 +714,7 @@ export default function Onboarding() {
             variants={stagger}
             className="text-center mb-12"
           >
-            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-primary-600">FAQ</motion.p>
+            <motion.p variants={fadeUp} className="text-sm font-semibold uppercase tracking-wider text-amber-600">FAQ</motion.p>
             <motion.h2 variants={fadeUp} className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
               Common questions
             </motion.h2>
@@ -734,7 +735,7 @@ export default function Onboarding() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600 py-24">
+      <GridBackdrop glow="amber" className="relative py-24">
         <motion.div
           animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
@@ -773,7 +774,7 @@ export default function Onboarding() {
             </motion.div>
           </motion.div>
         </div>
-      </section>
+      </GridBackdrop>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { Shield, Lock, Eye, Database, Mail, RefreshCw } from 'lucide-react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 
 const LAST_UPDATED = 'April 13, 2026';
 
@@ -15,7 +16,7 @@ export default function PrivacyPolicy() {
   return (
     <div>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600 py-16 sm:py-20">
+      <GridBackdrop glow="amber" className="py-16 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
             <Shield className="h-7 w-7 text-white" />
@@ -26,7 +27,7 @@ export default function PrivacyPolicy() {
           </p>
           <p className="mt-4 text-sm text-white/50">Last updated: {LAST_UPDATED}</p>
         </div>
-      </section>
+      </GridBackdrop>
 
       {/* Quick summary cards */}
       <section className="py-12">
@@ -39,7 +40,7 @@ export default function PrivacyPolicy() {
               { icon: RefreshCw, title: 'Your Rights', desc: 'You can request access, correction, or deletion of your data at any time.' },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                   <item.icon className="h-5 w-5" />
                 </div>
                 <p className="text-sm font-semibold text-slate-900">{item.title}</p>
@@ -63,7 +64,7 @@ export default function PrivacyPolicy() {
               </p>
               <p>
                 For any privacy-related concerns, contact us at{' '}
-                <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline font-medium">
+                <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline font-medium">
                   support@schoolsyncedu.com
                 </a>.
               </p>
@@ -170,7 +171,7 @@ export default function PrivacyPolicy() {
               </ul>
               <p>
                 To exercise any of these rights, email us at{' '}
-                <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline font-medium">
+                <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline font-medium">
                   support@schoolsyncedu.com
                 </a>{' '}
                 with your request. We will respond within 14 business days.
@@ -220,7 +221,7 @@ export default function PrivacyPolicy() {
                 <p className="font-semibold text-slate-900">EduLiberia — Privacy Team</p>
                 <p className="flex items-center gap-2 text-slate-600">
                   <Mail className="h-4 w-4 text-slate-400" />
-                  <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline">
+                  <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline">
                     support@schoolsyncedu.com
                   </a>
                 </p>

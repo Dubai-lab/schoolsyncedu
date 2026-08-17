@@ -1,4 +1,5 @@
 import { FileText, AlertTriangle, CheckCircle, Mail } from 'lucide-react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 
 const LAST_UPDATED = 'April 13, 2026';
 
@@ -15,7 +16,7 @@ export default function TermsOfService() {
   return (
     <div>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-900 via-primary-700 to-primary-600 py-16 sm:py-20">
+      <GridBackdrop glow="amber" className="py-16 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
             <FileText className="h-7 w-7 text-white" />
@@ -26,7 +27,7 @@ export default function TermsOfService() {
           </p>
           <p className="mt-4 text-sm text-white/50">Last updated: {LAST_UPDATED}</p>
         </div>
-      </section>
+      </GridBackdrop>
 
       {/* Notice banner */}
       <section className="py-8">
@@ -72,7 +73,7 @@ export default function TermsOfService() {
               <p>
                 You are responsible for maintaining the confidentiality of your account credentials and for all activity that
                 occurs under your account. Notify us immediately at{' '}
-                <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline font-medium">
+                <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline font-medium">
                   support@schoolsyncedu.com
                 </a>{' '}
                 if you suspect unauthorized access.
@@ -197,7 +198,7 @@ export default function TermsOfService() {
             <Section title="10. Termination">
               <p>
                 Either party may terminate the subscription at any time. You may cancel by contacting us at{' '}
-                <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline font-medium">
+                <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline font-medium">
                   support@schoolsyncedu.com
                 </a>.
                 Termination takes effect at the end of the current billing period unless otherwise agreed.
@@ -238,7 +239,7 @@ export default function TermsOfService() {
                 <p className="font-semibold text-slate-900">EduLiberia — Legal</p>
                 <p className="flex items-center gap-2 text-slate-600">
                   <Mail className="h-4 w-4 text-slate-400" />
-                  <a href="mailto:support@schoolsyncedu.com" className="text-primary-600 hover:underline">
+                  <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline">
                     support@schoolsyncedu.com
                   </a>
                 </p>

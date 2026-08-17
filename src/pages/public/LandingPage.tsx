@@ -359,7 +359,7 @@ export default function LandingPage() {
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                <Sparkles className="h-3.5 w-3.5 text-amber-600" />
                 Enterprise
               </button>
             </div>
@@ -433,12 +433,12 @@ export default function LandingPage() {
           {/* ── Enterprise view ── */}
           {pricingView === 'enterprise' && (
             <div className="mx-auto mt-12 max-w-4xl">
-              <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-10 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-10 shadow-sm">
                 <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center">
 
                   {/* Left: highlights */}
                   <div>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
                       <Sparkles className="h-3.5 w-3.5" /> Enterprise
                     </div>
                     <h3 className="mt-4 text-2xl font-bold text-slate-900">
@@ -460,7 +460,7 @@ export default function LandingPage() {
                         'Custom data retention & MOE compliance',
                       ].map((item) => (
                         <li key={item} className="flex items-center gap-2.5 text-sm text-slate-700">
-                          <CheckCircle className="h-4 w-4 shrink-0 text-violet-500" />
+                          <CheckCircle className="h-4 w-4 shrink-0 text-amber-600" />
                           {item}
                         </li>
                       ))}
@@ -468,9 +468,9 @@ export default function LandingPage() {
                   </div>
 
                   {/* Right: CTA card */}
-                  <div className="rounded-xl border border-violet-100 bg-white p-8 text-center shadow-sm">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100">
-                      <Sparkles className="h-7 w-7 text-violet-600" />
+                  <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+                      <Sparkles className="h-7 w-7 text-amber-600" />
                     </div>
                     <h4 className="mt-4 text-lg font-bold text-slate-900">Let's talk</h4>
                     <p className="mt-2 text-sm text-slate-500">
@@ -479,13 +479,13 @@ export default function LandingPage() {
                     </p>
                     <Link
                       to="/pricing?view=enterprise"
-                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
                     >
                       <Mail className="h-4 w-4" /> Contact Sales
                     </Link>
                     <p className="mt-3 text-xs text-slate-400">
                       Or email us directly at{' '}
-                      <a href="mailto:support@schoolsyncedu.com" className="text-violet-600 hover:underline">
+                      <a href="mailto:support@schoolsyncedu.com" className="text-amber-600 hover:underline">
                         support@schoolsyncedu.com
                       </a>
                     </p>
