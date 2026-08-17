@@ -206,10 +206,42 @@ export interface SiteTheme {
   density?: 'compact' | 'normal' | 'airy';
 }
 
+/**
+ * The order every school starts with — the order the page was hard-coded in
+ * before this became a choice, so a school that has never touched it renders
+ * exactly as it did.
+ *
+ * 'app' is the student-app showcase. It sat between the testimonials and the
+ * closing band and had no name, so it could not be positioned; naming it is
+ * what lets the two sections around it move without stranding it.
+ */
 export const DEFAULT_SECTION_ORDER = [
   'hero', 'stats', 'about', 'programs', 'announcements',
-  'gallery', 'administration', 'testimonials', 'cta', 'contact',
+  'gallery', 'administration', 'testimonials', 'app', 'cta', 'contact',
 ];
+
+/** What each section is called in the designer, and whether it can be moved. */
+export const SECTION_LABELS: Record<string, string> = {
+  hero:           'Hero',
+  stats:          'Key numbers',
+  about:          'About the school',
+  programs:       'Programmes',
+  announcements:  'Announcements',
+  gallery:        'Photo gallery',
+  administration: 'Leadership & staff',
+  testimonials:   'What people say',
+  app:            'Student app',
+  cta:            'Apply / call to action',
+  contact:        'Contact',
+};
+
+/**
+ * The hero stays first. Everything else is the school's to arrange — this is
+ * the one position where letting a school choose produces a page with no
+ * header, which is exactly the kind of damage the design system exists to
+ * prevent.
+ */
+export const PINNED_SECTIONS = ['hero'];
 
 /**
  * Defaults reproduce the current site exactly.

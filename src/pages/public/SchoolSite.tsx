@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
 import { buildSiteStyles, bandStyle } from '@/utils/siteThemeStyles';
+import { DEFAULT_SECTION_ORDER } from '@/types/siteTheme';
 import HeroDividerShape from '@/components/shared/HeroDivider';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
@@ -369,6 +370,32 @@ export default function SchoolSite() {
   const hasPrograms = show('programs') && (cfg.programs ?? []).length > 0;
   const hasGallery = show('gallery') && (cfg.gallery_images ?? []).length > 0;
   const hasStaff = show('administration') && (cfg.staff ?? []).length > 0;
+
+  /**
+   * Where each section sits on the page.
+   *
+   * .ss-theme is already a flex column — it has been since the footer was
+   * pinned to the bottom — so every section is already a flex item and CSS
+   * `order` moves it. That is why this is a style prop rather than a rewrite:
+   * reordering the JSX would mean pulling eleven sections out of a 1400-line
+   * component and rebuilding it as a list, for the same result.
+   *
+   * The trade is that the reading order for a screen reader stays as written,
+   * not as arranged. Every section carries its own heading so nothing is lost,
+   * but a school that moves the gallery above the programmes gets a page that
+   * is spoken in the old order. Worth knowing; not worth the rewrite.
+   *
+   * The nav and footer are pinned outside the range so they cannot be
+   * displaced by a section, and the fixed overlays — texture, WhatsApp, back
+   * to top — are out of flow entirely and unaffected.
+   */
+  const sectionOrder = siteStyles.theme.sectionOrder ?? DEFAULT_SECTION_ORDER;
+  const orderOf = (name: string) => {
+    const i = sectionOrder.indexOf(name);
+    // Unlisted sections keep their place at the end rather than jumping to the
+    // front, which is what index -1 would otherwise do.
+    return i === -1 ? 900 : i + 1;
+  };
   const socialLinks = Object.entries(cfg.social_links ?? {}).filter(([, url]) => url);
   const heroSlides = cfg.hero_slides ?? [];
 
@@ -595,9 +622,12 @@ export default function SchoolSite() {
           id="home"
           ref={heroRef}
           className={`ss-hero ss-hero--${siteStyles.theme.layouts.hero} ss-hero--h-${siteStyles.theme.heroHeight} ss-hero--d-${siteStyles.theme.heroDivider} relative flex min-h-screen items-center overflow-hidden`}
-          style={!cfg.hero_image_url ? {
-            background: `linear-gradient(145deg, ${primary} 0%, ${primary}e0 40%, ${primary}b0 100%)`,
-          } : undefined}
+          style={{
+            order: orderOf('hero'),
+            ...(!cfg.hero_image_url && {
+              background: `linear-gradient(145deg, ${primary} 0%, ${primary}e0 40%, ${primary}b0 100%)`,
+            }),
+          }}
         >
           {/* Background — slideshow, single image, or gradient */}
           {heroSlides.length > 0 ? (
@@ -752,7 +782,7 @@ export default function SchoolSite() {
 
       {/* ===== STATS ===== */}
       {show('stats') && (cfg.stats ?? []).length > 0 && (
-        <section className="relative bg-white">
+        <section className="relative bg-white" style={{ order: orderOf('stats') }}>
           <div className="absolute -top-px left-0 right-0 h-1" style={{ backgroundColor: secondary }} />
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <div ref={statsRef}
@@ -786,7 +816,7 @@ export default function SchoolSite() {
 
       {/* ===== ABOUT ===== */}
       {show('about') && (
-        <section id="about" className="px-5 py-20 sm:px-8 sm:py-28">
+        <section id="about" className="px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('about') }}>
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="About Our School" color={secondary} />
@@ -900,7 +930,7 @@ export default function SchoolSite() {
           dark preset the section stayed white while its heading was re-coloured
           for a dark page — and vanished. Same for testimonials below. */}
       {show('programs') && (cfg.programs ?? []).length > 0 && (
-        <section id="programs" className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
+        <section id="programs" className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('programs') }}>
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="What We Offer" color={secondary} />
@@ -941,7 +971,7 @@ export default function SchoolSite() {
 
       {/* ===== ANNOUNCEMENTS ===== */}
       {show('announcements') && (cfg.announcements ?? []).length > 0 && (
-        <section className="px-5 py-20 sm:px-8 sm:py-28 bg-white">
+        <section className="px-5 py-20 sm:px-8 sm:py-28 bg-white" style={{ order: orderOf('announcements') }}>
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="Stay Informed" color={secondary} />
@@ -996,7 +1026,7 @@ export default function SchoolSite() {
           className={`px-5 py-20 sm:px-8 sm:py-28 ${
             siteStyles.theme.galleryStyle === 'surface' ? '' : 'ss-band'
           }`}
-          style={{ background: galleryBand.background, color: galleryBand.color }}
+          style={{ order: orderOf('gallery'), background: galleryBand.background, color: galleryBand.color }}
         >
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
@@ -1034,7 +1064,7 @@ export default function SchoolSite() {
 
       {/* ===== ADMINISTRATION ===== */}
       {hasStaff && (
-        <section id="administration" className="bg-white px-5 py-20 sm:px-8 sm:py-28">
+        <section id="administration" className="bg-white px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('administration') }}>
           <div className="mx-auto max-w-6xl">
             <div className="mb-14 text-center">
               <SectionLabel text="Our Leadership" color={secondary} />
@@ -1101,7 +1131,7 @@ export default function SchoolSite() {
 
       {/* ===== TESTIMONIALS ===== */}
       {show('testimonials') && (cfg.testimonials ?? []).length > 0 && (
-        <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
+        <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('testimonials') }}>
           <div className="mx-auto max-w-6xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="What Parents Say" color={secondary} />
@@ -1168,12 +1198,14 @@ export default function SchoolSite() {
            Placed on the school's own site rather than the SchoolSync landing
            page: students come here, not there, and this is where they will
            look for their portal. */}
-      <AppShowcase variant="school" schoolName={school.name} />
+      <div style={{ order: orderOf('app') }}>
+        <AppShowcase variant="school" schoolName={school.name} />
+      </div>
 
       {/* ===== CTA BAND ===== */}
       <section
         className="relative overflow-hidden px-5 py-16 sm:px-8"
-        style={{ background: ctaBand.background, color: ctaBand.color }}
+        style={{ order: orderOf('cta'), background: ctaBand.background, color: ctaBand.color }}
       >
         <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full opacity-10 blur-3xl" style={{ backgroundColor: secondary }} />
         <div className="absolute bottom-0 left-10 h-40 w-40 rounded-full opacity-10 blur-2xl" style={{ backgroundColor: secondary }} />
@@ -1199,7 +1231,7 @@ export default function SchoolSite() {
 
       {/* ===== CONTACT ===== */}
       {show('contact') && (
-        <section id="contact" className="bg-white px-5 py-20 sm:px-8 sm:py-28">
+        <section id="contact" className="bg-white px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('contact') }}>
           <div className="mx-auto max-w-5xl">
             <div className="ss-section-head text-center mb-14">
               <SectionLabel text="Get In Touch" color={secondary} />
@@ -1264,7 +1296,7 @@ export default function SchoolSite() {
       )}
 
       {/* ===== FOOTER ===== */}
-      <footer className="ss-footer" style={{ backgroundColor: footerBand.background, color: footerBand.color }}>
+      <footer className="ss-footer" style={{ order: 1000, backgroundColor: footerBand.background, color: footerBand.color }}>
         <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8">
           <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {/* Brand */}
