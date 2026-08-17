@@ -20,7 +20,7 @@ import {
   FileText,
   ArrowRight,
   CheckCircle,
-  Star,
+  MessageSquare,
   Globe,
   Zap,
   Sparkles,
@@ -112,22 +112,29 @@ const STATS = [
   { value: '2 apps',  label: 'Student portal & attendance' },
 ];
 
-const TESTIMONIALS = [
+const FOUNDING_BENEFITS = [
   {
-    quote: 'SchoolSync has completely transformed how we manage our school. Everything from enrollment to report cards is now digital.',
-    name: 'Principal James Kollie',
-    school: 'Monrovia Academy',
+    icon: Users,
+    title: 'Set up with you',
+    desc: 'We import your students, create your staff accounts and configure your fees with you — not a documentation link.',
   },
   {
-    quote: 'The fee collection system alone has saved us hours of manual tracking. Parents can pay via mobile money now.',
-    name: 'Bursar Mary Benson',
-    school: 'Liberia Christian Academy',
+    icon: MessageSquare,
+    title: 'Talk to the people who built it',
+    desc: 'Questions and problems go straight to the team. No ticket queue, no first-line script.',
   },
   {
-    quote: "As a parent, I can finally see my child's grades, attendance, and fee status in real-time. No more guessing.",
-    name: 'Parent Emmanuel Toe',
-    school: 'Bright Future School',
+    icon: Sparkles,
+    title: 'Shape what comes next',
+    desc: 'What our first schools ask for is what gets built next. You are early enough for that to matter.',
   },
+];
+
+const FIRST_WEEK = [
+  { day: 'Day 1', title: 'Register',        desc: 'Your school and its website go live in minutes, on your own address.' },
+  { day: 'Day 2', title: 'Add your students', desc: 'Import a class list, or let families apply through your new site.' },
+  { day: 'Day 3', title: 'Add your staff',  desc: 'Principal, registrar, bursar, teachers — each sees only their own work.' },
+  { day: 'Day 4', title: 'Take attendance', desc: 'Mark a register on a phone, with or without a signal.' },
 ];
 
 const HOW_STEPS = [
@@ -165,7 +172,7 @@ export default function LandingPage() {
 
   const featuresRef   = useStaggerReveal(FEATURES.length);
   const howRef        = useStaggerReveal(HOW_STEPS.length);
-  const testimonialsRef = useStaggerReveal(TESTIMONIALS.length);
+  const testimonialsRef = useStaggerReveal(FOUNDING_BENEFITS.length);
   const pricingRef    = useScrollReveal();
   const aboutLeftRef  = useScrollReveal();
   const aboutRightRef = useScrollReveal();
@@ -253,13 +260,13 @@ export default function LandingPage() {
 
           {/* Stats bar */}
           <div
-            className={`mx-auto mt-16 flex max-w-2xl flex-wrap justify-center gap-8 sm:gap-14 ${heroBase} ${heroVisible ? heroShow : heroHide}`}
+            className={`mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-y-8 gap-x-6 sm:grid-cols-4 sm:gap-x-8 ${heroBase} ${heroVisible ? heroShow : heroHide}`}
             style={{ transitionDelay: '480ms' }}
           >
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-3xl font-bold text-white">{s.value}</p>
-                <p className="mt-1 text-sm text-white/50">{s.label}</p>
+                <p className="mt-1 text-xs leading-snug text-white/50 sm:text-sm">{s.label}</p>
               </div>
             ))}
           </div>
@@ -494,34 +501,67 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ========== TESTIMONIALS ========== */}
+      {/* ========== FOUNDING SCHOOLS ==========
+           This slot held three testimonials from named principals, bursars and
+           parents at named Liberian schools. None of them exist. In a market
+           this size principals know each other, and the first one who rings
+           "Monrovia Academy" to ask about us costs more than an empty section
+           ever could — one of the quotes also claimed parents were already
+           paying by mobile money, which is not true.
+
+           Being early is the honest pitch, and a better one: no established
+           vendor can offer a principal the person who built it. */}
       <section className="bg-slate-50 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div ref={testimonialsTitleRef} className="reveal mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Testimonials</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Founding Schools</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
-              Trusted by schools across Liberia
+              Be one of our first schools
             </h2>
+            <p className="mt-4 text-base leading-relaxed text-slate-500">
+              SchoolSync is built and running. We are onboarding our first schools now and
+              working with each one directly — you get the people who built it, not a support
+              queue, and what you ask for shapes what gets built next.
+            </p>
           </div>
 
-          <div ref={testimonialsRef} className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <div
-                key={t.name}
-                className="reveal rounded-2xl bg-white p-8 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex gap-1 text-accent-500 mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-current" />
-                  ))}
+          <div ref={testimonialsRef} className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {FOUNDING_BENEFITS.map((b) => (
+              <div key={b.title} className="reveal rounded-2xl bg-white p-8 shadow-sm">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50">
+                  <b.icon className="h-5 w-5 text-primary-600" />
                 </div>
-                <p className="text-sm leading-relaxed text-slate-600 italic">"{t.quote}"</p>
-                <div className="mt-6 border-t border-slate-100 pt-4">
-                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                  <p className="text-xs text-slate-500">{t.school}</p>
-                </div>
+                <p className="text-base font-semibold text-slate-900">{b.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{b.desc}</p>
               </div>
             ))}
+          </div>
+
+          {/* What the first week actually looks like — the real objection is
+              not whether it works, it is how much effort starting will be. */}
+          <div className="reveal mt-14 rounded-2xl border border-slate-200 bg-white p-8 sm:p-10">
+            <h3 className="text-lg font-bold text-slate-900">Your first week</h3>
+            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {FIRST_WEEK.map((d) => (
+                <div key={d.day} className="relative">
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary-600">{d.day}</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">{d.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-500">{d.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="reveal mt-10 text-center">
+            <Link
+              to="/register"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 sm:text-base"
+            >
+              Register your school <ArrowRight className="h-4 w-4" />
+            </Link>
+            <p className="mt-3 text-sm text-slate-500">
+              Free to register. We will contact you to arrange your subscription.
+            </p>
           </div>
         </div>
       </section>
