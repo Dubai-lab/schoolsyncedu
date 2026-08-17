@@ -1,5 +1,6 @@
 import AppShowcase from '@/components/shared/AppShowcase';
 import GridBackdrop from '@/components/shared/GridBackdrop';
+import SchoolDayFlow from '@/components/shared/SchoolDayFlow';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
@@ -130,12 +131,6 @@ const FOUNDING_BENEFITS = [
   },
 ];
 
-const FIRST_WEEK = [
-  { day: 'Day 1', title: 'Register',        desc: 'Your school and its website go live in minutes, on your own address.' },
-  { day: 'Day 2', title: 'Add your students', desc: 'Import a class list, or let families apply through your new site.' },
-  { day: 'Day 3', title: 'Add your staff',  desc: 'Principal, registrar, bursar, teachers — each sees only their own work.' },
-  { day: 'Day 4', title: 'Take attendance', desc: 'Mark a register on a phone, with or without a signal.' },
-];
 
 const HOW_STEPS = [
   {
@@ -173,6 +168,7 @@ export default function LandingPage() {
   const featuresRef   = useStaggerReveal(FEATURES.length);
   const howRef        = useStaggerReveal(HOW_STEPS.length);
   const testimonialsRef = useStaggerReveal(FOUNDING_BENEFITS.length);
+  const foundingCtaRef = useScrollReveal();
   const pricingRef    = useScrollReveal();
   const aboutLeftRef  = useScrollReveal();
   const aboutRightRef = useScrollReveal();
@@ -537,22 +533,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* What the first week actually looks like — the real objection is
-              not whether it works, it is how much effort starting will be. */}
-          <div className="reveal mt-14 rounded-2xl border border-slate-200 bg-white p-8 sm:p-10">
-            <h3 className="text-lg font-bold text-slate-900">Your first week</h3>
-            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {FIRST_WEEK.map((d) => (
-                <div key={d.day} className="relative">
-                  <p className="text-xs font-bold uppercase tracking-wider text-primary-600">{d.day}</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{d.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-500">{d.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="reveal mt-10 text-center">
+          <div ref={foundingCtaRef} className="reveal mt-10 text-center">
             <Link
               to="/register"
               className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 sm:text-base"
@@ -565,6 +546,12 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ========== ONE SCHOOL DAY ==========
+           Full-bleed, on the same ruled backdrop as the hero. The page kept
+           asserting that this makes running a school easier; this is the first
+           place it shows it rather than saying it. */}
+      <SchoolDayFlow />
 
       {/* ========== ABOUT ========== */}
       <section id="about" className="py-20 sm:py-28">

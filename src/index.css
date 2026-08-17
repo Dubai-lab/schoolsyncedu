@@ -111,3 +111,51 @@ body {
   opacity: 1;
   transform: translate(0, 0);
 }
+/* ── School-day flow (SchoolDayFlow.tsx) ──────────────────────────────────────
+ * A pulse travelling the track while each node lights in turn. One 6.4s loop,
+ * four nodes 1.6s apart, so the light reaches a node exactly as the pulse
+ * passes it — the two are tied by arithmetic rather than by a timer, which is
+ * why this needs no JS and cannot drift.
+ */
+@keyframes ssf-pulse-run {
+  0%   { transform: translateX(-10%);  opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { transform: translateX(100vw); opacity: 0; }
+}
+
+.ssf-pulse {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(245, 158, 11, 0.75),
+    transparent
+  );
+  animation: ssf-pulse-run 6.4s linear infinite;
+}
+
+@keyframes ssf-node-lit {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.12);
+    background-color: rgba(255, 255, 255, 0.04);
+    box-shadow: none;
+  }
+  /* Lit for roughly the time the pulse takes to cross one node. */
+  12%, 22% {
+    border-color: rgba(245, 158, 11, 0.55);
+    background-color: rgba(245, 158, 11, 0.12);
+    box-shadow: 0 0 28px -4px rgba(245, 158, 11, 0.45);
+  }
+}
+
+.ssf-node {
+  animation: ssf-node-lit 6.4s ease-in-out infinite;
+  transition: border-color 0.4s ease, background-color 0.4s ease;
+}
+
+/* Motion here is decoration. Anyone who has asked the system to stop moving
+   things gets the same layout, lit, and still. */
+@media (prefers-reduced-motion: reduce) {
+  .ssf-pulse { animation: none; opacity: 0; }
+  .ssf-node  { animation: none; }
+}
