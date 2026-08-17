@@ -38,8 +38,12 @@ export default function TabShell() {
     <div className="mobile-shell flex min-h-[100dvh] flex-col bg-slate-50">
       {/* Scroll region. pb leaves room for the tab bar plus the iOS home
           indicator; key on pathname so each screen starts at the top. */}
+      {/* data-scroll-region: on the web the page scrolls on <body>, but here it
+          scrolls on this element. A full-screen overlay that wants to hold the
+          page still needs to know which one to freeze — see PaymentModal. */}
       <main
         key={location.pathname}
+        data-scroll-region
         className="flex-1 overflow-y-auto px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
       >
         <Outlet />

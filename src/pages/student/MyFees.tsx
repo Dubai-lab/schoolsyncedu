@@ -209,6 +209,27 @@ function PaymentModal({
 }: PaymentModalProps) {
   const [amount, setAmount] = useState(String(initialAmount ?? fee.balance));
 
+  // Hold the page still behind the drawer. Without this the list underneath
+  // keeps scrolling on touch, so a drag inside the form moves the page as well
+  // and the screen appears to shift and grow.
+  //
+  // Both scrollers are frozen because they differ by platform: the web
+  // dashboard scrolls on <body>, while the mobile shell scrolls on its own
+  // <main data-scroll-region>. Locking only body would leave the app moving.
+  useEffect(() => {
+    const region = document.querySelector<HTMLElement>('[data-scroll-region]');
+    const prevBody = document.body.style.overflow;
+    const prevRegion = region?.style.overflow ?? '';
+
+    document.body.style.overflow = 'hidden';
+    if (region) region.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prevBody;
+      if (region) region.style.overflow = prevRegion;
+    };
+  }, []);
+
   // Stripe state
   const stripePromise = useMemo(
     () => paymentCfg?.stripe_enabled && paymentCfg.stripe_public_key
@@ -308,24 +329,47 @@ function PaymentModal({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel — slides from right */}
-      <div className="relative ml-auto flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden">
+      {/*
+        Panel — a right-hand drawer on desktop, full screen on a phone.
 
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 shrink-0">
-          <div>
+        h-[100dvh] rather than h-full: h-full resolves against the layout
+        viewport, which on a phone is taller than the part you can actually see
+        once the address bar or the keyboard is up. That is what made the screen
+        appear to grow when the card field was focused. dvh tracks the visible
+        viewport instead, so the panel is always exactly the height of the
+        screen.
+      */}
+      <div className="relative ml-auto flex h-[100dvh] w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden">
+
+        {/*
+          Header. The safe-area padding is why the close button was hard to
+          reach in the app: this panel is position:fixed, so it escapes the
+          shell's own top padding and its first row lands underneath the status
+          bar and the notch. env(safe-area-inset-top) is 0 in a browser, so the
+          web layout is unchanged.
+        */}
+        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] shrink-0 sm:px-6">
+          <div className="min-w-0">
             <h2 className="text-lg font-bold text-gray-900">Pay Fee</h2>
-            <p className="text-xs text-gray-400 capitalize">{feeType}</p>
+            <p className="truncate text-xs text-gray-400 capitalize">{feeType}</p>
           </div>
+          {/*
+            A 44px target with a visible border. It used to be a bare grey
+            glyph with 6px of padding — under the finger-size minimum, and with
+            nothing to mark it as a control.
+          */}
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            aria-label="Close"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        {/* Bottom padding clears the home indicator so the last control in the
+            form is never sitting under it. */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6">
           <div className="space-y-5">
 
               {/* Invoice preview */}
