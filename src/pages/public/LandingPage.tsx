@@ -276,7 +276,7 @@ export default function LandingPage() {
       <section id="features" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div ref={featuresTitleRef} className="reveal mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Features</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Features</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Everything your school needs
             </h2>
@@ -289,9 +289,9 @@ export default function LandingPage() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="reveal group rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:border-primary-200 hover:shadow-lg hover:shadow-primary-50 hover:-translate-y-1"
+                className="reveal group rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:border-amber-200 hover:shadow-lg hover:shadow-amber-50 hover:-translate-y-1"
               >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition-colors group-hover:bg-accent-500 group-hover:text-white">
                   <f.icon className="h-6 w-6" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-900">{f.title}</h3>
@@ -309,7 +309,7 @@ export default function LandingPage() {
       <section className="bg-slate-50 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div ref={howTitleRef} className="reveal mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">How It Works</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">How It Works</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Get your school online in minutes
             </h2>
@@ -318,7 +318,7 @@ export default function LandingPage() {
           <div ref={howRef} className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
             {HOW_STEPS.map((item) => (
               <div key={item.step} className={`reveal relative rounded-2xl bg-white p-8 shadow-sm hover:shadow-md transition-shadow`}>
-                <span className="text-5xl font-extrabold text-primary-100">{item.step}</span>
+                <span className="text-5xl font-extrabold text-amber-100">{item.step}</span>
                 <h3 className="mt-4 text-lg font-semibold text-slate-900">{item.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{item.desc}</p>
               </div>
@@ -331,7 +331,7 @@ export default function LandingPage() {
       <section id="pricing" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div ref={pricingTitleRef} className="reveal mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Pricing</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Pricing</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Simple, transparent pricing
             </h2>
@@ -376,12 +376,12 @@ export default function LandingPage() {
                       key={plan.id}
                       className={`relative rounded-2xl border p-8 transition-transform hover:-translate-y-1 ${
                         isPopular
-                          ? 'border-primary-300 bg-primary-50/30 shadow-lg shadow-primary-100'
+                          ? 'border-amber-300 bg-amber-50/40 shadow-lg shadow-amber-100'
                           : 'border-slate-200 bg-white hover:shadow-md'
                       }`}
                     >
                       {isPopular && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary-600 px-4 py-1 text-xs font-semibold text-white">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-1 text-xs font-semibold text-white">
                           Most Popular
                         </div>
                       )}
@@ -411,7 +411,7 @@ export default function LandingPage() {
                         to={`/register?plan=${plan.slug}`}
                         className={`mt-8 block w-full rounded-lg py-2.5 text-center text-sm font-semibold transition-all ${
                           isPopular
-                            ? 'bg-primary-600 text-white shadow-sm hover:bg-primary-700'
+                            ? 'bg-slate-900 text-white shadow-sm hover:bg-slate-800'
                             : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -423,7 +423,7 @@ export default function LandingPage() {
               </div>
 
               <div className="mt-8 text-center">
-                <Link to="/pricing" className="text-sm font-medium text-primary-600 hover:text-primary-700">
+                <Link to="/pricing" className="text-sm font-medium text-amber-600 hover:text-amber-700">
                   View all plans & compare features →
                 </Link>
               </div>
@@ -510,7 +510,7 @@ export default function LandingPage() {
       <section className="bg-slate-50 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div ref={testimonialsTitleRef} className="reveal mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">Founding Schools</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">Founding Schools</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
               Be one of our first schools
             </h2>
@@ -524,8 +524,8 @@ export default function LandingPage() {
           <div ref={testimonialsRef} className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
             {FOUNDING_BENEFITS.map((b) => (
               <div key={b.title} className="reveal rounded-2xl bg-white p-8 shadow-sm">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50">
-                  <b.icon className="h-5 w-5 text-primary-600" />
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
+                  <b.icon className="h-5 w-5 text-amber-600" />
                 </div>
                 <p className="text-base font-semibold text-slate-900">{b.title}</p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{b.desc}</p>
@@ -536,7 +536,7 @@ export default function LandingPage() {
           <div ref={foundingCtaRef} className="reveal mt-10 text-center">
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 sm:text-base"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-600 sm:text-base"
             >
               Register your school <ArrowRight className="h-4 w-4" />
             </Link>
@@ -558,7 +558,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div ref={aboutLeftRef} className="reveal reveal-left">
-              <p className="text-sm font-semibold uppercase tracking-wider text-primary-600">About EduLiberia</p>
+              <p className="text-sm font-semibold uppercase tracking-wider text-amber-600">About EduLiberia</p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
                 Built for Liberia, by Liberians
               </h2>
@@ -574,7 +574,7 @@ export default function LandingPage() {
               <div className="mt-8 flex gap-4">
                 <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 hover:-translate-y-0.5 transition-all"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-600 hover:-translate-y-0.5 transition-all"
                 >
                   Register Your School <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -589,10 +589,10 @@ export default function LandingPage() {
 
             {/* Visual element */}
             <div ref={aboutRightRef} className="reveal reveal-right relative">
-              <div className="rounded-2xl bg-gradient-to-br from-primary-100 to-primary-50 p-8">
+              <div className="rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 p-8">
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { label: 'Schools Active', value: '50+', color: 'bg-blue-500' },
+                    { label: 'Schools Active', value: '50+', color: 'bg-amber-500' },
                     { label: 'Students Managed', value: '12,000+', color: 'bg-green-500' },
                     { label: 'Counties Covered', value: '8', color: 'bg-purple-500' },
                     { label: 'Uptime', value: '99.9%', color: 'bg-amber-500' },
