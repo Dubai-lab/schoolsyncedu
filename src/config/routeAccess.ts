@@ -63,7 +63,10 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/grades/entry':                 [TEACHER, ADMIN_STAFF],
   '/grades/approval':              HEADS,
   '/grades/reports':               [...HEADS, ADMIN_STAFF, REGISTRAR],
-  '/grades/transcript':            [...HEADS, ADMIN_STAFF, REGISTRAR],
+  // Students included: the page already detects the student role and hides the
+  // search panel, showing only their own transcript. Dropping them here would
+  // have taken away a portal feature that was working.
+  '/grades/transcript':            [...HEADS, ADMIN_STAFF, REGISTRAR, STUDENT],
 
   '/attendance':                   [...HEADS, ADMIN_STAFF, DEAN, PARENT],
   '/attendance/mark':              [TEACHER, ADMIN_STAFF],

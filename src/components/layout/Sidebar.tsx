@@ -208,9 +208,22 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Registrar Home', path: '/registrar', icon: ClipboardCheck, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Applications', path: '/registrar/applications', icon: ClipboardList, roles: [USER_ROLES.REGISTRAR] },
+      // The registrar keeps the student register, so the roster and the two
+      // ways into it belong in their menu. They had neither: the pages were
+      // built for whoever found them, and the only listed owner was the
+      // Principal, whose job this is not.
+      { label: 'Student Records', path: '/students', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Add Student', path: '/students/new', icon: UserCheck, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Enrollment', path: '/students/enrollment', icon: ClipboardCheck, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Report Cards', path: '/grades/reports', icon: FileText, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Transcripts', path: '/grades/transcript', icon: GraduationCap, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Promoted Students', path: '/registrar/promoted', icon: UserCheck, roles: [USER_ROLES.REGISTRAR] },
+      // Candidate registration moved here from the Principal in the last pass;
+      // without these the work had no door.
+      { label: 'WAEC Exams', path: '/waec', icon: ClipboardList, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Register Candidates', path: '/waec/register', icon: Upload, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Candidates', path: '/waec/candidates', icon: Users, roles: [USER_ROLES.REGISTRAR] },
+      { label: 'Letters', path: '/letters', icon: Mail, roles: [USER_ROLES.REGISTRAR] },
       { label: 'Import Students', path: '/registrar/import', icon: Upload, roles: [USER_ROLES.REGISTRAR, USER_ROLES.IT_ADMIN, USER_ROLES.ADMIN_STAFF] },
     ],
   },
