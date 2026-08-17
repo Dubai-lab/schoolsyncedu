@@ -135,18 +135,16 @@ function StripeCardForm({ schoolId, studentId, studentFeeId, amountUsd, onSucces
       if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
       if (paymentIntent?.status !== 'succeeded') throw new Error('Payment did not complete');
 
-      const { error: rpcError } = await supabase.rpc('record_fee_payment', {
-        p_school_id:        schoolId,
-        p_student_id:       studentId,
-        p_student_fee_id:   studentFeeId,
-        p_amount_usd:       amountUsd,
-        p_amount_lrd:       0,
-        p_currency_charged: 'USD',
-        p_payment_method:   'visa',
-        p_gateway_ref:      paymentIntentId,
-        p_recorded_by:      null,
+      // The server asks Stripe whether the payment happened and records what
+      // Stripe reports. This used to call record_fee_payment directly and tell
+      // the database the amount, which meant skipping the card step above and
+      // calling it with any figure cleared the balance just as well.
+      const { data: vData, error: vError } = await supabase.functions.invoke('school-stripe-verify', {
+        body: { school_id: schoolId, payment_intent_id: paymentIntentId },
       });
-      if (rpcError) throw new Error(rpcError.message);
+      if (vError || vData?.error) {
+        throw new Error(vData?.error ?? vError?.message ?? 'Could not confirm the payment');
+      }
 
       onSuccess();
     } catch (err) {

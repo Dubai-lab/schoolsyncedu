@@ -73,6 +73,9 @@ const ADMIN_ROLES: UserRole[] = [
 const FINANCE_ROLES: UserRole[] = [
   USER_ROLES.PRINCIPAL,
   USER_ROLES.ADMIN_STAFF,
+  // The Bursar was missing from the finance reports link — the one role whose
+  // job it is.
+  USER_ROLES.BURSAR,
 ];
 
 const navGroups: NavGroup[] = [
@@ -135,7 +138,7 @@ const navGroups: NavGroup[] = [
     title: 'Communication',
     items: [
       { label: 'Letters', path: '/letters', icon: Mail, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.BURSAR, USER_ROLES.REGISTRAR] },
-      { label: 'Upload Letter', path: '/letters/custom-upload', icon: Upload, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.BURSAR, USER_ROLES.REGISTRAR] },
+      { label: 'Upload Letter', path: '/letters/custom-upload', icon: Upload, roles: [...ADMIN_ROLES, USER_ROLES.DEAN, USER_ROLES.REGISTRAR] },
       { label: 'Messages', path: '/communications', icon: MessageSquare, roles: ALL_STAFF },
     ],
   },
@@ -223,6 +226,9 @@ const navGroups: NavGroup[] = [
       { label: 'Reg Fee Confirmation', path: '/bursar/reg-fee-confirmation', icon: UserCheck, roles: [USER_ROLES.BURSAR] },
       { label: 'Fee Correction', path: '/bursar/fee-correction', icon: PenLine, roles: [USER_ROLES.BURSAR] },
       { label: 'Payment History', path: '/fees/history', icon: FileText, roles: [USER_ROLES.BURSAR] },
+      // The Bursar owns the exam-clearance PIN but had no link to it — the
+      // page existed in no menu at all, reachable only by typing the address.
+      { label: 'Kiosk PIN', path: '/bursar/kiosk-settings', icon: Settings, roles: [USER_ROLES.BURSAR] },
     ],
   },
   {

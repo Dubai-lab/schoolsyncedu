@@ -91,7 +91,10 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/letters/create':               [...HEADS, ADMIN_STAFF, DEAN, REGISTRAR, BURSAR],
   '/letters/approvals':            HEADS,
   '/letters/print-queue':          [...HEADS, ADMIN_STAFF],
-  '/letters/custom-upload':        [...HEADS, ADMIN_STAFF, DEAN, REGISTRAR, BURSAR],
+  // Fee notices are a real Bursar need, so /letters and /letters/create stay.
+  // Uploading an arbitrary document to go out under the school's letterhead is
+  // not a finance job, so this one does not.
+  '/letters/custom-upload':        [...HEADS, ADMIN_STAFF, DEAN, REGISTRAR],
   '/communications':               [...HEADS, ADMIN_STAFF],
   '/communications/announce':      [...HEADS, ADMIN_STAFF],
   '/communications/messages':      [...HEADS, ADMIN_STAFF],

@@ -84,17 +84,16 @@ function AppStripeCardForm({ schoolId, applicationId, amountUsd, onSuccess, onEr
       if (stripeError) throw new Error(stripeError.message ?? 'Card payment failed');
       if (paymentIntent?.status !== 'succeeded') throw new Error('Payment did not complete');
 
-      // Mark application fee paid via anon-safe RPC
-      const { createClient } = await import('@supabase/supabase-js');
-      const anonClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL as string,
-        import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-        { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'sb-appfee-token' } },
-      );
-      await anonClient.rpc('mark_application_fee_paid_stripe', {
-        p_application_id:   applicationId,
-        p_payment_intent_id: paymentIntentId,
+      // The server asks Stripe whether this payment happened before anything is
+      // marked paid. This used to call the RPC straight from the browser as
+      // anon, passing the reference it had just been handed — so any
+      // application could be marked paid with an invented one.
+      const { data: vData, error: vError } = await supabase.functions.invoke('school-stripe-verify', {
+        body: { school_id: schoolId, payment_intent_id: paymentIntentId },
       });
+      if (vError || vData?.error) {
+        throw new Error(vData?.error ?? vError?.message ?? 'Could not confirm the payment');
+      }
 
       onSuccess();
     } catch (err) {
