@@ -559,3 +559,49 @@
   .ss-theme .ss-programs--feature > *:first-child h3 { font-size: 1.5rem; }
   .ss-theme .ss-programs--feature > *:first-child p  { font-size: 1rem; line-height: 1.8; }
 }
+
+/* ── Utilities the first pass missed ──────────────────────────────────────────
+ * Reported from a school running the dark preset: the contact cards and one
+ * stat sat on a pale grey block with their labels invisible until selected.
+ *
+ * Two separate causes, and both had to be fixed for either to help.
+ *
+ * 1. AN OPACITY MODIFIER MAKES A DIFFERENT CLASS
+ *
+ *    The cards use `bg-gray-50/60`. Tailwind emits that as its own class —
+ *    `.bg-gray-50\/60` — and `.ss-theme .bg-gray-50` does not match it. So the
+ *    re-point above silently skipped every one of them and they kept a light
+ *    background on a near-black page.
+ *
+ *    Only the two that are meant to be surfaces are listed. The rest of the
+ *    bg-white/N in the page are translucent overlays sitting on the hero
+ *    photograph — the slideshow dots, the pills over the image — and they are
+ *    supposed to stay white.
+ */
+.ss-theme .bg-gray-50\/60,
+.ss-theme .hover\:bg-gray-50\/60:hover { background-color: var(--site-surface-alt); }
+
+/* The sticky nav's scrolled state. A white bar over a dark site. */
+.ss-theme .bg-white\/98 { background-color: var(--site-surface); }
+
+/*
+ * 2. THE TEXT SCALE WAS ONLY HALF COVERED
+ *
+ *    The dark preset re-pointed 500/600 and 800/900 but not 400 or 700, and
+ *    the page uses both heavily — 400 for the small caps labels, 700 for the
+ *    values beneath them. On the pale block that was grey on grey; with the
+ *    block corrected, 700 would have gone dark-on-dark instead. Neither reads
+ *    without the other.
+ */
+.ss-theme[data-preset='bold'] .text-gray-700,
+.ss-theme[data-preset='bold'] .text-slate-700 { color: var(--site-text); }
+
+.ss-theme[data-preset='bold'] .text-gray-400,
+.ss-theme[data-preset='bold'] .text-slate-400,
+.ss-theme[data-preset='bold'] .text-gray-200 { color: var(--site-text-muted); }
+
+/* Card outlines drawn for a white page glow against a dark one. */
+.ss-theme[data-preset='bold'] .border-gray-100,
+.ss-theme[data-preset='bold'] .border-gray-200,
+.ss-theme[data-preset='bold'] .hover\:border-gray-200:hover,
+.ss-theme[data-preset='bold'] .divide-gray-100 > * + * { border-color: rgba(255, 255, 255, 0.12); }

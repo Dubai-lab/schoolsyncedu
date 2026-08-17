@@ -190,6 +190,56 @@ function darken(hex: string, ratio: number): string {
 }
 
 /**
+ * The school's colour, or the theme's text colour when the school's would not
+ * be readable.
+ *
+ * The page paints headline figures and small labels with the school's own
+ * primary through an inline style, and an inline style cannot be re-pointed by
+ * the theme layer. A school whose brand colour is a deep navy therefore gets
+ * near-black numbers on the near-black 'bold' page — present, selectable,
+ * invisible, which is exactly the fault reported on the contact cards.
+ *
+ * Rather than override the brand colour for every dark site, this measures it:
+ * a colour with enough luminance to carry on a dark ground is left alone, and
+ * only one that would disappear falls back. Most schools keep their colour;
+ * the ones that would have lost their text get readable text instead.
+ *
+ * Relative luminance by the WCAG formula, without the full contrast-ratio
+ * calculation — the page background is a known constant per preset, so the
+ * threshold is what matters, not the exact ratio.
+ */
+export function readableBrandColor(
+  hex: string,
+  isDark: boolean,
+  /**
+   * WCAG asks 4.5:1 of body text and 3:1 of large text, and the difference
+   * matters here: a red brand at 3.6:1 is fine on a 40px figure and not fine
+   * on an 11px label. Without the distinction one threshold either strips the
+   * colour from headlines that could carry it, or leaves labels unreadable.
+   */
+  size: 'small' | 'large' = 'small',
+): string {
+  if (!isDark) return hex;
+
+  const c = hex.replace('#', '');
+  const full = c.length === 3 ? c.split('').map((x) => x + x).join('') : c;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return hex;
+
+  const channel = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const [r, g, b] = [0, 2, 4].map((i) => channel(parseInt(full.slice(i, i + 2), 16)));
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  // Solved against the 'bold' page background rather than guessed: with the
+  // page at roughly L=0.011, contrast = (L + 0.05) / (0.011 + 0.05), so 3:1
+  // needs L >= 0.133 and 4.5:1 needs L >= 0.225.
+  const floor = size === 'large' ? 0.133 : 0.225;
+  return luminance < floor ? 'var(--site-text)' : hex;
+}
+
+/**
  * Background for the footer and the call-to-action band.
  *
  * These two were the only blocks painted with the school's colour through an

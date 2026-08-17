@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import AppShowcase from '@/components/shared/AppShowcase';
-import { buildSiteStyles, bandStyle } from '@/utils/siteThemeStyles';
+import { buildSiteStyles, bandStyle, readableBrandColor } from '@/utils/siteThemeStyles';
 import { DEFAULT_SECTION_ORDER } from '@/types/siteTheme';
 import { usePreviewTheme } from '@/hooks/usePreviewTheme';
 import HeroDividerShape from '@/components/shared/HeroDivider';
@@ -371,6 +371,15 @@ export default function SchoolSite() {
   const footerBand = bandStyle(siteStyles.theme.footerStyle, primary, siteStyles.isDark);
   const ctaBand = bandStyle(siteStyles.theme.ctaStyle, primary, siteStyles.isDark);
   const galleryBand = bandStyle(siteStyles.theme.galleryStyle, primary, siteStyles.isDark);
+
+  // For text set directly on the page in the school's colour. See
+  // readableBrandColor: a deep brand colour on the dark preset is unreadable,
+  // and an inline style is out of the theme layer's reach.
+  const primaryText = readableBrandColor(primary, siteStyles.isDark);
+  const secondaryText = readableBrandColor(secondary, siteStyles.isDark);
+  // The stat figures are 30–40px, so they clear contrast at a lower luminance
+  // than the small caps labels do.
+  const primaryDisplay = readableBrandColor(primary, siteStyles.isDark, 'large');
 
   const vis = cfg.sections_visible ?? {};
   const show = (section: string) => vis[section] !== false;
@@ -810,7 +819,7 @@ export default function SchoolSite() {
                     >
                       <Icon className="h-5 w-5" style={{ color: accent }} />
                     </div>
-                    <p className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: primary }}>
+                    <p className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: primaryDisplay }}>
                       <StatValue raw={s.value} active={statsVisible} />
                     </p>
                     <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">{s.label}</p>
@@ -839,7 +848,7 @@ export default function SchoolSite() {
                 {/* School identity badge */}
                 <div className="flex items-center gap-2">
                   <div className="h-px w-10 rounded-full" style={{ backgroundColor: secondary }} />
-                  <span className="text-sm font-semibold" style={{ color: primary }}>{school.name}</span>
+                  <span className="text-sm font-semibold" style={{ color: primaryText }}>{school.name}</span>
                 </div>
                 <p className="text-base leading-8 text-gray-600 sm:text-lg">{aboutText}</p>
 
@@ -848,7 +857,7 @@ export default function SchoolSite() {
                     className="relative overflow-hidden rounded-2xl p-6"
                     style={{ backgroundColor: primary + '08', borderLeft: `4px solid ${primary}` }}
                   >
-                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: primary }}>Our Mission</p>
+                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: primaryText }}>Our Mission</p>
                     <p className="text-sm leading-7 text-gray-600">{cfg.mission_text}</p>
                   </div>
                 )}
@@ -858,7 +867,7 @@ export default function SchoolSite() {
                     className="relative overflow-hidden rounded-2xl p-6"
                     style={{ backgroundColor: secondary + '0c', borderLeft: `4px solid ${secondary}` }}
                   >
-                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: secondary }}>Our Vision</p>
+                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: secondaryText }}>Our Vision</p>
                     <p className="text-sm leading-7 text-gray-600">{cfg.vision_text}</p>
                   </div>
                 )}
@@ -966,7 +975,7 @@ export default function SchoolSite() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900">{prog.name}</h3>
                     <p className="mt-2 text-sm leading-7 text-gray-500">{prog.description}</p>
-                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: primary }}>
+                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: primaryText }}>
                       Learn more <ChevronRight className="h-3.5 w-3.5" />
                     </div>
                   </div>
@@ -1006,7 +1015,7 @@ export default function SchoolSite() {
                         <span className="text-sm font-extrabold leading-tight">{d.getDate()}</span>
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: secondary }}>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: secondaryText }}>
                           {(item as any).category || 'Announcement'}
                         </p>
                         <p className="text-xs text-gray-400">{d.getFullYear()}</p>
@@ -1015,7 +1024,7 @@ export default function SchoolSite() {
                     <div className="flex flex-1 flex-col p-5">
                       <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{item.title}</h3>
                       <p className="mt-2 flex-1 text-sm leading-7 text-gray-500">{item.excerpt}</p>
-                      <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: primary }}>
+                      <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: primaryText }}>
                         Read more <ChevronRight className="h-3.5 w-3.5" />
                       </div>
                     </div>
