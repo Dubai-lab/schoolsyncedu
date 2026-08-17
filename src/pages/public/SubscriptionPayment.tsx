@@ -15,6 +15,7 @@ import {
   Tag,
   X,
   Clock,
+  CheckCircle2,
 
 } from 'lucide-react';
 
@@ -97,6 +98,18 @@ export default function SubscriptionPayment() {
     : 0;
   const finalAmount = paymentData ? discountedPrice(cyclePrice) : 0;
 
+  // When the trial or grace period ends — the date the school goes offline if
+  // it has not been activated. get_payment_info read this all along and did not
+  // return it, so the page could never answer the one question a school in
+  // grace has.
+  const expiresAt = paymentData?.subscription?.expires_at ?? null;
+  const graceEnds = expiresAt
+    ? new Date(expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+  const daysLeft = expiresAt
+    ? Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000)
+    : null;
+
   // ── LOADING ──
   if (loading) {
     return (
@@ -164,8 +177,11 @@ export default function SubscriptionPayment() {
       <div className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
         <div className="text-center mb-10">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Activate Your School</h1>
+          {/* Was "Complete your payment to activate…", which promised a
+              checkout this page cannot offer. */}
           <p className="mt-2 text-sm text-slate-500">
-            Complete your payment to activate <strong>{paymentData.school.name}</strong>'s portal.
+            <strong>{paymentData.school.name}</strong> is registered and ready to use.
+            Request activation below and we will arrange payment with you directly.
           </p>
         </div>
 
@@ -290,19 +306,48 @@ export default function SubscriptionPayment() {
 
           {/* Payment Panel */}
           <div className="lg:col-span-2 space-y-6">
-            {/* MTN MoMo — Coming Soon */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-yellow-100">
-                <Clock className="h-7 w-7 text-yellow-600" />
+            {/*
+              This page used to open with a large "Coming Soon" badge for MTN
+              Mobile Money, with the request form tucked underneath it. A school
+              that had just finished registering read that as a dead end — the
+              one thing they could actually do was presented as the fallback.
+
+              Online payment is the footnote now and activation is the page.
+              Nothing about how activation works has changed; it is the same
+              form and the same request going to the same admin screen.
+            */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Your school is registered
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                    You can sign in and start setting it up straight away. To keep it
+                    running past the date below, request activation and we will contact
+                    you to arrange payment.
+                  </p>
+                </div>
               </div>
-              <span className="inline-block rounded-full bg-yellow-100 px-3 py-0.5 text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-3">
-                Coming Soon
-              </span>
-              <h2 className="text-base font-semibold text-slate-900">MTN Mobile Money</h2>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Online payment via MTN MoMo is coming soon. To activate your school now, please contact our support team and we will process your subscription manually.
-              </p>
-              <div className="mt-5">
+
+              {/* The one fact a school in grace actually needs. */}
+              {graceEnds && (
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <Clock className="h-4 w-4 shrink-0 text-amber-600" />
+                  <p className="text-sm text-amber-800">
+                    Full access until <strong>{graceEnds}</strong>
+                    {daysLeft !== null && daysLeft >= 0 && (
+                      <span className="text-amber-700"> — {daysLeft} day{daysLeft === 1 ? '' : 's'} left</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <h3 className="text-sm font-semibold text-slate-900">Request activation</h3>
                 <ActivationRequestForm
                   schoolId={schoolId}
                   defaultEmail={email}
@@ -310,8 +355,10 @@ export default function SubscriptionPayment() {
                   intro="Tell us how to reach you and we will arrange payment and activate your school."
                 />
               </div>
-              <p className="mt-3 text-xs text-slate-400">
-                Prefer email? support@schoolsyncedu.com
+
+              <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-400">
+                Card and MTN Mobile Money payment online are coming later. For now every
+                subscription is arranged directly with us. Prefer email? support@schoolsyncedu.com
               </p>
             </div>
 

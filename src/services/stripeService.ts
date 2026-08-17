@@ -17,7 +17,9 @@ export function getStripe() {
 export interface PaymentPageData {
   school: { id: string; name: string };
   owner: { email: string; name: string; phone: string };
-  subscription: { id: string; status: string; plan_id: string };
+  /** expires_at is when the trial or grace period ends — the date the school
+   *  goes offline unless it has been activated by then. */
+  subscription: { id: string; status: string; plan_id: string; expires_at: string | null };
   plan: {
     id: string;
     name: string;
@@ -86,7 +88,22 @@ export async function createPaymentIntent(opts: {
   return data as CreatePaymentIntentResult;
 }
 
-/** Record a completed subscription payment via SECURITY DEFINER RPC */
+/**
+ * Record a completed subscription payment.
+ *
+ * NOT CALLABLE FROM THE BROWSER. Migration 225 revoked anon and authenticated
+ * on record_subscription_payment: it marks a subscription paid and puts the
+ * school back online, and with subscriptions arranged offline there is no
+ * gateway record anywhere to contradict a page that simply declared itself
+ * paid. Only service_role may call it, which is how the Flutterwave, MTN and
+ * Orange webhooks reach it after their gateway has confirmed.
+ *
+ * No page calls this today. If a card gateway is switched on for another
+ * country, do not restore the grant — put a verifying Edge Function in front
+ * of it, as school-stripe-verify does for student fees: retrieve the intent,
+ * check it succeeded, and take the amount from the gateway rather than from
+ * the request.
+ */
 export async function recordSubscriptionPayment(opts: {
   schoolId: string;
   subscriptionId: string;
