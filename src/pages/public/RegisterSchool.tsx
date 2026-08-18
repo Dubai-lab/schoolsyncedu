@@ -1,4 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
+import '@/styles/authDark.css';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useFetch } from '@/hooks/useFetch';
 import { pricingPlanService } from '@/services/adminService';
@@ -319,7 +321,7 @@ export default function RegisterSchool() {
   // ─── SUCCESS SCREEN ───
   if (registered) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4 py-20">
+      <GridBackdrop glow="amber" className="auth-dark flex min-h-[60vh] items-center justify-center px-4 py-20">
         <div className="mx-auto max-w-md text-center">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <Mail className="h-8 w-8 text-green-600" />
@@ -334,19 +336,19 @@ export default function RegisterSchool() {
           </p>
           <Link
             to="/auth/login"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-600"
           >
             Go to Sign In <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-      </div>
+      </GridBackdrop>
     );
   }
 
   const selectedPlan = visiblePlans.find((p) => p.id === selectedPlanId);
 
   return (
-    <div className="py-12 sm:py-20">
+    <GridBackdrop glow="amber" className="auth-dark py-12 sm:py-20">
       <div className="mx-auto max-w-3xl px-4">
         {/* Header */}
         <div className="text-center">
@@ -369,8 +371,8 @@ export default function RegisterSchool() {
                       isCompleted
                         ? 'bg-green-500 text-white'
                         : isActive
-                        ? 'bg-primary-600 text-white ring-4 ring-primary-100'
-                        : 'bg-slate-100 text-slate-400'
+                        ? 'bg-accent-500 text-white ring-4 ring-accent-500/25'
+                        : 'border border-white/12 bg-white/[0.06] text-white/40'
                     }`}
                   >
                     {isCompleted ? (
@@ -381,7 +383,7 @@ export default function RegisterSchool() {
                   </div>
                   <span
                     className={`mt-2 text-xs font-medium ${
-                      isActive ? 'text-primary-600' : isCompleted ? 'text-green-600' : 'text-slate-400'
+                      isActive ? 'text-accent-500' : isCompleted ? 'text-green-400' : 'text-white/40'
                     }`}
                   >
                     {s.label}
@@ -390,7 +392,7 @@ export default function RegisterSchool() {
                 {i < STEPS.length - 1 && (
                   <div
                     className={`mx-3 mt-[-1.25rem] h-0.5 w-12 sm:w-20 ${
-                      step > s.step ? 'bg-green-400' : 'bg-slate-200'
+                      step > s.step ? 'bg-green-400' : 'bg-white/12'
                     }`}
                   />
                 )}
@@ -425,7 +427,7 @@ export default function RegisterSchool() {
                   type="text"
                   value={owner.full_name}
                   onChange={(e) => updateOwner('full_name', e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                   placeholder="John Doe"
                 />
               </div>
@@ -439,7 +441,7 @@ export default function RegisterSchool() {
                     value={owner.email}
                     onChange={(e) => { updateOwner('email', e.target.value); if (emailVerified) setEmailVerified(false); }}
                     disabled={emailVerified}
-                    className={`block w-full rounded-lg border px-3 py-2.5 pr-32 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${
+                    className={`block w-full rounded-lg border px-3 py-2.5 pr-32 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500 ${
                       emailVerified
                         ? 'border-green-400 bg-green-50 text-slate-700'
                         : 'border-slate-300 bg-white'
@@ -456,7 +458,7 @@ export default function RegisterSchool() {
                         type="button"
                         onClick={handleRequestOTP}
                         disabled={verifyingEmail || !owner.email.trim()}
-                        className="inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-accent-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {verifyingEmail ? (
                           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending…</>
@@ -482,7 +484,7 @@ export default function RegisterSchool() {
                       value={owner.phone}
                       onChange={(e) => updateOwner('phone', e.target.value)}
                       maxLength={60}
-                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                       placeholder="+231 ..."
                     />
                   </div>
@@ -495,13 +497,13 @@ export default function RegisterSchool() {
                           type={showPassword ? 'text' : 'password'}
                           value={owner.password}
                           onChange={(e) => updateOwner('password', e.target.value)}
-                          className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                          className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                           placeholder="Min. 8 characters"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/45 transition-colors hover:text-white"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -513,7 +515,7 @@ export default function RegisterSchool() {
                         type="password"
                         value={owner.confirm_password}
                         onChange={(e) => updateOwner('confirm_password', e.target.value)}
-                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                         placeholder="Repeat password"
                       />
                     </div>
@@ -536,7 +538,7 @@ export default function RegisterSchool() {
                     type="text"
                     value={school.name}
                     onChange={(e) => updateSchool('name', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="Monrovia Academy"
                   />
                 </div>
@@ -546,7 +548,7 @@ export default function RegisterSchool() {
                   <select
                     value={school.location}
                     onChange={(e) => updateSchool('location', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                   >
                     <option value="">Select county</option>
                     {LIBERIA_COUNTIES.map((c) => (
@@ -561,7 +563,7 @@ export default function RegisterSchool() {
                     type="text"
                     value={school.moe_registration_number}
                     onChange={(e) => updateSchool('moe_registration_number', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="Optional"
                   />
                 </div>
@@ -572,7 +574,7 @@ export default function RegisterSchool() {
                     type="text"
                     value={school.principal_name}
                     onChange={(e) => updateSchool('principal_name', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="Full name"
                   />
                 </div>
@@ -583,7 +585,7 @@ export default function RegisterSchool() {
                     type="email"
                     value={school.principal_email}
                     onChange={(e) => updateSchool('principal_email', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="principal@school.com"
                   />
                 </div>
@@ -595,7 +597,7 @@ export default function RegisterSchool() {
                     value={school.phone}
                     onChange={(e) => updateSchool('phone', e.target.value)}
                     maxLength={60}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="+231 ..."
                   />
                 </div>
@@ -606,7 +608,7 @@ export default function RegisterSchool() {
                     type="text"
                     value={school.motto}
                     onChange={(e) => updateSchool('motto', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="Optional"
                   />
                 </div>
@@ -617,7 +619,7 @@ export default function RegisterSchool() {
                     value={school.address}
                     onChange={(e) => updateSchool('address', e.target.value)}
                     rows={2}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                     placeholder="Street address, city"
                   />
                 </div>
@@ -641,7 +643,7 @@ export default function RegisterSchool() {
                     type="button"
                     onClick={() => setBillingCycle('monthly')}
                     className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
-                      billingCycle === 'monthly' ? 'bg-primary-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'
+                      billingCycle === 'monthly' ? 'bg-white/15 text-white shadow' : 'text-white/50 hover:text-white'
                     }`}
                   >
                     Monthly
@@ -650,7 +652,7 @@ export default function RegisterSchool() {
                     type="button"
                     onClick={() => setBillingCycle('yearly')}
                     className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
-                      billingCycle === 'yearly' ? 'bg-primary-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'
+                      billingCycle === 'yearly' ? 'bg-white/15 text-white shadow' : 'text-white/50 hover:text-white'
                     }`}
                   >
                     Yearly
@@ -677,13 +679,13 @@ export default function RegisterSchool() {
                       onClick={() => setSelectedPlanId(plan.id)}
                       className={`relative rounded-xl border-2 p-5 text-left transition-all ${
                         selectedPlanId === plan.id
-                          ? 'border-primary-500 bg-primary-50/50 ring-2 ring-primary-200'
+                          ? 'border-accent-500 bg-accent-500/10 ring-2 ring-accent-500/30'
                           : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       {selectedPlanId === plan.id && (
                         <div className="absolute top-3 right-3">
-                          <CheckCircle className="h-5 w-5 text-primary-600" />
+                          <CheckCircle className="h-5 w-5 text-accent-500" />
                         </div>
                       )}
                       <h3 className="font-semibold text-slate-900">{plan.name}</h3>
@@ -712,7 +714,7 @@ export default function RegisterSchool() {
 
               <Link
                 to="/pricing"
-                className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                className="text-xs font-medium text-accent-500 hover:text-accent-600"
               >
                 Compare all plan features →
               </Link>
@@ -752,7 +754,7 @@ export default function RegisterSchool() {
                 const displayPrice = billingCycle === 'yearly' ? yearlyPrice : selectedPlan.price_usd;
                 const displayCycle = billingCycle === 'yearly' ? 'year' : selectedPlan.billing_cycle;
                 return (
-                  <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 space-y-2">
+                  <div className="rounded-xl border border-white/12 bg-white/[0.04] p-5 space-y-2">
                     <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                       <CreditCard className="h-4 w-4" /> Selected Plan
                     </h3>
@@ -764,7 +766,7 @@ export default function RegisterSchool() {
                         Save ${(selectedPlan.price_usd * 12 * ((selectedPlan.yearly_discount_percent ?? 0) / 100)).toFixed(2)} vs monthly billing
                       </p>
                     )}
-                    <p className="text-xs text-primary-600 font-medium">
+                    <p className="text-xs text-accent-500 font-medium">
                       You'll be redirected to a secure payment page after registration.
                     </p>
                   </div>
@@ -785,7 +787,7 @@ export default function RegisterSchool() {
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-5 py-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <ArrowLeft className="h-4 w-4" /> Back
                 </button>
@@ -793,7 +795,7 @@ export default function RegisterSchool() {
               {step === 1 && (
                 <Link
                   to="/auth/login"
-                  className="text-sm font-medium text-slate-500 hover:text-slate-700"
+                  className="text-sm font-medium text-white/55 transition-colors hover:text-white"
                 >
                   Already have an account? Sign in
                 </Link>
@@ -805,7 +807,7 @@ export default function RegisterSchool() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-600"
                 >
                   Continue <ArrowRight className="h-4 w-4" />
                 </button>
@@ -813,7 +815,7 @@ export default function RegisterSchool() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-600 disabled:opacity-50"
                 >
                   {submitting ? (
                     <>
@@ -839,6 +841,6 @@ export default function RegisterSchool() {
           onCancel={() => setShowOTPModal(false)}
         />
       </div>
-    </div>
+    </GridBackdrop>
   );
 }
