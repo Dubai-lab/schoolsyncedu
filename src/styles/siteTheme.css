@@ -605,3 +605,19 @@
 .ss-theme[data-preset='bold'] .border-gray-200,
 .ss-theme[data-preset='bold'] .hover\:border-gray-200:hover,
 .ss-theme[data-preset='bold'] .divide-gray-100 > * + * { border-color: rgba(255, 255, 255, 0.12); }
+
+/* ── Key numbers grid (contentBlocks.tsx → StatsBlock) ───────────────────────
+ * The column count was an inline gridTemplateColumns applied at every width,
+ * so a school with five figures got five columns on a phone — roughly 60px
+ * each, holding numbers like "1,250". Two columns below the small breakpoint,
+ * the school's own count above it.
+ */
+.ss-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 640px) {
+  .ss-stats-grid {
+    grid-template-columns: repeat(var(--ss-stat-cols, 3), minmax(0, 1fr));
+  }
+}

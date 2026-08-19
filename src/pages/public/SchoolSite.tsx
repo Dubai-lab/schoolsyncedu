@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import AppShowcase from '@/components/shared/AppShowcase';
+import { useEffect, useState } from 'react';
 import { buildSiteStyles, bandStyle, readableBrandColor, brandTint } from '@/utils/siteThemeStyles';
-import { DEFAULT_SECTION_ORDER } from '@/types/siteTheme';
+import { resolveBlocks, navEntriesFromBlocks } from '@/types/siteBlocks';
+import BlockRenderer from '@/components/site/BlockRenderer';
+import type { SiteCtx } from '@/components/site/shared';
 import { usePreviewTheme } from '@/hooks/usePreviewTheme';
-import HeroDividerShape from '@/components/shared/HeroDivider';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
 import { useParams, Link } from 'react-router-dom';
@@ -12,66 +12,15 @@ import { useDomainContext } from '@/context/DomainContext';
 import type { School, SiteConfig } from '@/types/school.types';
 import {
   GraduationCap,
-  Users,
-  BookOpen,
   Phone,
   MapPin,
   Mail,
   LogIn,
-  Star,
-  Award,
   Globe,
-  ClipboardEdit,
-  Clock,
-  ChevronRight,
-  Building2,
-  Target,
-  Eye,
-  Heart,
-  Shield,
-  Zap,
-  Brain,
-  Lightbulb,
-  Trophy,
-  Palette,
-  Music,
-  Calculator,
-  Laptop,
-  PenTool,
-  ArrowRight,
   ArrowUp,
   Menu,
   X,
-  ChevronDown,
-  ChevronLeft,
 } from 'lucide-react';
-
-// ==================== ICON RESOLVER ====================
-const ICON_MAP: Record<string, React.ElementType> = {
-  users: Users,
-  'graduation-cap': GraduationCap,
-  'book-open': BookOpen,
-  star: Star,
-  award: Award,
-  trophy: Trophy,
-  flask: Zap,
-  calculator: Calculator,
-  music: Music,
-  palette: Palette,
-  globe: Globe,
-  laptop: Laptop,
-  heart: Heart,
-  shield: Shield,
-  target: Target,
-  zap: Zap,
-  brain: Brain,
-  lightbulb: Lightbulb,
-  building: Building2,
-  library: BookOpen,
-  microscope: Eye,
-  'pen-tool': PenTool,
-};
-const getIcon = (name: string) => ICON_MAP[name] || Star;
 
 // ==================== SOCIAL ICON ====================
 const SocialIcon = ({ platform }: { platform: string }) => {
@@ -89,90 +38,6 @@ const SocialIcon = ({ platform }: { platform: string }) => {
     </svg>
   );
 };
-
-// ==================== SECTION LABEL ====================
-const SectionLabel = ({ text, color }: { text: string; color: string }) => (
-  <div className="flex items-center justify-center gap-2 mb-3">
-    <div className="h-px w-8 rounded-full" style={{ backgroundColor: color }} />
-    <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color }}>{text}</p>
-    <div className="h-px w-8 rounded-full" style={{ backgroundColor: color }} />
-  </div>
-);
-
-// ==================== ANIMATION HELPERS ====================
-function useInView(threshold = 0.12) {
-  const [visible, setVisible] = useState(false);
-  const obsRef = useRef<IntersectionObserver | null>(null);
-
-  // Callback ref fires whenever the DOM element mounts/unmounts, including
-  // after async data loads — avoids the stale-ref bug with useEffect+[].
-  const ref = useCallback((el: HTMLDivElement | null) => {
-    if (obsRef.current) { obsRef.current.disconnect(); obsRef.current = null; }
-    if (!el) return;
-    obsRef.current = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          obsRef.current?.disconnect();
-          obsRef.current = null;
-        }
-      },
-      { threshold },
-    );
-    obsRef.current.observe(el);
-  }, [threshold]);
-
-  return [ref, visible] as const;
-}
-
-function useCountUp(target: number, active: boolean, duration = 1400) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!active || !target) return;
-    let frame: number;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min((now - start) / duration, 1);
-      const eased = 1 - (1 - p) ** 3;
-      setCount(Math.floor(eased * target));
-      if (p < 1) { frame = requestAnimationFrame(tick); }
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [active, target, duration]);
-  return count;
-}
-
-function StatValue({ raw, active }: { raw: string; active: boolean }) {
-  const numeric = parseInt(raw.replace(/\D/g, ''), 10) || 0;
-  const suffix  = raw.replace(/[\d,]+/, '');
-  const count   = useCountUp(numeric, active);
-  return <>{active && numeric > 0 ? `${count.toLocaleString()}${suffix}` : raw}</>;
-}
-
-const fadeUp = (delay: number, visible: boolean) => ({
-  opacity: visible ? 1 : 0,
-  transform: visible ? 'none' : 'translateY(30px)',
-  transition: `opacity 0.65s ease ${delay}ms, transform 0.65s ease ${delay}ms`,
-});
-
-const scaleUp = (delay: number, visible: boolean) => ({
-  opacity: visible ? 1 : 0,
-  transform: visible ? 'none' : 'scale(0.88)',
-  transition: `opacity 0.55s ease ${delay}ms, transform 0.55s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms`,
-});
-
-const slideLeft = (delay: number, visible: boolean) => ({
-  opacity: visible ? 1 : 0,
-  transform: visible ? 'none' : 'translateX(-44px)',
-  transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-});
-
-const slideRight = (delay: number, visible: boolean) => ({
-  opacity: visible ? 1 : 0,
-  transform: visible ? 'none' : 'translateX(44px)',
-  transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-});
 
 function scrollToSection(hash: string) {
   const id = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -193,20 +58,9 @@ export default function SchoolSite() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
-  const [slideIndex, setSlideIndex] = useState(0);
-  const heroRef = useRef<HTMLElement>(null);
   // Non-null only inside the designer's preview frame.
   const previewTheme = usePreviewTheme();
 
-  const [statsRef,  statsVisible]  = useInView();
-  const [aboutRef,  aboutVisible]  = useInView();
-  const [progsRef,  progsVisible]  = useInView();
-  const [newsRef,   newsVisible]   = useInView();
-  const [gallRef,   gallVisible]   = useInView();
-  const [staffRef,  staffVisible]  = useInView();
-  const [ctaRef,    ctaVisible]    = useInView();
-  const [contRef,   contVisible]   = useInView();
-  const [testimonRef, testimonVisible] = useInView();
 
   // On custom domain/subdomain, restore the clean URL (hide /school/slug from address bar)
   useEffect(() => {
@@ -223,15 +77,6 @@ export default function SchoolSite() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-
-  // Hero slideshow auto-advance
-  useEffect(() => {
-    const slides = school?.site_config?.hero_slides ?? [];
-    if (slides.length <= 1) return;
-    const timer = setInterval(() => setSlideIndex((i) => (i + 1) % slides.length), 5000);
-    return () => clearInterval(timer);
-  }, [school?.site_config?.hero_slides]);
-
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
@@ -341,14 +186,9 @@ export default function SchoolSite() {
 
   const primary = school.primary_color || '#1e40af';
   const secondary = school.secondary_color || '#f59e0b';
-  const heroHeadline = school.hero_headline || `Welcome to ${school.name}`;
-  const heroSubtext =
-    school.hero_subtext ||
-    school.motto ||
-    'Dedicated to academic excellence and character building.';
-  const aboutText =
-    school.about_text ||
-    `${school.name} is a premier educational institution located in ${school.location || 'Liberia'}. We are committed to providing quality education and shaping the leaders of tomorrow.`;
+
+  // The hero headline and subtext, and the about copy, moved into their own
+  // blocks. Each still falls back to the school record exactly as it did here.
 
   const cfg: SiteConfig = school.site_config ?? {};
   // Theme lives inside site_config alongside the page content. resolveTheme
@@ -364,13 +204,15 @@ export default function SchoolSite() {
     primary,
     secondary,
   );
-  // The footer and CTA were the only blocks painted with the school's colour
-  // through an inline style, so they ignored the preset entirely — a dark page
-  // ended up with two bright bands still in the old colour, reading as two
-  // designs stitched together.
+  // The footer was one of the blocks painted with the school's colour through
+  // an inline style, so it ignored the preset entirely — a dark page ended up
+  // with bright bands still in the old colour, reading as two designs stitched
+  // together.
+  //
+  // Only the footer's band is resolved here now. The CTA and gallery bands
+  // moved into their own blocks, which is where they belong: a second gallery
+  // should be free to sit on a different band from the first.
   const footerBand = bandStyle(siteStyles.theme.footerStyle, primary, siteStyles.isDark);
-  const ctaBand = bandStyle(siteStyles.theme.ctaStyle, primary, siteStyles.isDark);
-  const galleryBand = bandStyle(siteStyles.theme.galleryStyle, primary, siteStyles.isDark);
 
   // For text set directly on the page in the school's colour. See
   // readableBrandColor: a deep brand colour on the dark preset is unreadable,
@@ -389,52 +231,51 @@ export default function SchoolSite() {
   const primaryTint   = brandTint(primary, siteStyles.isDark);
   const secondaryTint = brandTint(secondary, siteStyles.isDark);
 
-  const vis = cfg.sections_visible ?? {};
-  const show = (section: string) => vis[section] !== false;
-
-  const hasPrograms = show('programs') && (cfg.programs ?? []).length > 0;
-  const hasGallery = show('gallery') && (cfg.gallery_images ?? []).length > 0;
-  const hasStaff = show('administration') && (cfg.staff ?? []).length > 0;
-
-  /**
-   * Where each section sits on the page.
-   *
-   * .ss-theme is already a flex column — it has been since the footer was
-   * pinned to the bottom — so every section is already a flex item and CSS
-   * `order` moves it. That is why this is a style prop rather than a rewrite:
-   * reordering the JSX would mean pulling eleven sections out of a 1400-line
-   * component and rebuilding it as a list, for the same result.
-   *
-   * The trade is that the reading order for a screen reader stays as written,
-   * not as arranged. Every section carries its own heading so nothing is lost,
-   * but a school that moves the gallery above the programmes gets a page that
-   * is spoken in the old order. Worth knowing; not worth the rewrite.
-   *
-   * The nav and footer are pinned outside the range so they cannot be
-   * displaced by a section, and the fixed overlays — texture, WhatsApp, back
-   * to top — are out of flow entirely and unaffected.
-   */
-  const sectionOrder = siteStyles.theme.sectionOrder ?? DEFAULT_SECTION_ORDER;
-  const orderOf = (name: string) => {
-    const i = sectionOrder.indexOf(name);
-    // Unlisted sections keep their place at the end rather than jumping to the
-    // front, which is what index -1 would otherwise do.
-    return i === -1 ? 900 : i + 1;
-  };
   const socialLinks = Object.entries(cfg.social_links ?? {}).filter(([, url]) => url);
-  const heroSlides = cfg.hero_slides ?? [];
 
   // On custom domain/subdomain, use root-relative paths so the slug never appears in the URL
   const linkBase = isCustomDomain ? '' : `/school/${slug}`;
 
+  /**
+   * The page, as a list.
+   *
+   * Sections used to be fixed JSX rearranged with CSS `order`, which moved
+   * them on screen but not in the document — a school that put its gallery
+   * above its programmes had a page seen in one order and spoken by a screen
+   * reader in another. A real list has no such gap, and it is also what lets a
+   * school add a block or use one twice.
+   *
+   * A school that has never edited its layout has no stored list, so one is
+   * derived from the old fields. Nothing is written to the database until
+   * someone deliberately changes something.
+   */
+  const blocks = resolveBlocks(cfg, siteStyles.theme.sectionOrder);
+
+  /** Everything the blocks need that is not their own content. */
+  const siteCtx: SiteCtx = {
+    school, cfg, slug, linkBase,
+    primary, secondary,
+    primaryText, secondaryText, primaryDisplay, primaryIcon, secondaryIcon,
+    primaryTint, secondaryTint,
+    siteStyles,
+    scrollToSection,
+  };
+
+  /**
+   * Navigation, built from the page itself.
+   *
+   * It used to be assembled from the old config fields while the page was
+   * assembled from something else; the two agreed only because both read the
+   * same data. Now that a school can hide a block or add a second gallery, the
+   * nav has to come from the same list the page renders, or it will link to
+   * sections that are not there and miss ones that are.
+   *
+   * Fees stays outside this: it is a separate page rather than an anchor, and
+   * it appears only once the school has published a fee schedule.
+   */
   const navLinks = [
-    { label: 'Home', href: '#home' },
-    ...(show('about') ? [{ label: 'About', href: '#about' }] : []),
-    ...(hasPrograms ? [{ label: 'Programs', href: '#programs' }] : []),
-    ...(hasGallery ? [{ label: 'Gallery', href: '#gallery' }] : []),
-    ...(hasStaff ? [{ label: 'Team', href: '#administration' }] : []),
+    ...navEntriesFromBlocks(blocks),
     ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `/school/${slug}/fees` }] : []),
-    { label: 'Contact', href: '#contact' },
   ];
 
   return (
@@ -641,685 +482,12 @@ export default function SchoolSite() {
         )}
       </nav>
 
-      {/* ===== HERO ===== */}
-      {show('hero') && (
-        <section
-          id="home"
-          ref={heroRef}
-          className={`ss-hero ss-hero--${siteStyles.theme.layouts.hero} ss-hero--h-${siteStyles.theme.heroHeight} ss-hero--d-${siteStyles.theme.heroDivider} relative flex min-h-screen items-center overflow-hidden`}
-          style={{
-            order: orderOf('hero'),
-            ...(!cfg.hero_image_url && {
-              background: `linear-gradient(145deg, ${primary} 0%, ${primary}e0 40%, ${primary}b0 100%)`,
-            }),
-          }}
-        >
-          {/* Background — slideshow, single image, or gradient */}
-          {heroSlides.length > 0 ? (
-            <>
-              {heroSlides.map((slide, i) => (
-                <div
-                  key={i}
-                  className="absolute inset-0 transition-opacity duration-1000"
-                  style={{ opacity: slideIndex === i ? 1 : 0 }}
-                >
-                  <img src={slide.image_url} alt="" className="h-full w-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/30" />
-                  <div className="absolute inset-0" style={{ background: `linear-gradient(145deg, ${primary}70 0%, transparent 60%)` }} />
-                </div>
-              ))}
-              {/* Prev / Next arrows */}
-              {heroSlides.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setSlideIndex((i) => (i - 1 + heroSlides.length) % heroSlides.length)}
-                    className="absolute left-4 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/25"
-                    aria-label="Previous slide"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSlideIndex((i) => (i + 1) % heroSlides.length)}
-                    className="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/25"
-                    aria-label="Next slide"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                  {/* Dots indicator */}
-                  <div className="absolute bottom-16 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
-                    {heroSlides.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setSlideIndex(i)}
-                        className={`rounded-full transition-all duration-300 ${
-                          slideIndex === i ? 'h-2 w-8 bg-white' : 'h-2 w-2 bg-white/40 hover:bg-white/60'
-                        }`}
-                        aria-label={`Go to slide ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          ) : cfg.hero_image_url ? (
-            <>
-              <div className="absolute inset-0">
-                <img src={cfg.hero_image_url} alt="School campus" className="h-full w-full object-cover" />
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/30" />
-              <div className="absolute inset-0" style={{ background: `linear-gradient(145deg, ${primary}70 0%, transparent 60%)` }} />
-            </>
-          ) : (
-            <>
-              {/* Decorative blobs */}
-              <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full opacity-20 blur-3xl" style={{ backgroundColor: secondary }} />
-              <div className="absolute bottom-0 -left-20 h-72 w-72 rounded-full opacity-15 blur-3xl" style={{ backgroundColor: secondary }} />
-              <div className="absolute inset-0 opacity-[0.04]"
-                style={{
-                  backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)',
-                  backgroundSize: '32px 32px',
-                }}
-              />
-            </>
-          )}
 
-          <div className="relative mx-auto w-full max-w-6xl px-5 pb-24 pt-28 sm:px-8 lg:pt-36">
-            <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-16">
-
-              {/* School crest — large, left column on desktop */}
-              {school.logo_url && (
-                <div className="ss-logo-wrap shrink-0 flex justify-center">
-                  <img
-                    src={school.logo_url}
-                    alt={school.name}
-                    className="ss-logo-img h-52 w-52 object-contain drop-shadow-2xl sm:h-64 sm:w-64 lg:h-72 lg:w-72"
-                  />
-                </div>
-              )}
-
-              {/* Text content — right column on desktop.
-                  ss-hero-content is the handle each hero variant repositions:
-                  lowered for full-image, boxed for card, half-width for split.
-                  The markup never changes, only where it sits. */}
-              <div className="ss-hero-content flex-1 text-center lg:text-left">
-                {/* Badge */}
-                {(school.founded_year || school.county) && (
-                  <div className="ss-hero-badge mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
-                    <Award className="h-3.5 w-3.5 opacity-80" />
-                    {school.founded_year && `Est. ${school.founded_year}`}
-                    {school.founded_year && school.county && ' · '}
-                    {school.county && `${school.county} County`}
-                  </div>
-                )}
-
-                <h1 className="ss-hero-h1 text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
-                  {heroHeadline}
-                </h1>
-
-                <p className="ss-hero-sub mt-5 text-base leading-relaxed text-white/70 sm:text-lg">
-                  {heroSubtext}
-                </p>
-
-                <div className="ss-hero-btns mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
-                  <Link
-                    to={`${linkBase}/apply`}
-                    className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl sm:text-base"
-                    style={{ backgroundColor: secondary }}
-                  >
-                    <ClipboardEdit className="h-4 w-4" /> Apply Now
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => scrollToSection('#about')}
-                    className="inline-flex items-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 sm:text-base"
-                  >
-                    Discover More <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {cfg.school_hours && (
-                  <p className="ss-hero-hours mt-5 inline-flex items-center gap-1.5 text-xs text-white/40">
-                    <Clock className="h-3.5 w-3.5" /> {cfg.school_hours}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Scroll cue */}
-          <div className="ss-hero-cue absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/30">
-            <ChevronDown className="h-5 w-5 animate-bounce" />
-          </div>
-
-          {/* Shaped bottom edge. Painted in the colour of the section below, so
-              it reads as that section rising into the hero — and because it is
-              an overlay rather than a clip, the slideshow controls and the
-              scroll cue above are untouched. */}
-          <HeroDividerShape
-            shape={siteStyles.theme.heroDivider}
-            color={siteStyles.isDark ? 'var(--site-page-bg)' : 'var(--site-surface)'}
-          />
-        </section>
-      )}
-
-      {/* ===== STATS ===== */}
-      {show('stats') && (cfg.stats ?? []).length > 0 && siteStyles.theme.layouts.stats !== 'hidden' && (
-        <section className="relative bg-white" style={{ order: orderOf('stats') }}>
-          <div className="absolute -top-px left-0 right-0 h-1" style={{ backgroundColor: secondary }} />
-          <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <div ref={statsRef}
-              className={`ss-stats ss-stats--${siteStyles.theme.layouts.stats} grid divide-x divide-gray-100`}
-              style={{ gridTemplateColumns: `repeat(${Math.min((cfg.stats ?? []).length, 5)}, minmax(0, 1fr))` }}
-            >
-              {(cfg.stats ?? []).map((s, i) => {
-                const Icon = getIcon(s.icon);
-                const accent = i % 2 === 0 ? primary : secondary;
-                return (
-                  <div key={i} className="group flex flex-col items-center py-10 px-4 transition-colors hover:bg-gray-50/60"
-                    style={fadeUp(i * 80, statsVisible)}
-                  >
-                    <div
-                      className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl transition-transform group-hover:scale-110"
-                      style={{ backgroundColor: brandTint(accent, siteStyles.isDark) }}
-                    >
-                      <Icon className="h-5 w-5" style={{ color: readableBrandColor(accent, siteStyles.isDark, 'large') }} />
-                    </div>
-                    <p className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: primaryDisplay }}>
-                      <StatValue raw={s.value} active={statsVisible} />
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">{s.label}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== ABOUT ===== */}
-      {show('about') && (
-        <section id="about" className="px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('about') }}>
-          <div className="mx-auto max-w-6xl">
-            <div className="ss-section-head text-center mb-14">
-              <SectionLabel text="About Our School" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
-                {cfg.mission_text ? 'Our Story & Mission' : `About ${school.name}`}
-              </h2>
-            </div>
-
-            <div ref={aboutRef} className="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:items-start">
-              {/* Text side */}
-              <div className="space-y-6" style={slideLeft(0, aboutVisible)}>
-                {/* School identity badge */}
-                <div className="flex items-center gap-2">
-                  <div className="h-px w-10 rounded-full" style={{ backgroundColor: secondary }} />
-                  <span className="text-sm font-semibold" style={{ color: primaryText }}>{school.name}</span>
-                </div>
-                <p className="text-base leading-8 text-gray-600 sm:text-lg">{aboutText}</p>
-
-                {cfg.mission_text && (
-                  <div
-                    className="relative overflow-hidden rounded-2xl p-6"
-                    style={{ backgroundColor: primaryTint, borderLeft: `4px solid ${primaryIcon}` }}
-                  >
-                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: primaryText }}>Our Mission</p>
-                    <p className="text-sm leading-7 text-gray-600">{cfg.mission_text}</p>
-                  </div>
-                )}
-
-                {cfg.vision_text && (
-                  <div
-                    className="relative overflow-hidden rounded-2xl p-6"
-                    style={{ backgroundColor: secondaryTint, borderLeft: `4px solid ${secondaryIcon}` }}
-                  >
-                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: secondaryText }}>Our Vision</p>
-                    <p className="text-sm leading-7 text-gray-600">{cfg.vision_text}</p>
-                  </div>
-                )}
-
-                {/* Principal quote */}
-                {cfg.principal_message && (
-                  <div className="mt-6 flex items-start gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-5">
-                    {cfg.principal_image_url ? (
-                      <img
-                        src={cfg.principal_image_url}
-                        alt={school.principal_name || 'Principal'}
-                        className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-offset-2"
-                        style={{ outlineColor: primary }}
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: primaryTint }}>
-                        <Users className="h-6 w-6" style={{ color: primaryIcon }} />
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm italic leading-7 text-gray-500">"{cfg.principal_message}"</p>
-                      <p className="mt-2 text-xs font-bold text-gray-800">— {school.principal_name || 'The Principal'}</p>
-                      {cfg.principal_title && (
-                        <p className="text-xs text-gray-400">{cfg.principal_title}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Visual side */}
-              <div style={slideRight(100, aboutVisible)}>
-                {cfg.building_image_url ? (
-                  <div className="relative">
-                    <div className="absolute -inset-4 rounded-3xl opacity-30 blur-2xl" style={{ backgroundColor: primary }} />
-                    <div className="relative overflow-hidden rounded-3xl shadow-2xl">
-                      <img src={cfg.building_image_url} alt={`${school.name} Campus`} className="h-auto w-full object-cover" />
-                    </div>
-                    {school.founded_year && (
-                      <div className="absolute -bottom-4 -right-4 rounded-2xl px-5 py-3 text-center text-white shadow-xl"
-                        style={{ backgroundColor: secondary }}>
-                        <p className="text-xs font-medium opacity-80">Founded</p>
-                        <p className="text-2xl font-extrabold">{school.founded_year}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { icon: GraduationCap, label: 'Academic Excellence', sub: 'Rigorous curriculum for every learner', color: primary },
-                      { icon: Users, label: 'Dedicated Faculty', sub: 'Experienced and caring educators', color: secondary },
-                      { icon: Shield, label: 'Safe Environment', sub: 'Nurturing spaces for growth', color: '#16a34a' },
-                      { icon: Heart, label: 'Character Building', sub: 'Values-driven education', color: '#9333ea' },
-                    ].map((f) => (
-                      <div
-                        key={f.label}
-                        className="group flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5"
-                      >
-                        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: f.color + '12' }}>
-                          <f.icon className="h-5 w-5" style={{ color: f.color }} />
-                        </div>
-                        <p className="text-sm font-bold text-gray-900">{f.label}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-gray-400">{f.sub}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== PROGRAMS ===== */}
-      {/* bg-slate-50 rather than an inline #f8fafc: it is the same colour, but
-          an inline background cannot be re-pointed by the theme layer, so on a
-          dark preset the section stayed white while its heading was re-coloured
-          for a dark page — and vanished. Same for testimonials below. */}
-      {show('programs') && (cfg.programs ?? []).length > 0 && (
-        <section id="programs" className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('programs') }}>
-          <div className="mx-auto max-w-6xl">
-            <div className="ss-section-head text-center mb-14">
-              <SectionLabel text="What We Offer" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Academic Programs</h2>
-            </div>
-            <div ref={progsRef} className={`ss-programs ss-programs--${siteStyles.theme.layouts.programs} grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3`}>
-              {(cfg.programs ?? []).map((prog, i) => {
-                const Icon = getIcon(prog.icon);
-                return (
-                  <div
-                    key={i}
-                    className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
-                    style={fadeUp(i * 100, progsVisible)}
-                  >
-                    {/* Gradient top accent */}
-                    <div
-                      className="absolute inset-x-0 top-0 h-1 rounded-t-2xl"
-                      style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }}
-                    />
-                    <div
-                      className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl transition-transform group-hover:scale-110"
-                      style={{ backgroundColor: primaryTint }}
-                    >
-                      <Icon className="h-6 w-6" style={{ color: primaryIcon }} />
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900">{prog.name}</h3>
-                    <p className="mt-2 text-sm leading-7 text-gray-500">{prog.description}</p>
-                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: primaryText }}>
-                      Learn more <ChevronRight className="h-3.5 w-3.5" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== ANNOUNCEMENTS ===== */}
-      {show('announcements') && (cfg.announcements ?? []).length > 0 && (
-        <section className="px-5 py-20 sm:px-8 sm:py-28 bg-white" style={{ order: orderOf('announcements') }}>
-          <div className="mx-auto max-w-6xl">
-            <div className="ss-section-head text-center mb-14">
-              <SectionLabel text="Stay Informed" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">News & Announcements</h2>
-            </div>
-            <div ref={newsRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {(cfg.announcements ?? []).slice(0, 6).map((item, i) => {
-                const d = new Date(item.date);
-                return (
-                  <article
-                    key={i}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                    style={fadeUp(i * 90, newsVisible)}
-                  >
-                    {/* Date band */}
-                    <div className="flex items-center gap-3 px-5 py-3.5" style={{ backgroundColor: primaryTint }}>
-                      <div
-                        className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl text-white"
-                        style={{ backgroundColor: primary }}
-                      >
-                        <span className="text-xs font-bold leading-none">
-                          {d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                        </span>
-                        <span className="text-sm font-extrabold leading-tight">{d.getDate()}</span>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: secondaryText }}>
-                          {(item as any).category || 'Announcement'}
-                        </p>
-                        <p className="text-xs text-gray-400">{d.getFullYear()}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-1 flex-col p-5">
-                      <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{item.title}</h3>
-                      <p className="mt-2 flex-1 text-sm leading-7 text-gray-500">{item.excerpt}</p>
-                      <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: primaryText }}>
-                        Read more <ChevronRight className="h-3.5 w-3.5" />
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== GALLERY ===== */}
-      {show('gallery') && (cfg.gallery_images ?? []).length > 0 && (
-        <section
-          id="gallery"
-          className={`px-5 py-20 sm:px-8 sm:py-28 ${
-            siteStyles.theme.galleryStyle === 'surface' ? '' : 'ss-band'
-          }`}
-          style={{ order: orderOf('gallery'), background: galleryBand.background, color: galleryBand.color }}
-        >
-          <div className="mx-auto max-w-6xl">
-            <div className="ss-section-head text-center mb-14">
-              <SectionLabel text="School Life" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Photo Gallery</h2>
-            </div>
-            {/* columns-* is the masonry default and stays for schools that
-                have chosen nothing. The other layouts override it in CSS, so
-                the markup below is identical whichever is picked. */}
-            <div
-              ref={gallRef}
-              className={`ss-gallery ss-gallery--${siteStyles.theme.layouts.gallery} ss-gallery--shape-${siteStyles.theme.galleryShape} columns-2 gap-3 sm:columns-3 lg:columns-4`}
-            >
-              {(cfg.gallery_images ?? []).map((img, i) => (
-                <div key={i} className="group relative mb-3 overflow-hidden rounded-2xl break-inside-avoid shadow-sm"
-                  style={scaleUp(i * 60, gallVisible)}
-                >
-                  <img
-                    src={img.url}
-                    alt={img.caption || `School life ${i + 1}`}
-                    className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    style={{ minHeight: i % 3 === 0 ? '220px' : '160px' }}
-                  />
-                  <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    {img.caption && (
-                      <p className="p-3 text-xs font-medium text-white">{img.caption}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== ADMINISTRATION ===== */}
-      {hasStaff && (
-        <section id="administration" className="bg-white px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('administration') }}>
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-14 text-center">
-              <SectionLabel text="Our Leadership" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
-                Meet Our Administration
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-base text-gray-500">
-                Our dedicated leadership team committed to educational excellence.
-              </p>
-            </div>
-
-            <div ref={staffRef} className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {(cfg.staff ?? []).map((member, i) => (
-                <div
-                  key={i}
-                  className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
-                  style={scaleUp(i * 100, staffVisible)}
-                >
-                  {/* Top gradient accent strip */}
-                  <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
-
-                  <div className="p-6 text-center">
-                    {/* Photo with gradient ring */}
-                    <div className="relative mx-auto mb-4 h-24 w-24">
-                      <div
-                        className="absolute inset-0 rounded-full"
-                        style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
-                      />
-                      <div className="absolute inset-[3px] overflow-hidden rounded-full bg-white">
-                        {member.photo_url ? (
-                          <img
-                            src={member.photo_url}
-                            alt={member.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="flex h-full w-full items-center justify-center"
-                            style={{ backgroundColor: primaryTint }}
-                          >
-                            <Users className="h-9 w-9" style={{ color: primaryIcon }} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-gray-900">{member.name}</h3>
-                    <span
-                      className="mt-2 inline-block rounded-full px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white"
-                      style={{ backgroundColor: primary }}
-                    >
-                      {member.role}
-                    </span>
-                    {member.bio && (
-                      <p className="mt-3 text-xs leading-relaxed text-gray-500">{member.bio}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== TESTIMONIALS ===== */}
-      {show('testimonials') && (cfg.testimonials ?? []).length > 0 && (
-        <section className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('testimonials') }}>
-          <div className="mx-auto max-w-6xl">
-            <div className="ss-section-head text-center mb-14">
-              <SectionLabel text="What Parents Say" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
-                Testimonials
-              </h2>
-              <p className="mx-auto mt-4 max-w-xl text-base text-gray-500">
-                Hear from the families and students who are part of our community.
-              </p>
-            </div>
-
-            <div ref={testimonRef} className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {(cfg.testimonials ?? []).map((t, i) => (
-                <div
-                  key={i}
-                  className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
-                  style={scaleUp(i * 100, testimonVisible)}
-                >
-                  {/* Decorative top strip */}
-                  <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
-
-                  {/* Big decorative quote mark */}
-                  <div className="absolute right-5 top-5 font-serif text-7xl leading-none opacity-[0.07]" style={{ color: primary }}>"</div>
-
-                  {/* Star rating */}
-                  {(t.rating ?? 0) > 0 && (
-                    <div className="mb-4 flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <svg key={star} viewBox="0 0 20 20" className={`h-4 w-4 ${star <= (t.rating ?? 0) ? 'fill-amber-400' : 'fill-gray-200'}`}>
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Quote */}
-                  <p className="relative text-sm leading-7 text-gray-600 italic">"{t.quote}"</p>
-
-                  {/* Author */}
-                  <div className="mt-6 flex items-center gap-3 border-t border-gray-50 pt-5">
-                    {t.photo_url ? (
-                      <img src={t.photo_url} alt={t.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-offset-1" style={{ outlineColor: primary }} />
-                    ) : (
-                      <div
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                        style={{ backgroundColor: primary }}
-                      >
-                        {t.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">{t.name}</p>
-                      <p className="text-xs text-gray-400">{t.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== STUDENT APP =====
-           Placed on the school's own site rather than the SchoolSync landing
-           page: students come here, not there, and this is where they will
-           look for their portal. */}
-      <div style={{ order: orderOf('app') }}>
-        <AppShowcase variant="school" schoolName={school.name} />
-      </div>
-
-      {/* ===== CTA BAND ===== */}
-      <section
-        className="relative overflow-hidden px-5 py-16 sm:px-8"
-        style={{ order: orderOf('cta'), background: ctaBand.background, color: ctaBand.color }}
-      >
-        <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full opacity-10 blur-3xl" style={{ backgroundColor: secondary }} />
-        <div className="absolute bottom-0 left-10 h-40 w-40 rounded-full opacity-10 blur-2xl" style={{ backgroundColor: secondary }} />
-        <div ref={ctaRef} className="relative mx-auto flex max-w-5xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
-          <div style={slideLeft(0, ctaVisible)}>
-            <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-1">Join Our Community</p>
-            <h2 className="text-2xl font-extrabold text-white sm:text-3xl lg:text-4xl">
-              Ready to Join {school.name}?
-            </h2>
-            <p className="mt-1.5 text-sm text-white/60">Applications are open. Start your journey with us today.</p>
-          </div>
-          <div style={slideRight(200, ctaVisible)}>
-            <Link
-              to={`${linkBase}/apply`}
-              className="inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-sm font-extrabold text-white shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl whitespace-nowrap sm:text-base"
-              style={{ backgroundColor: secondary }}
-            >
-              Apply Now <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== CONTACT ===== */}
-      {show('contact') && (
-        <section id="contact" className="bg-white px-5 py-20 sm:px-8 sm:py-28" style={{ order: orderOf('contact') }}>
-          <div className="mx-auto max-w-5xl">
-            <div className="ss-section-head text-center mb-14">
-              <SectionLabel text="Get In Touch" color={secondary} />
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">Contact Us</h2>
-            </div>
-            <div ref={contRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {school.address && (
-                <a
-                  href={`https://maps.google.com/?q=${encodeURIComponent(school.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
-                  style={fadeUp(0, contVisible)}
-                >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: primaryTint }}>
-                    <MapPin className="h-6 w-6" style={{ color: primaryIcon }} />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Address</p>
-                  <p className="text-sm font-medium leading-relaxed text-gray-700">{school.address}</p>
-                </a>
-              )}
-              {school.phone && (
-                <a
-                  href={`tel:${school.phone}`}
-                  className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
-                  style={fadeUp(80, contVisible)}
-                >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: secondaryTint }}>
-                    <Phone className="h-6 w-6" style={{ color: secondaryIcon }} />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Phone</p>
-                  <p className="text-sm font-medium text-gray-700">{school.phone}</p>
-                </a>
-              )}
-              {(school.principal_email || school.proprietor_email) && (
-                <a
-                  href={`mailto:${school.principal_email || school.proprietor_email}`}
-                  className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg"
-                  style={fadeUp(160, contVisible)}
-                >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: '#16a34a12' }}>
-                    <Mail className="h-6 w-6 text-green-600" />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Email</p>
-                  <p className="text-sm font-medium text-gray-700 break-all">{school.principal_email || school.proprietor_email}</p>
-                </a>
-              )}
-              {cfg.school_hours && (
-                <div className="group flex flex-col items-center rounded-2xl border border-gray-100 bg-gray-50/60 p-7 text-center transition-all hover:border-gray-200 hover:shadow-lg"
-                  style={fadeUp(240, contVisible)}
-                >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: '#9333ea12' }}>
-                    <Clock className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">School Hours</p>
-                  <p className="text-sm font-medium text-gray-700">{cfg.school_hours}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
+      {/* The eleven sections used to sit here as fixed JSX, rearranged with
+          CSS `order`. They are a list now: see components/site/BlockRenderer.
+          A school that has never edited its layout gets that list derived from
+          the old fields by blocksFromLegacy, so the page is unchanged. */}
+      <BlockRenderer blocks={blocks} ctx={siteCtx} />
       {/* ===== FOOTER ===== */}
       <footer className="ss-footer" style={{ order: 1000, backgroundColor: footerBand.background, color: footerBand.color }}>
         <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8">
