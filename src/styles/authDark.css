@@ -40,6 +40,17 @@
 .auth-dark input::placeholder,
 .auth-dark textarea::placeholder { color: rgba(241, 245, 249, 0.35); }
 
+/* The open dropdown is drawn by the operating system, not by the page. It
+ * inherits the near-white colour set on the select above but keeps its own
+ * white backing, so every option reads white-on-white until it is highlighted.
+ * Both halves are set here rather than just the text: a browser that ignores
+ * the background declaration still lands on dark-on-white, and one that
+ * honours it gets a deliberate pairing instead of an inherited one. */
+.auth-dark select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
 .auth-dark input:focus,
 .auth-dark select:focus,
 .auth-dark textarea:focus {
