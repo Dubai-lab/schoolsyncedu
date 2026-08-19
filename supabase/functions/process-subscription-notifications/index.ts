@@ -460,9 +460,20 @@ serve(async (req) => {
             html = buildTrialReminderEmail(schoolName, ownerName, daysLeft, loginUrl, renewUrl);
             text = `Hi ${ownerName},\n\nYour free trial for ${schoolName} ends in ${daysLeft} day(s), on ${expiresOn}.\n\nContact us to activate your subscription: ${renewUrl}\n\nSchoolSync Team`;
             break;
+          case 'grace_start':
+            html = buildGraceStartEmail(schoolName, ownerName, Number(p.grace_total ?? daysLeft), renewUrl);
+            text = `Hi ${ownerName},\n\nYour subscription for ${schoolName} has ended. The school stays fully usable until ${expiresOn}, after which staff and students lose access.\n\nContact us to arrange payment: ${renewUrl}\n\nSchoolSync Team`;
+            break;
+          case 'suspended_notice':
+            html = buildSuspendedEmail(schoolName, ownerName, renewUrl);
+            text = `Hi ${ownerName},\n\n${schoolName} is now offline and nobody can sign in. Your data is safe and nothing has been deleted.\n\nContact support to arrange payment and restore access: ${renewUrl}\n\nSchoolSync Team`;
+            break;
           case 'grace_reminder':
             html = buildGraceReminderEmail(schoolName, ownerName, daysLeft, renewUrl);
-            text = `Hi ${ownerName},\n\nYour subscription for ${schoolName} expired on ${expiresOn}. You have ${daysLeft} day(s) left to renew before access is suspended.\n\n${renewUrl}\n\nSchoolSync Team`;
+            // Not "expired on ${expiresOn}": in grace, expires_at is the end of
+            // the grace window, and a school that registered on a no-trial plan
+            // starts there without ever having had a subscription to expire.
+            text = `Hi ${ownerName},\n\nAccess for ${schoolName} runs until ${expiresOn} — ${daysLeft} day(s) left.\n\nContact us to arrange payment before the school is suspended: ${renewUrl}\n\nSchoolSync Team`;
             break;
           default:
             html = buildExpiryReminderEmail(schoolName, ownerName, daysLeft, renewUrl);
@@ -746,6 +757,26 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // ── Legacy batch loop — retired ───────────────────────────────────────────
+    //
+    // Everything below decided for itself who was due and mailed them. That
+    // job now belongs to subscription_reminder_sweep() (migrations 230/231),
+    // which holds the schedule in one place and queues to email_outbox for the
+    // drain above to send.
+    //
+    // Running both would mail every school twice: the event names differ
+    // ('expiry_reminder_7' here vs 'grace_start_7' there), so neither the
+    // dedup ledger nor notification_already_sent would catch the overlap.
+    //
+    // A call with no trigger is therefore refused rather than silently doing
+    // the old thing. The code is left in place because the template builders
+    // below it are still used by the drain and the direct triggers.
+    return new Response(JSON.stringify({
+      ok: false,
+      error: 'Batch mode retired. Reminders are sent by subscription_reminder_sweep '
+           + '(pg_cron) and drained via {"trigger":"drain_outbox"}.',
+    }), { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     // ── Fetch all non-expired subscriptions with plan + school + owner ─────────
     const { data: subscriptions, error: subError } = await supabase

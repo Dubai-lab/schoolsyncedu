@@ -64,30 +64,42 @@ serve(async (req) => {
     }
   }
 
-  // ── 2. Notification emails (runs at 08:00 UTC or when explicitly triggered) ─
-  if (runNotifications && (isNotificationHour || body.job === 'notifications' || body.job === 'all')) {
-    try {
-      const resp = await fetch(
-        `${SUPABASE_URL}/functions/v1/process-subscription-notifications`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        },
-      );
-      const notifData = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${JSON.stringify(notifData)}`);
-      results.notifications = { ok: true, ...notifData };
-      console.log(`[notifications] invoked ok`);
-    } catch (err) {
-      results.notifications = { ok: false, error: String(err) };
-      console.error('[notifications] error:', err);
-    }
-  } else if (runNotifications) {
-    results.notifications = { ok: true, skipped: true, reason: `Not notification hour (current UTC hour: ${hour})` };
-  }
+  // ── 2. Notification emails — no longer this function's job ────────────────
+  //
+  // This used to POST to process-subscription-notifications with no
+  // Authorization header. That function verifies JWTs, so the call returned
+  // 401 on every run since the day it was written, and the `ok: true` below
+  // reported success anyway. The expiry leg above authenticates properly
+  // through the service-role client, which is why schools went offline on
+  // schedule while no reminder email ever arrived.
+  //
+  // Reminders now belong to subscription_reminder_sweep() and its drain
+  // (migrations 230/231), scheduled in pg_cron. Restoring the call here would
+  // start the *old* batch loop alongside the new sweep — different event
+  // names, so the dedup ledger would not catch it and every school would be
+  // mailed twice. Deliberately left removed.
+  results.notifications = {
+    ok: true,
+    skipped: true,
+    reason: 'handled by subscription_reminder_sweep (pg_cron), not this function',
+  };
 
-  return new Response(JSON.stringify({ ok: true, ran_at: new Date().toISOString(), ...results }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  // Report the truth. This used to be a hard-coded ok: true, so an expiry run
+  // that threw still looked like a clean run to anyone reading the logs.
+  const failures = Object.entries(results)
+    .filter(([, v]) => (v as { ok?: boolean })?.ok === false)
+    .map(([k]) => k);
+
+  return new Response(
+    JSON.stringify({
+      ok: failures.length === 0,
+      failed: failures.length ? failures : undefined,
+      ran_at: new Date().toISOString(),
+      ...results,
+    }),
+    {
+      status: failures.length ? 500 : 200,
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
 });
