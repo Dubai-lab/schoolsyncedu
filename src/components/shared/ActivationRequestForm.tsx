@@ -43,10 +43,21 @@ interface ActivationRequestFormProps {
   schoolId?: string | null;
   /** Prefill when the page knows it from the URL, as registration does. */
   defaultEmail?: string | null;
+  /**
+   * Fires once a reference exists — whether it was just submitted or was
+   * already on file when the form loaded.
+   *
+   * The dashboard is happy with the small confirmation box this renders in
+   * place. The end of registration is not: there the request is the last
+   * thing the school does, and a green box tucked beside an order summary
+   * reads as though nothing happened. Pages that need to take over the whole
+   * screen use this; pages that do not simply omit it.
+   */
+  onResolved?: (reference: string) => void;
 }
 
 export default function ActivationRequestForm({
-  planId, intro, schoolId, defaultEmail,
+  planId, intro, schoolId, defaultEmail, onResolved,
 }: ActivationRequestFormProps) {
   const { user } = useAuth();
   const isPublic = !!schoolId;
@@ -143,6 +154,14 @@ export default function ActivationRequestForm({
       </div>
     );
   }
+
+  const resolvedRef = reference ?? existing?.reference ?? null;
+
+  // Told in an effect rather than during render: the parent turns this into a
+  // state change, and doing that mid-render warns and can loop.
+  useEffect(() => {
+    if (resolvedRef) onResolved?.(resolvedRef);
+  }, [resolvedRef, onResolved]);
 
   // Already submitted — show the reference rather than the form again.
   if (reference || existing) {

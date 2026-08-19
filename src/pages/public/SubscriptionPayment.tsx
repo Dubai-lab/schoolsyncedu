@@ -40,6 +40,11 @@ export default function SubscriptionPayment() {
   const [couponError,      setCouponError]      = useState('');
   const [couponSuccess,    setCouponSuccess]    = useState('');
 
+  // Set once the activation request exists, which flips the page to its
+  // confirmation state. It also fires when the form finds a request already on
+  // file, so returning to this URL does not re-offer a form already answered.
+  const [activationRef,    setActivationRef]    = useState<string | null>(null);
+
   useEffect(() => {
     if (!schoolId || !email) {
       setError('Invalid payment link. Please register again.');
@@ -152,6 +157,96 @@ export default function SubscriptionPayment() {
   }
 
   if (!paymentData) return null;
+
+  // ── REQUEST SENT ──
+  // This is the last page of registration, so it has to end somewhere. Left as
+  // a green panel beside an order summary and a coupon field, it read as though
+  // the submission had not taken — the school had just been asked to pay, was
+  // shown a form still sitting there, and had no obvious way onward. The whole
+  // page becomes the confirmation instead, and says the two things that matter:
+  // the account works now, and we come to them.
+  if (activationRef) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/40">
+        <header className="border-b border-slate-100 bg-white/80 backdrop-blur-lg">
+          <div className="mx-auto flex h-16 max-w-4xl items-center px-4">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <span className="text-xl font-bold text-slate-900">
+                School<span className="text-primary-600">Sync</span>
+              </span>
+            </Link>
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-2xl px-4 py-14 sm:py-20 text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-9 w-9 text-emerald-600" />
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            You&rsquo;re all set
+          </h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-slate-600">
+            <strong className="text-slate-900">{paymentData.school.name}</strong> is
+            registered and your activation request has reached us. We will contact you
+            to arrange payment.
+          </p>
+
+          <div className="mx-auto mt-8 max-w-md rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+            <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+              Your reference
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold text-emerald-900">{activationRef}</p>
+            <p className="mt-3 text-xs leading-relaxed text-emerald-700">
+              Quote this if you get in touch. There is no need to submit again.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-6 max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">You can sign in now</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+              Your account is ready. Start adding staff and students straight away —
+              activation is only needed to keep it running{graceEnds ? ' past the date below' : ''}.
+            </p>
+
+            {graceEnds && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <Clock className="h-4 w-4 shrink-0 text-amber-600" />
+                <p className="text-sm text-amber-800">
+                  Full access until <strong>{graceEnds}</strong>
+                  {daysLeft !== null && daysLeft >= 0 && (
+                    <span className="text-amber-700"> — {daysLeft} day{daysLeft === 1 ? '' : 's'} left</span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 flex flex-col-reverse items-center justify-center gap-3 sm:flex-row">
+            <Link
+              to="/"
+              className="w-full rounded-lg border border-slate-300 px-6 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto"
+            >
+              Back to home
+            </Link>
+            <Link
+              to="/auth/login"
+              className="w-full rounded-lg bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 sm:w-auto"
+            >
+              Sign in to your school
+            </Link>
+          </div>
+
+          <p className="mt-8 text-xs text-slate-400">
+            Questions? support@schoolsyncedu.com
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── PAYMENT PAGE ──
   return (
@@ -353,6 +448,7 @@ export default function SubscriptionPayment() {
                   defaultEmail={email}
                   planId={paymentData.plan.id}
                   intro="Tell us how to reach you and we will arrange payment and activate your school."
+                  onResolved={setActivationRef}
                 />
               </div>
 
