@@ -1,9 +1,10 @@
-import { blockAnchor, type SiteBlock, type SitePageBlocks } from '@/types/siteBlocks';
+import { blockAnchor, resolveContent, type SiteBlock, type SitePageBlocks } from '@/types/siteBlocks';
 import type { SiteCtx } from './shared';
 import { HeroBlock } from './HeroBlock';
 import {
   StatsBlock, AboutBlock, ProgramsBlock, AnnouncementsBlock, GalleryBlock,
   AdministrationBlock, TestimonialsBlock, AppBlock, CtaBlock, ContactBlock,
+  TextImageBlock,
 } from './contentBlocks';
 
 /**
@@ -27,6 +28,7 @@ const REGISTRY = {
   app:            AppBlock,
   cta:            CtaBlock,
   contact:        ContactBlock,
+  textImage:      TextImageBlock,
 } as const;
 
 export function BlockRenderer({ blocks, ctx }: { blocks: SitePageBlocks; ctx: SiteCtx }) {
@@ -45,10 +47,17 @@ export function BlockRenderer({ blocks, ctx }: { blocks: SitePageBlocks; ctx: Si
         const indexOfType = seen[block.type] ?? 0;
         seen[block.type] = indexOfType + 1;
 
+        // The first block of a type falls through to the site-wide fields the
+        // Content tab writes; later ones carry only their own.
+        const resolved: SiteBlock = {
+          ...block,
+          content: resolveContent(block, ctx.cfg, indexOfType === 0),
+        };
+
         return (
           <Component
             key={block.id}
-            block={block}
+            block={resolved}
             ctx={ctx}
             anchor={blockAnchor(block, indexOfType)}
           />

@@ -37,7 +37,7 @@ interface Stat { value: string; label: string; icon: string }
 export function StatsBlock({ block, ctx }: BlockProps) {
   const [ref, visible] = useInView();
   const items = (block.content.items ?? []) as Stat[];
-  const layout = ctx.siteStyles.theme.layouts.stats;
+  const layout = (block.design?.variant as typeof ctx.siteStyles.theme.layouts.stats) ?? ctx.siteStyles.theme.layouts.stats;
 
   if (items.length === 0 || layout === 'hidden') return null;
 
@@ -218,7 +218,7 @@ export function ProgramsBlock({ block, ctx, anchor }: BlockProps) {
     <section id={anchor} className="bg-slate-50 px-5 py-20 sm:px-8 sm:py-28">
       <div className="mx-auto max-w-6xl">
         <BlockHead block={block} ctx={ctx} defaultLabel="What We Offer" defaultHeading="Academic Programmes" />
-        <div ref={ref} className={`ss-programs ss-programs--${ctx.siteStyles.theme.layouts.programs} grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3`}>
+        <div ref={ref} className={`ss-programs ss-programs--${block.design?.variant ?? ctx.siteStyles.theme.layouts.programs} grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3`}>
           {items.map((prog, i) => {
             const Icon = getIcon(prog.icon);
             return (
@@ -327,19 +327,23 @@ export function GalleryBlock({ block, ctx, anchor }: BlockProps) {
   const images = (block.content.images ?? []) as GalleryImage[];
   if (images.length === 0) return null;
 
-  const band = bandStyle(ctx.siteStyles.theme.galleryStyle, ctx.primary, ctx.siteStyles.isDark);
+  // This instance's own choices win over the theme's, so two galleries can
+  // sit on different bands and use different layouts.
+  const bandKey = block.design?.band ?? ctx.siteStyles.theme.galleryStyle;
+  const variant = block.design?.variant ?? ctx.siteStyles.theme.layouts.gallery;
+  const band = bandStyle(bandKey, ctx.primary, ctx.siteStyles.isDark);
 
   return (
     <section
       id={anchor}
-      className={`px-5 py-20 sm:px-8 sm:py-28 ${ctx.siteStyles.theme.galleryStyle === 'surface' ? '' : 'ss-band'}`}
+      className={`px-5 py-20 sm:px-8 sm:py-28 ${bandKey === 'surface' ? '' : 'ss-band'}`}
       style={{ background: band.background, color: band.color }}
     >
       <div className="mx-auto max-w-6xl">
         <BlockHead block={block} ctx={ctx} defaultLabel="School Life" defaultHeading="Photo Gallery" />
         <div
           ref={ref}
-          className={`ss-gallery ss-gallery--${ctx.siteStyles.theme.layouts.gallery} ss-gallery--shape-${ctx.siteStyles.theme.galleryShape} columns-2 gap-3 sm:columns-3 lg:columns-4`}
+          className={`ss-gallery ss-gallery--${variant} ss-gallery--shape-${ctx.siteStyles.theme.galleryShape} columns-2 gap-3 sm:columns-3 lg:columns-4`}
         >
           {images.map((img, i) => (
             <div
@@ -383,7 +387,7 @@ export function AdministrationBlock({ block, ctx, anchor }: BlockProps) {
           defaultHeading="Meet Our Administration"
           defaultIntro="Our dedicated leadership team committed to educational excellence."
         />
-        <div ref={ref} className={`ss-staff ss-staff--${ctx.siteStyles.theme.layouts.staff} grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}>
+        <div ref={ref} className={`ss-staff ss-staff--${block.design?.variant ?? ctx.siteStyles.theme.layouts.staff} grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}>
           {members.map((member, i) => (
             <div
               key={i}
@@ -505,7 +509,7 @@ export function AppBlock({ ctx }: BlockProps) {
 export function CtaBlock({ block, ctx }: BlockProps) {
   const [ref, visible] = useInView();
   const { school } = ctx;
-  const band = bandStyle(ctx.siteStyles.theme.ctaStyle, ctx.primary, ctx.siteStyles.isDark);
+  const band = bandStyle(block.design?.band ?? ctx.siteStyles.theme.ctaStyle, ctx.primary, ctx.siteStyles.isDark);
 
   const label   = block.label   ?? 'Join Our Community';
   const heading = block.heading ?? `Ready to Join ${school.name}?`;
@@ -632,6 +636,76 @@ export function ContactBlock({ block, ctx, anchor }: BlockProps) {
               </div>
             );
           })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Text & image ─────────────────────────────────────────────────────────────
+
+/**
+ * The generic block, and the reason the library stops feeling limited.
+ *
+ * A heading, some words, one picture, image left or right. Nothing about it is
+ * school-specific, which is the point: history, uniform policy, admissions
+ * steps, boarding, term dates, why-choose-us — every request we did not
+ * anticipate is a heading and some words and usually a picture.
+ *
+ * Paragraphs come from blank lines in the body rather than a rich text editor.
+ * A school typing into a textarea gets sensible paragraphs, and the page cannot
+ * be handed markup it has to trust.
+ */
+export function TextImageBlock({ block, ctx, anchor }: BlockProps) {
+  const [ref, visible] = useInView();
+  const c = block.content as Record<string, unknown>;
+
+  const body = (c.body as string) ?? '';
+  const imageUrl = (c.image_url as string | null) ?? null;
+  const imageRight = ((c.image_side as string) ?? 'right') === 'right';
+  const band = block.design?.band;
+  const bandStyles = band ? bandStyle(band, ctx.primary, ctx.siteStyles.isDark) : null;
+
+  const paragraphs = body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  if (paragraphs.length === 0 && !imageUrl && !block.heading) return null;
+
+  return (
+    <section
+      id={anchor}
+      className={`px-5 py-20 sm:px-8 sm:py-28 ${bandStyles ? 'ss-band' : ''}`}
+      style={bandStyles ? { background: bandStyles.background, color: bandStyles.color } : undefined}
+    >
+      <div className="mx-auto max-w-6xl">
+        {(block.heading || block.label) && (
+          <BlockHead block={block} ctx={ctx} defaultLabel="" defaultHeading={block.heading ?? ''} />
+        )}
+
+        <div
+          ref={ref}
+          className={`grid grid-cols-1 items-center gap-12 ${imageUrl ? 'lg:grid-cols-2' : ''}`}
+        >
+          <div
+            className={`space-y-5 ${imageUrl && imageRight ? 'lg:order-1' : ''} ${imageUrl && !imageRight ? 'lg:order-2' : ''}`}
+            style={slideLeft(0, visible)}
+          >
+            {paragraphs.map((p, i) => (
+              <p key={i} className="text-base leading-8 text-gray-600 sm:text-lg">{p}</p>
+            ))}
+          </div>
+
+          {imageUrl && (
+            <div
+              className={imageRight ? 'lg:order-2' : 'lg:order-1'}
+              style={slideRight(100, visible)}
+            >
+              <div className="relative">
+                <div className="absolute -inset-4 rounded-3xl opacity-25 blur-2xl" style={{ backgroundColor: ctx.primary }} />
+                <div className="relative overflow-hidden rounded-3xl shadow-2xl">
+                  <img src={imageUrl} alt="" className="h-auto w-full object-cover" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

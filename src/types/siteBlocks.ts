@@ -31,6 +31,7 @@
 
 import type { SiteConfig } from './school.types';
 import { DEFAULT_SECTION_ORDER } from './siteTheme';
+import type { BandStyle } from './siteTheme';
 
 // ── The library ──────────────────────────────────────────────────────────────
 
@@ -52,7 +53,12 @@ export type BlockType =
   | 'testimonials'
   | 'app'
   | 'cta'
-  | 'contact';
+  | 'contact'
+  // The first block type that is not a port of an existing section. Generic on
+  // purpose: a heading, some words and one picture covers school history,
+  // uniform policy, admissions steps, boarding — everything a school asks for
+  // that nobody predicted.
+  | 'textImage';
 
 /**
  * Types that may appear more than once on a page.
@@ -64,6 +70,7 @@ export type BlockType =
  */
 export const REPEATABLE: BlockType[] = [
   'programs', 'announcements', 'gallery', 'administration', 'testimonials',
+  'textImage', 'cta',
 ];
 
 /** Blocks the page cannot lose, and which the designer offers no delete for. */
@@ -81,6 +88,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   app:            'Student app',
   cta:            'Apply / call to action',
   contact:        'Contact',
+  textImage:      'Text & image',
 };
 
 // ── An instance ──────────────────────────────────────────────────────────────
@@ -111,7 +119,32 @@ export interface SiteBlock {
   intro?: string;
   /** Anchor for nav links. Derived from type + index when absent. */
   anchor?: string;
+  /**
+   * Whether this block earns a link in the header nav.
+   *
+   * Absent follows the type's default, which keeps the nav as it was. Text and
+   * image blocks default to off on purpose: a school that writes five of them
+   * would otherwise get a nav of five entries and no navigation. A school that
+   * builds an Admissions section can switch it on.
+   */
+  inNav?: boolean;
   content: Record<string, unknown>;
+
+  /**
+   * Presentation for this instance alone.
+   *
+   * Band and layout used to be single theme settings applied to every section
+   * of that kind, so a school with two galleries would have had no way to put
+   * one on a dark band and leave the other plain. Absent means "follow the
+   * theme", which is what every existing block does.
+   *
+   * Still curated: `band` is one of four named treatments and `variant` one of
+   * a type's own named layouts. Nothing here accepts a colour or a measurement.
+   */
+  design?: {
+    band?: BandStyle;
+    variant?: string;
+  };
 }
 
 /** A page is just an ordered list. */
@@ -127,6 +160,55 @@ export type SitePageBlocks = SiteBlock[];
 export function newBlockId(type: BlockType): string {
   const rand = Math.random().toString(36).slice(2, 8);
   return `${type}-${rand}`;
+}
+
+/**
+ * A fresh block, ready to edit.
+ *
+ * Starts with placeholder wording rather than empty fields: a block that
+ * renders as a blank strip looks broken, and a school adding one wants to see
+ * where it landed before it has written anything.
+ */
+export function newBlock(type: BlockType): SiteBlock {
+  const base: SiteBlock = { id: newBlockId(type), type, content: {} };
+
+  switch (type) {
+    case 'textImage':
+      return {
+        ...base,
+        heading: 'A heading for this section',
+        content: {
+          body: 'Write about your school here — its history, its uniform policy, what a school day looks like. Anything you want visitors to know.',
+          image_url: null,
+          image_side: 'right',
+        },
+      };
+    case 'gallery':       return { ...base, heading: 'Photo gallery', content: { images: [] } };
+    case 'programs':      return { ...base, heading: 'Programmes', content: { items: [] } };
+    case 'announcements': return { ...base, heading: 'News', content: { items: [], limit: 6 } };
+    case 'testimonials':  return { ...base, heading: 'What people say', content: { items: [] } };
+    case 'administration':return { ...base, heading: 'Our team', content: { members: [] } };
+    case 'cta':           return { ...base, content: { button_text: 'Apply Now' } };
+    default:              return base;
+  }
+}
+
+/** Copy a block, with a new id so React and the list can tell them apart. */
+export function duplicateBlock(block: SiteBlock): SiteBlock {
+  return {
+    ...block,
+    id: newBlockId(block.type),
+    // Deep enough: content holds arrays of plain objects, and a shallow copy
+    // would leave the duplicate sharing its photo list with the original.
+    content: structuredClone(block.content ?? {}),
+    design: block.design ? { ...block.design } : undefined,
+  };
+}
+
+/** May another of this type be added? */
+export function canAddBlock(type: BlockType, blocks: SitePageBlocks): boolean {
+  if (REPEATABLE.includes(type)) return true;
+  return !blocks.some((b) => b.type === type);
 }
 
 // ── Legacy conversion ────────────────────────────────────────────────────────
@@ -162,7 +244,12 @@ export function blocksFromLegacy(cfg: SiteConfig, sectionOrder?: string[]): Site
     id: `${type}-legacy`,
     type: type as BlockType,
     hidden: isHidden(type) || undefined,
-    content: legacyContent(type as BlockType, cfg),
+    // Deliberately empty. Content is merged in at render time by
+    // resolveContent, so the existing Content tab stays authoritative for the
+    // first block of each type. Snapshotting here would mean a school that
+    // saved a layout then edited its programmes in the Content tab would see
+    // nothing change on the page, with nothing to explain why.
+    content: {},
   }));
 }
 
@@ -173,7 +260,7 @@ export function blocksFromLegacy(cfg: SiteConfig, sectionOrder?: string[]): Site
  * second gallery, the two have genuinely separate photo lists. Until then the
  * values are identical to what the page already renders.
  */
-function legacyContent(type: BlockType, cfg: SiteConfig): Record<string, unknown> {
+export function legacyContent(type: BlockType, cfg: SiteConfig): Record<string, unknown> {
   const c = cfg as Record<string, unknown>;
 
   switch (type) {
@@ -256,8 +343,15 @@ export function blockAnchor(block: SiteBlock, indexOfType: number): string {
  * The page skips empty blocks, so the nav must use the same test or it ends up
  * linking to a section that is not on the page.
  */
-export function blockHasContent(block: SiteBlock): boolean {
-  const c = block.content ?? {};
+export function blockHasContent(
+  block: SiteBlock,
+  cfg?: SiteConfig,
+  isFirstOfType = true,
+): boolean {
+  // Same merge the renderer does, so the nav and the page agree on whether a
+  // block is empty. Without it every first-of-type block looks empty, because
+  // its content lives on the site config rather than on the block.
+  const c = cfg ? resolveContent(block, cfg, isFirstOfType) : (block.content ?? {});
   switch (block.type) {
     case 'stats':          return ((c.items as unknown[]) ?? []).length > 0;
     case 'programs':       return ((c.items as unknown[]) ?? []).length > 0;
@@ -300,7 +394,7 @@ export interface NavEntry { label: string; href: string }
  * written one, so two galleries read as "Sports Day" and "Graduation" rather
  * than "Gallery" and "Gallery 2".
  */
-export function navEntriesFromBlocks(blocks: SitePageBlocks): NavEntry[] {
+export function navEntriesFromBlocks(blocks: SitePageBlocks, cfg?: SiteConfig): NavEntry[] {
   const seen: Record<string, number> = {};
   const entries: NavEntry[] = [];
 
@@ -309,10 +403,13 @@ export function navEntriesFromBlocks(blocks: SitePageBlocks): NavEntry[] {
     seen[block.type] = indexOfType + 1;
 
     if (block.hidden) continue;
-    if (!blockHasContent(block)) continue;
+    if (!blockHasContent(block, cfg, indexOfType === 0)) continue;
 
-    const base = NAV_LABELS[block.type];
-    if (!base) continue;
+    const base = NAV_LABELS[block.type] ?? block.heading;
+    // Explicit choice wins; otherwise only the types that were in the nav
+    // before are, so an existing school's header is unchanged.
+    const wanted = block.inNav ?? (NAV_LABELS[block.type] !== undefined);
+    if (!wanted || !base) continue;
 
     const label = indexOfType === 0
       ? (block.heading ?? base)
@@ -322,4 +419,26 @@ export function navEntriesFromBlocks(blocks: SitePageBlocks): NavEntry[] {
   }
 
   return entries;
+}
+
+/**
+ * A block's content, with the site-wide fields behind it.
+ *
+ * The first gallery on a page has no content of its own and falls through to
+ * cfg.gallery_images, which is what the Content tab writes. A second gallery,
+ * added in the designer, carries its own photos and shadows the fallback
+ * entirely.
+ *
+ * That split is what lets both editors coexist: the Content tab keeps managing
+ * the school's main programmes, gallery and staff, and the block designer adds
+ * extra instances without either overwriting the other.
+ */
+export function resolveContent(
+  block: SiteBlock,
+  cfg: SiteConfig,
+  isFirstOfType: boolean,
+): Record<string, unknown> {
+  const own = block.content ?? {};
+  if (!isFirstOfType) return own;
+  return { ...legacyContent(block.type, cfg), ...own };
 }

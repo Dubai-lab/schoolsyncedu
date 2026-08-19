@@ -3,7 +3,7 @@ import { buildSiteStyles, bandStyle, readableBrandColor, brandTint } from '@/uti
 import { resolveBlocks, navEntriesFromBlocks } from '@/types/siteBlocks';
 import BlockRenderer from '@/components/site/BlockRenderer';
 import type { SiteCtx } from '@/components/site/shared';
-import { usePreviewTheme } from '@/hooks/usePreviewTheme';
+import { usePreviewDraft } from '@/hooks/usePreviewTheme';
 import type { SiteTheme } from '@/types/siteTheme';
 import '@/styles/siteTheme.css';
 import { useParams, Link } from 'react-router-dom';
@@ -59,7 +59,7 @@ export default function SchoolSite() {
   const [scrolled, setScrolled] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
   // Non-null only inside the designer's preview frame.
-  const previewTheme = usePreviewTheme();
+  const preview = usePreviewDraft();
 
 
   // On custom domain/subdomain, restore the clean URL (hide /school/slug from address bar)
@@ -200,7 +200,7 @@ export default function SchoolSite() {
   // which is the point, because a preview built out of a separate mock would
   // drift from the real page and stop being worth trusting.
   const siteStyles = buildSiteStyles(
-    previewTheme ?? ((cfg as Record<string, unknown>).theme as SiteTheme | undefined),
+    preview.theme ?? ((cfg as Record<string, unknown>).theme as SiteTheme | undefined),
     primary,
     secondary,
   );
@@ -249,7 +249,9 @@ export default function SchoolSite() {
    * derived from the old fields. Nothing is written to the database until
    * someone deliberately changes something.
    */
-  const blocks = resolveBlocks(cfg, siteStyles.theme.sectionOrder);
+  // A draft list from the designer wins, so adding a block shows up in the
+  // preview before it is saved. Outside the frame this is always null.
+  const blocks = preview.blocks ?? resolveBlocks(cfg, siteStyles.theme.sectionOrder);
 
   /** Everything the blocks need that is not their own content. */
   const siteCtx: SiteCtx = {
@@ -274,7 +276,7 @@ export default function SchoolSite() {
    * it appears only once the school has published a fee schedule.
    */
   const navLinks = [
-    ...navEntriesFromBlocks(blocks),
+    ...navEntriesFromBlocks(blocks, cfg),
     ...(cfg.fee_schedule?.published ? [{ label: 'Fees', href: `/school/${slug}/fees` }] : []),
   ];
 

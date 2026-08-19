@@ -2,7 +2,7 @@ import { useState, Suspense } from 'react';
 import { lazyWithReload } from '@/utils/lazyWithReload';
 import { useSearchParams } from 'react-router-dom';
 import Breadcrumb from '@/components/shared/Breadcrumb';
-import { Loader2, Palette, LayoutTemplate, FileText, KeyRound, ExternalLink } from 'lucide-react';
+import { Loader2, Palette, LayoutTemplate, FileText, KeyRound, ExternalLink, Blocks } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 /**
@@ -31,11 +31,13 @@ const BrandPanel   = lazyWithReload(() => import('./SiteCustomizer'));
 const ContentPanel = lazyWithReload(() => import('@/pages/it-admin/SiteManagement'));
 const LoginPanel   = lazyWithReload(() => import('@/pages/it-admin/AuthPageDesigner'));
 const ThemePanel   = lazyWithReload(() => import('./SiteThemePanel'));
+const BlocksPanel  = lazyWithReload(() => import('./SiteBlocksPanel'));
 
-type Tab = 'design' | 'brand' | 'content' | 'login';
+type Tab = 'design' | 'blocks' | 'brand' | 'content' | 'login';
 
 const TABS: { key: Tab; label: string; icon: React.ElementType; hint: string }[] = [
   { key: 'design',  label: 'Design',     icon: LayoutTemplate, hint: 'Style, layout and backgrounds' },
+  { key: 'blocks',  label: 'Page blocks', icon: Blocks,        hint: 'Add, remove and reorder sections' },
   { key: 'brand',   label: 'Brand',      icon: Palette,        hint: 'Logo, colours, name and motto' },
   { key: 'content', label: 'Content',    icon: FileText,       hint: 'Hero, programmes, gallery, staff' },
   { key: 'login',   label: 'Login page', icon: KeyRound,       hint: 'What staff and students see signing in' },
@@ -104,6 +106,7 @@ export default function SiteDesigner() {
         }
       >
         {tab === 'design'  && <ThemePanel />}
+        {tab === 'blocks'  && <BlocksPanel />}
         {tab === 'brand'   && <BrandPanel />}
         {tab === 'content' && <ContentPanel />}
         {tab === 'login'   && <LoginPanel />}
