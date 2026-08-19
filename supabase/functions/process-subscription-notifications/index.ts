@@ -370,7 +370,18 @@ serve(async (req) => {
     const smtpPass = Deno.env.get('SMTP_PASS');
     const fromAddress = Deno.env.get('SMTP_FROM') || smtpUser;
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
+    // Billing mail stands on its own: reminders and receipts go out from
+    // billing@ and never touch the support mailbox. Refusing the whole
+    // function because the *support* credentials are absent would take the
+    // reminders down with it, so only refuse when neither set exists.
+    const hasSupportSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+    const hasBillingSmtp = Boolean(
+      Deno.env.get('SMTP_BILLING_HOST') &&
+      Deno.env.get('SMTP_BILLING_USER') &&
+      Deno.env.get('SMTP_BILLING_PASS'),
+    );
+
+    if (!hasSupportSmtp && !hasBillingSmtp) {
       return new Response(JSON.stringify({ error: 'SMTP not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -387,7 +398,13 @@ serve(async (req) => {
     const billingHost = Deno.env.get('SMTP_BILLING_HOST') || smtpHost;
     const billingUser = Deno.env.get('SMTP_BILLING_USER') || smtpUser;
     const billingPass = Deno.env.get('SMTP_BILLING_PASS') || smtpPass;
-    const billingFrom = Deno.env.get('SMTP_BILLING_FROM') || 'billing@schoolsyncedu.com';
+    // Falls back to the authenticated billing user, not to a hard-coded
+    // address: sending FROM an address the SMTP session did not authenticate
+    // as gets the message rejected by most providers. Only reach for the
+    // literal billing@ when nothing better is configured.
+    const billingFrom = Deno.env.get('SMTP_BILLING_FROM')
+      || billingUser
+      || 'billing@schoolsyncedu.com';
 
     const billingTransporter = nodemailer.createTransport({
       host: billingHost,
@@ -400,6 +417,98 @@ serve(async (req) => {
     const body = req.method === 'POST'
       ? await req.json().catch(() => ({}))
       : {};
+
+    // ── Outbox drain ─────────────────────────────────────────────────────────
+    // Migration 230 works out who is due in SQL and queues one row per
+    // recipient. This mode only renders and sends. It deliberately decides
+    // nothing: a send that fails leaves a row carrying the reason instead of
+    // disappearing, and the next drain retries it.
+    if (body?.trigger === 'drain_outbox') {
+      const batchSize = Math.min(Number(body?.limit) || 50, 200);
+      const maxAttempts = 5;
+
+      const { data: queued, error: queueError } = await supabase
+        .from('email_outbox')
+        .select('*')
+        .eq('status', 'pending')
+        .lt('attempts', maxAttempts)
+        .order('created_at', { ascending: true })
+        .limit(batchSize);
+
+      if (queueError) {
+        return new Response(JSON.stringify({ error: `Could not read outbox: ${queueError.message}` }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const renewUrl = `${appUrl}/proprietor/subscription`;
+      let sent = 0;
+      let failed = 0;
+
+      for (const row of (queued || []) as any[]) {
+        const p           = row.payload || {};
+        const schoolName  = p.school_name || 'your school';
+        const ownerName   = p.owner_name || 'there';
+        const daysLeft    = Number(p.days_left ?? 0);
+        const expiresOn   = p.expires_on || 'shortly';
+
+        let html: string;
+        let text: string;
+
+        switch (row.template) {
+          case 'trial_reminder':
+            html = buildTrialReminderEmail(schoolName, ownerName, daysLeft, loginUrl, renewUrl);
+            text = `Hi ${ownerName},\n\nYour free trial for ${schoolName} ends in ${daysLeft} day(s), on ${expiresOn}.\n\nContact us to activate your subscription: ${renewUrl}\n\nSchoolSync Team`;
+            break;
+          case 'grace_reminder':
+            html = buildGraceReminderEmail(schoolName, ownerName, daysLeft, renewUrl);
+            text = `Hi ${ownerName},\n\nYour subscription for ${schoolName} expired on ${expiresOn}. You have ${daysLeft} day(s) left to renew before access is suspended.\n\n${renewUrl}\n\nSchoolSync Team`;
+            break;
+          default:
+            html = buildExpiryReminderEmail(schoolName, ownerName, daysLeft, renewUrl);
+            text = `Hi ${ownerName},\n\nYour SchoolSync subscription for ${schoolName} expires in ${daysLeft} day(s), on ${expiresOn}.\n\nContact us to renew: ${renewUrl}\n\nSchoolSync Team`;
+        }
+
+        try {
+          await billingTransporter.sendMail({
+            from: `"SchoolSync Billing" <${billingFrom}>`,
+            to: row.recipient_email,
+            subject: row.subject,
+            html,
+            text,
+          });
+
+          await supabase.from('email_outbox').update({
+            status:     'sent',
+            sent_at:    new Date().toISOString(),
+            attempts:   (row.attempts ?? 0) + 1,
+            last_error: null,
+          }).eq('id', row.id);
+
+          console.log(`[OUTBOX SENT] ${row.event_type} → ${row.recipient_email}`);
+          sent++;
+        } catch (err) {
+          const message  = err instanceof Error ? err.message : String(err);
+          const attempts = (row.attempts ?? 0) + 1;
+
+          await supabase.from('email_outbox').update({
+            // Stays pending until it has burned through its retries, so a
+            // transient SMTP failure is picked up by the next drain rather
+            // than written off.
+            status:     attempts >= maxAttempts ? 'failed' : 'pending',
+            attempts,
+            last_error: message.slice(0, 500),
+          }).eq('id', row.id);
+
+          console.error(`[OUTBOX FAIL] ${row.event_type} → ${row.recipient_email}: ${message}`);
+          failed++;
+        }
+      }
+
+      return new Response(JSON.stringify({
+        ok: true, trigger: 'drain_outbox', examined: queued?.length ?? 0, sent, failed,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (body?.trigger === 'payment_confirmed') {
       const {
@@ -710,8 +819,8 @@ serve(async (req) => {
         return false;
       }
 
-      await transporter.sendMail({
-        from: `"SchoolSync" <${fromAddress}>`,
+      await billingTransporter.sendMail({
+        from: `"SchoolSync Billing" <${billingFrom}>`,
         to: recipientEmail,
         subject,
         html,
@@ -748,7 +857,7 @@ serve(async (req) => {
       }
 
       const config = plan.notification_config || {};
-      const billingUrl = `${appUrl}/dashboard/billing`;
+      const billingUrl = `${appUrl}/proprietor/subscription`;
       const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
       const daysUntilExpiry = expiresAt
         ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
@@ -910,8 +1019,8 @@ serve(async (req) => {
           });
 
           if (!alreadySent) {
-            await transporter.sendMail({
-              from: `"SchoolSync" <${fromAddress}>`,
+            await billingTransporter.sendMail({
+              from: `"SchoolSync Billing" <${billingFrom}>`,
               to: owner.email,
               subject: `⚠️ Your subdomain has expired — 24-hour grace period active (${school.subdomain}.schoolsyncedu.com)`,
               html: buildSubdomainGraceEmail(school.name, owner.full_name, school.subdomain, graceEndsFormatted, renewUrl),
@@ -941,8 +1050,8 @@ serve(async (req) => {
             const paidUntilFormatted = paidUntil.toLocaleDateString('en-US', {
               year: 'numeric', month: 'long', day: 'numeric',
             });
-            await transporter.sendMail({
-              from: `"SchoolSync" <${fromAddress}>`,
+            await billingTransporter.sendMail({
+              from: `"SchoolSync Billing" <${billingFrom}>`,
               to: owner.email,
               subject: daysLeft <= 1
                 ? `⚠️ Your subdomain expires tomorrow — ${school.subdomain}.schoolsyncedu.com`

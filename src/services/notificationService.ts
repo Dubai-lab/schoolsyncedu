@@ -189,6 +189,26 @@ export interface UserNotification {
   created_at: string;
 }
 
+/**
+ * The reminder sweep (migration 230) writes event types that carry the day
+ * count — 'expiry_reminder_7', 'trial_reminder_3', 'grace_reminder_2' — so a
+ * fixed lookup table cannot name them. Returns null when this is not a
+ * reminder, which is also how the caller decides the notification type.
+ */
+function reminderTitle(eventType?: string): string | null {
+  const match = /^(expiry|trial|grace)_reminder_(\d+)$/.exec(eventType ?? '');
+  if (!match) return null;
+
+  const days = Number(match[2]);
+  const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+
+  switch (match[1]) {
+    case 'trial':  return `Trial ends ${when}`;
+    case 'grace':  return days <= 1 ? 'Grace period ends today' : `Grace period ends ${when}`;
+    default:       return `Subscription expires ${when}`;
+  }
+}
+
 export const notificationService = {
   /** Fetch recent notifications for a user (latest 30) */
   async list(userId: UUID): Promise<UserNotification[]> {
@@ -294,8 +314,11 @@ export const notificationService = {
       id:         row.id,
       user_id:    '',
       school_id:  row.school_id ?? null,
-      type:       eventTypeMap[row.event_type] ?? 'general',
-      title:      titleMap[row.event_type] ?? row.event_type?.replace(/_/g, ' ') ?? 'Notification',
+      type:       eventTypeMap[row.event_type] ?? (reminderTitle(row.event_type) ? 'subscription' : 'general'),
+      title:      titleMap[row.event_type]
+                  ?? reminderTitle(row.event_type)
+                  ?? row.event_type?.replace(/_/g, ' ')
+                  ?? 'Notification',
       body:       `${row.schools?.name ?? row.recipient_email} · ${row.recipient_email}`,
       action_url: '/admin/schools',
       is_read:    row.is_read ?? false,
