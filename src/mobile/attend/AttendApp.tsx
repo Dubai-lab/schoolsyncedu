@@ -6,6 +6,9 @@ import { USER_ROLES } from '@/utils/constants';
 import { ClipboardCheck, CreditCard } from 'lucide-react';
 import ModePicker from './ModePicker';
 import StaffLogin from './StaffLogin';
+import SchoolOfflineGate from '../SchoolOfflineGate';
+import MobileSplash from '../MobileSplash';
+import { Nfc } from 'lucide-react';
 
 /**
  * Route tree for SchoolSync Attend.
@@ -48,6 +51,20 @@ function ScreenFallback() {
 export default function AttendApp() {
   return (
     <AuthProvider>
+      {/*
+        Wraps the whole route tree rather than the individual screens. Teacher
+        and card-admin sign-in never sees a school code — the school is only
+        known from the session — and a kiosk left signed in on a desk would
+        otherwise work straight through a suspension. The exam-clearance screen
+        is already refused server-side by verify_kiosk_access (234).
+      */}
+      <MobileSplash
+        appName="SchoolSync Attend"
+        tagline="Tap to record attendance"
+        icon={Nfc}
+        accent="emerald"
+      />
+      <SchoolOfflineGate>
       <Suspense fallback={<ScreenFallback />}>
         <Routes>
           <Route path="/" element={<ModePicker />} />
@@ -92,6 +109,7 @@ export default function AttendApp() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </SchoolOfflineGate>
     </AuthProvider>
   );
 }

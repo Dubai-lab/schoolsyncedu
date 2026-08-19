@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { USER_ROLES } from '@/utils/constants';
+import SchoolOfflineGate from '../SchoolOfflineGate';
 
 /**
  * Auth guard for the student app.
@@ -52,5 +53,9 @@ export default function RequireStudent({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  // The school-code screen is already refused server-side by
+  // lookup_student_login (234), but a student signed in before the suspension
+  // never passes through it again — the session simply persists. This catches
+  // that, and re-checks whenever the app comes back to the foreground.
+  return <SchoolOfflineGate>{children}</SchoolOfflineGate>;
 }
