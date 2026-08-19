@@ -28,12 +28,24 @@ import {
 } from 'lucide-react';
 
 // ── Scroll-reveal hook ────────────────────────────────────────────────────────
+// Returns a callback ref, not a ref object. Sections that sit behind a toggle —
+// the Standard/Enterprise pricing cards — unmount and mount again as the user
+// switches. An effect that runs once when the page mounts never sees the
+// replacement node, so it would stay on .reveal's opacity: 0 and read as
+// content that vanished until a refresh. A callback ref runs on every
+// attachment, so each new node gets its own observer.
 function useScrollReveal() {
-  const ref = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const observe = useCallback(() => {
-    const el = ref.current;
+  // Detaching on unmount matters here: the callback ref fires with null before
+  // it fires with the next element, but a page-level unmount has no such call.
+  useEffect(() => () => observerRef.current?.disconnect(), []);
+
+  return useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
+
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -44,14 +56,8 @@ function useScrollReveal() {
       { threshold: 0.12 },
     );
     obs.observe(el);
-    return () => obs.disconnect();
+    observerRef.current = obs;
   }, []);
-
-  useEffect(() => {
-    return observe();
-  }, [observe]);
-
-  return ref;
 }
 
 // For arrays of children — observe the container, add in-view to each child
@@ -368,7 +374,7 @@ export default function LandingPage() {
           {/* ── Standard plan cards ── */}
           {pricingView === 'standard' && (
             <>
-              <div ref={pricingRef as React.RefObject<HTMLDivElement>} className="reveal mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+              <div ref={pricingRef} className="reveal mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
                 {visiblePlans.map((plan, i) => {
                   const isPopular = i === 1;
                   return (
