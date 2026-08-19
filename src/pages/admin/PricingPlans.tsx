@@ -452,104 +452,11 @@ export default function PricingPlans() {
               </div>
             </div>
 
-            {/* ── Notification Config ── */}
-            <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
-              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Email Notification Schedule</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Trial reminders */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <input type="checkbox"
-                      checked={form.notification_config.notify_on_trial_start}
-                      onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_trial_start: e.target.checked } })}
-                      className="h-4 w-4 rounded border-slate-300 text-primary-600" />
-                    Trial reminder emails
-                  </label>
-                  <div className="pl-6 space-y-1">
-                    <p className="text-xs text-slate-500">Send on days before expiry (comma-separated)</p>
-                    <input
-                      type="text"
-                      value={form.notification_config.trial_reminder_days.join(', ')}
-                      onChange={(e) => {
-                        const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
-                        setForm({ ...form, notification_config: { ...form.notification_config, trial_reminder_days: days } });
-                      }}
-                      placeholder="3, 1"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                    />
-                  </div>
-                </div>
-
-                {/* Expiry reminders */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <input type="checkbox"
-                      checked={form.notification_config.notify_on_trial_expired}
-                      onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_trial_expired: e.target.checked } })}
-                      className="h-4 w-4 rounded border-slate-300 text-primary-600" />
-                    Subscription expiry reminders
-                  </label>
-                  <div className="pl-6 space-y-1">
-                    <p className="text-xs text-slate-500">Send on days before expiry (comma-separated)</p>
-                    <input
-                      type="text"
-                      value={form.notification_config.expiry_reminder_days.join(', ')}
-                      onChange={(e) => {
-                        const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
-                        setForm({ ...form, notification_config: { ...form.notification_config, expiry_reminder_days: days } });
-                      }}
-                      placeholder="7, 3, 1"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                    />
-                  </div>
-                </div>
-
-                {/* Grace period */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <input type="checkbox"
-                      checked={form.notification_config.notify_on_grace_start}
-                      onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_grace_start: e.target.checked } })}
-                      className="h-4 w-4 rounded border-slate-300 text-primary-600" />
-                    Grace period notifications
-                  </label>
-                  <div className="pl-6 space-y-1">
-                    <p className="text-xs text-slate-500">Reminder days during grace (comma-separated)</p>
-                    <input
-                      type="text"
-                      value={form.notification_config.grace_reminder_days.join(', ')}
-                      onChange={(e) => {
-                        const days = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
-                        setForm({ ...form, notification_config: { ...form.notification_config, grace_reminder_days: days } });
-                      }}
-                      placeholder="2"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                    />
-                  </div>
-                </div>
-
-                {/* Suspension + Reactivation */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-slate-700">Status change emails</p>
-                  <div className="pl-0 space-y-2">
-                    <label className="flex items-center gap-2 text-sm text-slate-600">
-                      <input type="checkbox"
-                        checked={form.notification_config.notify_on_suspended}
-                        onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_suspended: e.target.checked } })}
-                        className="h-4 w-4 rounded border-slate-300 text-primary-600" />
-                      Notify when school is suspended
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-600">
-                      <input type="checkbox"
-                        checked={form.notification_config.notify_on_reactivated}
-                        onChange={(e) => setForm({ ...form, notification_config: { ...form.notification_config, notify_on_reactivated: e.target.checked } })}
-                        className="h-4 w-4 rounded border-slate-300 text-primary-600" />
-                      Notify when school is reactivated
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* The "Email Notification Schedule" panel stood here. How often we chase
+                a school for payment is company policy, not a property of a price
+                tier: keeping it per-plan meant every new plan re-decided it and
+                plans drifted apart. The schedule now lives in one place, in
+                subscription_reminder_sweep() -- see migration 231. */}
           </div>
         </DialogBody>
         <DialogFooter>

@@ -104,7 +104,6 @@ DECLARE
 BEGIN
   FOR v_sub IN
     SELECT s.id, s.school_id, s.status::TEXT AS status, s.expires_at,
-           COALESCE(s.grace_days_remaining, 0) AS grace_days,
            sc.name AS school_name,
            p.name  AS plan_name,
            COALESCE(p.notification_config, '{}'::jsonb) AS cfg
@@ -136,11 +135,16 @@ BEGIN
     ELSE  -- grace
       CONTINUE WHEN COALESCE((v_sub.cfg->>'notify_on_grace_start')::boolean, TRUE) IS NOT TRUE;
       v_list     := COALESCE(v_sub.cfg->'grace_reminder_days', '[2]'::jsonb);
-      -- In grace the subscription has already expired, so days-to-expiry is
-      -- negative. The number that means anything here is days left *of grace*.
-      -- The old edge function compared the negative value against [2] and so
-      -- could never match -- grace reminders never fired even in theory.
-      v_match    := v_sub.grace_days - (CURRENT_DATE - v_due);
+      -- expires_at is the END of the grace window, not the original expiry:
+      -- both paths into grace push it forward by the plan's grace_days --
+      -- registration for a no-trial plan (089) and auto_expire_subscriptions
+      -- (054). So days-to-expiry is already days-of-grace-left, and grace
+      -- needs the same arithmetic as the other two branches.
+      --
+      -- grace_days_remaining is deliberately not used here. It records the
+      -- size of the window that was granted, not how much of it is left, and
+      -- subtracting it double-counts.
+      v_match    := v_due - CURRENT_DATE;
       v_template := 'grace_reminder';
     END IF;
 
@@ -169,17 +173,17 @@ BEGIN
         THEN 'Your SchoolSync trial ends ' || v_when || ' - ' || v_sub.school_name
       WHEN 'expiry_reminder'
         THEN 'Your SchoolSync subscription expires ' || v_when || ' - ' || v_sub.school_name
-      ELSE CASE WHEN v_match <= 1
-             THEN 'Last day to renew - ' || v_sub.school_name
-             ELSE 'Your SchoolSync subscription has expired - ' || v_match
-                  || ' days left to renew - ' || v_sub.school_name
-           END
+      -- Not "your subscription has expired". A school that registered on a
+      -- no-trial plan starts life in grace (089) and never had a subscription
+      -- to expire, so that wording would be its first message from us and
+      -- plainly untrue. This reads correctly from either path into grace.
+      ELSE 'Your SchoolSync access ends ' || v_when || ' - ' || v_sub.school_name
     END;
 
     v_body := CASE
       WHEN v_template = 'grace_reminder'
-        THEN 'Your subscription expired on ' || to_char(v_due, 'FMDD Mon YYYY')
-             || '. Contact us to renew before access is suspended.'
+        THEN 'Access runs until ' || to_char(v_due, 'FMDD Mon YYYY')
+             || '. Contact us to arrange payment before the school is suspended.'
       ELSE 'Contact us to renew your ' || COALESCE(v_sub.plan_name, 'subscription')
            || ' before ' || to_char(v_due, 'FMDD Mon YYYY') || '.'
     END;
