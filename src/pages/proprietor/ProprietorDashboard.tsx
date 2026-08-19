@@ -26,9 +26,8 @@ import {
   Shield,
   Globe,
   RefreshCw,
-  ShieldCheck,
 } from 'lucide-react';
-import { savedCardsService } from '@/services/proprietorService';
+import { supabase } from '@/lib/supabase';
 
 export default function ProprietorDashboard() {
   const { user } = useAuth();
@@ -77,11 +76,34 @@ export default function ProprietorDashboard() {
     { enabled: !!schoolId }
   );
 
-  const { data: hasSavedCard = false } = useFetch<boolean>(
-    ['prop-has-saved-card', schoolId!],
-    () => savedCardsService.hasDefault(schoolId!),
+  // Is there an activation request already sitting with us?
+  //
+  // The trial, expiry and grace banners all chase the school for payment. A
+  // school that has already asked us to arrange it has done the only thing it
+  // can — there is no checkout to send it to — so chasing it reads as though
+  // the request never arrived. Worse, a school that registered days ago gets
+  // told its subscription "has expired" on day one.
+  //
+  // Reminders for an unpaid request are the reminder sweep's job (230): those
+  // go out by email on the plan's schedule. The dashboard stays quiet.
+  //
+  // The suspended banner is deliberately NOT gated on this — by then access is
+  // actually blocked, which is a fact about the account rather than a chase,
+  // and the school needs to know why nobody can log in.
+  //
+  // my_activation_request counts only 'pending' and 'contacted', so the
+  // banners return of their own accord once a request is closed or rejected.
+  const { data: activationRequest } = useFetch<{ found: boolean; status?: string }>(
+    ['prop-activation-request', schoolId!],
+    async () => {
+      const { data, error } = await supabase.rpc('my_activation_request');
+      if (error) throw error;
+      return (data ?? { found: false }) as { found: boolean; status?: string };
+    },
     { enabled: !!schoolId }
   );
+
+  const awaitingActivation = activationRequest?.found === true;
 
   const pendingInvoices = invoices.filter((i) => i.status === 'sent' || i.status === 'overdue');
   const [now] = useState(() => Date.now());
@@ -168,7 +190,7 @@ export default function ProprietorDashboard() {
       )}
 
       {/* ── GRACE: last day — show exact shutdown time ────────────────── */}
-      {isLastDayGrace && (
+      {isLastDayGrace && !awaitingActivation && (
         <div className="rounded-xl border-2 border-red-300 bg-red-50 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
@@ -191,7 +213,7 @@ export default function ProprietorDashboard() {
       )}
 
       {/* ── GRACE: more than 0 days left ─────────────────────────────── */}
-      {isGrace && !isLastDayGrace && daysRemaining !== null && (
+      {isGrace && !isLastDayGrace && daysRemaining !== null && !awaitingActivation && (
         <div className="rounded-xl border border-orange-300 bg-orange-50 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
@@ -217,7 +239,7 @@ export default function ProprietorDashboard() {
       )}
 
       {/* ── TRIAL EXPIRED: waiting for cron to move to grace ─────────── */}
-      {isTrialExpired && (
+      {isTrialExpired && !awaitingActivation && (
         <div className="rounded-xl border border-orange-300 bg-orange-50 p-5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-6 h-6 text-orange-600 shrink-0 mt-0.5" />
@@ -235,7 +257,7 @@ export default function ProprietorDashboard() {
       )}
 
       {/* ── TRIAL/ACTIVE: expiring soon (1–7 days left) ──────────────── */}
-      {isExpiringSoon && (
+      {isExpiringSoon && !awaitingActivation && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-800 flex-1">
@@ -250,19 +272,9 @@ export default function ProprietorDashboard() {
         </div>
       )}
 
-      {/* ── Prompt: no saved payment method ──────────────────────────── */}
-      {!hasSavedCard && !isSuspended && subscription && (
-        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-          <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
-          <p className="text-sm text-blue-800 flex-1">
-            <strong>Save a payment card</strong> for seamless subscription renewals — no need to re-enter details each time.
-          </p>
-          <Button size="sm" variant="outline" className="shrink-0"
-            onClick={() => navigate('/proprietor/subscription?tab=cards')}>
-            Add Card
-          </Button>
-        </div>
-      )}
+      {/* The "save a payment card" prompt lived here. Card payment is not
+          available — every subscription is arranged directly — so it offered a
+          convenience that does not exist and implied online checkout. */}
 
       <AppLinksCard />
 
