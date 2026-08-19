@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserRole } from '@/utils/constants';
 import { Eye, EyeOff, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 
 /**
  * Staff sign-in for SchoolSync Attend.
@@ -61,21 +62,21 @@ export default function StaffLogin({
   const wrongRole = user != null && !allowedRoles.includes(user.role as UserRole);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-slate-900 px-6 pb-[env(safe-area-inset-bottom)] pt-[max(2rem,env(safe-area-inset-top))]">
+    <GridBackdrop glow="emerald" className="flex min-h-[100dvh] flex-col px-6 pb-[env(safe-area-inset-bottom)] pt-[max(2rem,env(safe-area-inset-top))]">
       <button
         onClick={() => navigate('/')}
-        className="-ml-2 flex w-fit items-center gap-1.5 p-2 text-sm text-slate-400"
+        className="-ml-2 flex w-fit items-center gap-1.5 p-2 text-sm text-white/45"
       >
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
       <div className="mx-auto w-full max-w-sm flex-1 pt-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 shadow-lg shadow-black/30">
             <Icon className="h-7 w-7 text-white" />
           </div>
           <h1 className="text-xl font-bold text-white">{title}</h1>
-          <p className="mt-1.5 text-sm text-slate-400">{subtitle}</p>
+          <p className="mt-1.5 text-sm text-white/50">{subtitle}</p>
         </div>
 
         {(error || wrongRole) && (
@@ -87,7 +88,7 @@ export default function StaffLogin({
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-slate-300">Email</label>
+            <label htmlFor="email" className="text-sm font-medium text-white/70">Email</label>
             <input
               id="email"
               type="email"
@@ -97,12 +98,12 @@ export default function StaffLogin({
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3.5 text-base text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
+              className="rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3.5 text-base text-white placeholder:text-white/25 focus:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-slate-300">Password</label>
+            <label htmlFor="password" className="text-sm font-medium text-white/70">Password</label>
             <div className="relative">
               <input
                 id="password"
@@ -110,13 +111,13 @@ export default function StaffLogin({
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3.5 pr-12 text-base text-white focus:border-emerald-500 focus:outline-none"
+                className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3.5 pr-12 text-base text-white focus:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-1 top-1/2 -translate-y-1/2 p-3 text-slate-500"
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-3 text-white/40"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -126,13 +127,13 @@ export default function StaffLogin({
           <button
             type="submit"
             disabled={busy}
-            className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-500 py-4 text-base font-semibold text-white active:bg-emerald-600 disabled:opacity-60"
+            className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-500 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-500/20 active:bg-emerald-600 disabled:opacity-60"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
-    </div>
+    </GridBackdrop>
   );
 }

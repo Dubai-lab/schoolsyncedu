@@ -6,6 +6,8 @@ import RequireStudent from './RequireStudent';
 import TabShell from './TabShell';
 import BiometricGate from './BiometricGate';
 import LoginScreen from './LoginScreen';
+import MobileSplash from '../MobileSplash';
+import { GraduationCap } from 'lucide-react';
 
 /**
  * Route tree for the SchoolSync student app.
@@ -44,6 +46,15 @@ function ScreenFallback() {
 export default function StudentApp() {
   return (
     <AuthProvider>
+      {/* Sits over the app while the session resolves and cached branding is
+          read, so what it uncovers is a settled screen rather than a spinner.
+          Dismisses itself; nothing here has to manage it. */}
+      <MobileSplash
+        appName="SchoolSync"
+        tagline="Your student portal"
+        icon={GraduationCap}
+        accent="amber"
+      />
       <Suspense fallback={<ScreenFallback />}>
         <Routes>
           <Route path="/login" element={<LoginScreen />} />

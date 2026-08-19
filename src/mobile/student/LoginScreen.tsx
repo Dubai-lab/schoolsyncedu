@@ -7,6 +7,7 @@ import {
   type SchoolBranding,
 } from './branding';
 import { Eye, EyeOff, Loader2, GraduationCap, AlertCircle } from 'lucide-react';
+import GridBackdrop from '@/components/shared/GridBackdrop';
 
 /**
  * Student sign-in for the mobile app.
@@ -112,12 +113,18 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-white px-6 pb-[env(safe-area-inset-bottom)] pt-[max(3rem,env(safe-area-inset-top))]">
-      <div className="mx-auto w-full max-w-sm flex-1">
+    // The ruled backdrop the marketing site and the web sign-in already use, so
+    // a student arriving from either recognises where they are. It was the last
+    // screen still on white with the old blue accent.
+    <GridBackdrop
+      glow="amber"
+      className="flex min-h-[100dvh] flex-col px-6 pb-[env(safe-area-inset-bottom)] pt-[max(3rem,env(safe-area-inset-top))]"
+    >
+      <div className="relative mx-auto w-full max-w-sm flex-1">
         {/* Header — shows the school's own identity once the code resolves,
             so a universal app still feels like it belongs to their school. */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary-600">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-amber-500 shadow-lg shadow-black/30">
             {branding?.logoUrl ? (
               <img
                 src={branding.logoUrl}
@@ -129,10 +136,10 @@ export default function LoginScreen() {
               <GraduationCap className="h-8 w-8 text-white" />
             )}
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-white">
             {branding?.name ?? 'SchoolSync'}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-white/50">
             {brandingLoading
               ? 'Looking up your school…'
               : branding
@@ -142,15 +149,15 @@ export default function LoginScreen() {
         </div>
 
         {error && (
-          <div className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mb-5 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+            <p className="text-sm text-red-200">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="schoolCode" className="text-sm font-medium text-slate-700">
+            <label htmlFor="schoolCode" className="text-sm font-medium text-white/70">
               School code
             </label>
             <input
@@ -164,13 +171,13 @@ export default function LoginScreen() {
               spellCheck={false}
               // 16px minimum stops iOS auto-zooming on focus without us
               // having to disable pinch-zoom for everyone.
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-center text-[1.25rem] font-bold uppercase tracking-[0.35em] text-slate-900 placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-300 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              className="rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3.5 text-center text-[1.25rem] font-bold uppercase tracking-[0.35em] text-white placeholder:font-normal placeholder:tracking-normal placeholder:text-white/20 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
             />
-            <p className="text-xs text-slate-400">The 3-letter code from your school office</p>
+            <p className="text-xs text-white/35">The 3-letter code from your school office</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="regNumber" className="text-sm font-medium text-slate-700">
+            <label htmlFor="regNumber" className="text-sm font-medium text-white/70">
               Registration number
             </label>
             <input
@@ -182,13 +189,13 @@ export default function LoginScreen() {
               autoCorrect="off"
               spellCheck={false}
               autoComplete="username"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base uppercase text-slate-900 placeholder:normal-case placeholder:text-slate-300 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              className="rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3.5 text-base uppercase text-white placeholder:normal-case placeholder:text-white/20 focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
             />
-            <p className="text-xs text-slate-400">Printed on your student ID card</p>
+            <p className="text-xs text-white/35">Printed on your student ID card</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="text-sm font-medium text-white/70">
               Password
             </label>
             <div className="relative">
@@ -198,13 +205,13 @@ export default function LoginScreen() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 pr-12 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3.5 pr-12 text-base text-white focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-1 top-1/2 -translate-y-1/2 p-3 text-slate-400"
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-3 text-white/40"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -214,17 +221,17 @@ export default function LoginScreen() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary-600 py-4 text-base font-semibold text-white active:bg-primary-700 disabled:opacity-60"
+            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-4 text-base font-semibold text-[#1c1300] shadow-lg shadow-amber-500/20 active:bg-amber-600 disabled:opacity-60"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p className="mt-8 text-center text-xs leading-relaxed text-slate-400">
+        <p className="mt-8 text-center text-xs leading-relaxed text-white/35">
           No account yet? Your school's IT office creates student accounts.
         </p>
       </div>
-    </div>
+    </GridBackdrop>
   );
 }
