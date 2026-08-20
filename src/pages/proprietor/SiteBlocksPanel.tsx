@@ -6,15 +6,16 @@ import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
   resolveBlocks, newBlock, duplicateBlock, canAddBlock, resolveContent,
-  BLOCK_LABELS, REQUIRED_BLOCKS, REPEATABLE,
+  BLOCK_LABELS, REQUIRED_BLOCKS, REPEATABLE, blockHasContent,
   type SiteBlock, type SitePageBlocks, type BlockType,
 } from '@/types/siteBlocks';
 import type { SiteTheme, BandStyle } from '@/types/siteTheme';
 import type { SiteConfig } from '@/types/school.types';
 import { PREVIEW_MESSAGE, PREVIEW_READY } from '@/hooks/usePreviewTheme';
+import { uploadSchoolSiteImage } from '@/utils/storage.upload';
 import {
   Loader2, Save, Plus, Copy, Trash2, Eye, EyeOff, ArrowUp, ArrowDown,
-  ChevronDown, Monitor, Smartphone, ExternalLink, Lock,
+  ChevronDown, Monitor, Smartphone, ExternalLink, Lock, Upload, ImageOff,
 } from 'lucide-react';
 
 /**
@@ -256,6 +257,10 @@ export default function SiteBlocksPanel() {
             const pinned = REQUIRED_BLOCKS.includes(block.type);
             const isOpen = openId === block.id;
             const isExtra = n > 0;
+            // An empty block renders nothing at all, which is the single most
+            // confusing thing about a builder: you add a gallery, save, and the
+            // page looks unchanged with nothing to say why.
+            const empty = !blockHasContent(block, cfg, n === 0);
 
             return (
               <div
@@ -282,6 +287,11 @@ export default function SiteBlocksPanel() {
                       </span>
                     )}
                     {pinned && <Lock className="h-3 w-3 shrink-0 text-slate-300" />}
+                    {empty && !block.hidden && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        <ImageOff className="h-2.5 w-2.5" /> empty
+                      </span>
+                    )}
                   </button>
 
                   <button
@@ -314,7 +324,9 @@ export default function SiteBlocksPanel() {
                 {isOpen && (
                   <BlockEditor
                     block={block}
+                    schoolId={schoolId ?? ''}
                     isExtra={isExtra}
+                    empty={empty}
                     pinned={pinned}
                     onEdit={(patch) => edit(block.id, patch)}
                     onContent={(k, v) => editContent(block.id, k, v)}
@@ -406,10 +418,12 @@ export default function SiteBlocksPanel() {
 // ── One block's settings ─────────────────────────────────────────────────────
 
 function BlockEditor({
-  block, isExtra, pinned, onEdit, onContent, onDesign, onDuplicate, onRemove,
+  block, schoolId, isExtra, pinned, empty, onEdit, onContent, onDesign, onDuplicate, onRemove,
 }: {
   block: SiteBlock;
+  schoolId: string;
   isExtra: boolean;
+  empty: boolean;
   pinned: boolean;
   onEdit: (patch: Partial<SiteBlock>) => void;
   onContent: (key: string, value: unknown) => void;
@@ -505,8 +519,16 @@ function BlockEditor({
         </div>
       )}
 
+      {empty && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+          Nothing in this block yet, so it will not appear on the page. Add its
+          content below and it shows up straight away in the preview.
+        </p>
+      )}
+
       {block.type === 'gallery' && isExtra && (
         <GalleryImages
+          schoolId={schoolId}
           images={(block.content.images as GalleryImage[]) ?? []}
           onChange={(next) => onContent('images', next)}
         />
@@ -651,15 +673,31 @@ interface GalleryImage { url: string; caption?: string }
  * here as well would put the same list in two places.
  */
 function GalleryImages({
-  images, onChange,
+  schoolId, images, onChange,
 }: {
+  schoolId: string;
   images: GalleryImage[];
   onChange: (next: GalleryImage[]) => void;
 }) {
-  const field = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20';
+  const [busy, setBusy] = useState(false);
+  const field = 'w-full rounded bg-black/40 px-2 py-1 text-xs text-white placeholder:text-white/50 focus:outline-none';
 
-  function set(i: number, patch: Partial<GalleryImage>) {
-    onChange(images.map((img, n) => (n === i ? { ...img, ...patch } : img)));
+  async function upload(files: FileList | null) {
+    if (!files?.length || !schoolId) return;
+    setBusy(true);
+    try {
+      const added: GalleryImage[] = [];
+      for (const file of Array.from(files)) {
+        const url = await uploadSchoolSiteImage(schoolId, file, 'gallery');
+        added.push({ url, caption: '' });
+      }
+      onChange([...images, ...added]);
+      notify.success(added.length === 1 ? 'Photo added.' : `${added.length} photos added.`);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Could not upload that photo.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -669,48 +707,51 @@ function GalleryImages({
       </label>
 
       {images.length === 0 && (
-        <p className="text-[11px] text-slate-400">
-          No photos yet. This gallery stays off the page until it has one.
+        <p className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-[11px] text-slate-400">
+          No photos yet — this gallery stays off the page until it has one.
         </p>
       )}
 
-      {images.map((img, i) => (
-        <div key={i} className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2">
-          {img.url && (
-            <img src={img.url} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
-          )}
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <input
-              className={field}
-              value={img.url}
-              placeholder="https://…"
-              onChange={(e) => set(i, { url: e.target.value })}
-            />
-            <input
-              className={field}
-              value={img.caption ?? ''}
-              placeholder="Caption (optional)"
-              onChange={(e) => set(i, { caption: e.target.value })}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => onChange(images.filter((_, n) => n !== i))}
-            className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-            title="Remove this photo"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((img, i) => (
+            <div key={i} className="group relative">
+              <img src={img.url} alt="" className="h-20 w-full rounded-lg border border-slate-200 object-cover" />
+              <div className="absolute inset-0 flex items-end rounded-lg bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex w-full items-center gap-1 p-1.5">
+                  <input
+                    className={field}
+                    placeholder="Caption"
+                    value={img.caption ?? ''}
+                    onChange={(e) => onChange(images.map((g, n) => (n === i ? { ...g, caption: e.target.value } : g)))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onChange(images.filter((_, n) => n !== i))}
+                    className="rounded p-1 text-white/80 hover:bg-red-500/80 hover:text-white"
+                    title="Remove"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      <button
-        type="button"
-        onClick={() => onChange([...images, { url: '' }])}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white"
-      >
-        <Plus className="h-3.5 w-3.5" /> Add a photo
-      </button>
+      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white">
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+        {busy ? 'Uploading…' : 'Add photos'}
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          disabled={busy}
+          onChange={(e) => { void upload(e.target.files); e.target.value = ''; }}
+        />
+      </label>
     </div>
   );
 }
