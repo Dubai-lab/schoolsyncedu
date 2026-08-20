@@ -276,6 +276,8 @@ export function legacyContent(type: BlockType, cfg: SiteConfig): Record<string, 
 
     case 'about':
       return {
+        // Not seeded from school.about_text: that is a school column rather
+        // than site config, and the block falls back to it at render.
         mission:          c.mission_text ?? null,
         vision:           c.vision_text ?? null,
         building_image:   c.building_image_url ?? null,

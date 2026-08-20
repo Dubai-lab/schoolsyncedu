@@ -91,7 +91,10 @@ export function AboutBlock({ block, ctx, anchor }: BlockProps) {
   const { school } = ctx;
   const c = block.content as Record<string, string | null>;
 
+  // The block's own words win; the school column is the fallback, so a school
+  // that has never opened the Page tab reads exactly as it did.
   const aboutText =
+    c.body ||
     school.about_text ||
     `${school.name} is a premier educational institution located in ${school.location || 'Liberia'}. We are committed to providing quality education and shaping the leaders of tomorrow.`;
 

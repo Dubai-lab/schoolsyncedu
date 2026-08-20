@@ -10,10 +10,10 @@ import {
   type CornerStyle, type HeadingFont, type LogoPlacement, type HeroLayout,
   type BandStyle, type AuthLayout, type GalleryLayout, type GalleryShape, type SectionHeaderStyle, type HeroDivider, type HeroHeight,
   type StatsLayout, type ProgramsLayout,
-  DEFAULT_SECTION_ORDER, SECTION_LABELS, PINNED_SECTIONS,
+
 } from '@/types/siteTheme';
 import { buildSiteStyles } from '@/utils/siteThemeStyles';
-import { Loader2, Check, Save, ArrowUp, ArrowDown, GripVertical, Monitor, Smartphone, ExternalLink } from 'lucide-react';
+import { Loader2, Check, Save, Monitor, Smartphone, ExternalLink } from 'lucide-react';
 import { PREVIEW_MESSAGE, PREVIEW_READY } from '@/hooks/usePreviewTheme';
 
 /**
@@ -214,22 +214,6 @@ export default function SiteThemePanel() {
     return () => window.removeEventListener('message', onReady);
   }, [pushPreview]);
 
-  // Section order. Falls back to the default so a school that has never
-  // touched it sees the arrangement it already has, rather than an empty list.
-  const order = theme.sectionOrder?.length ? theme.sectionOrder : DEFAULT_SECTION_ORDER;
-
-  // The hero is pinned, so nothing may move above the first section after it.
-  const firstMovable = order.findIndex((n) => !PINNED_SECTIONS.includes(n));
-
-  function moveSection(index: number, delta: number) {
-    const target = index + delta;
-    if (target < firstMovable || target >= order.length) return;
-    if (PINNED_SECTIONS.includes(order[index])) return;
-    const next = [...order];
-    [next[index], next[target]] = [next[target], next[index]];
-    setTheme((t) => ({ ...t, sectionOrder: next }));
-    setDirty(true);
-  }
 
   async function save() {
     setSaving(true);
@@ -590,59 +574,10 @@ export default function SiteThemePanel() {
         </div>
       </section>
 
-      {/* Section order */}
-      <section>
-        <h2 className="text-sm font-bold text-slate-900">Page order</h2>
-        <p className="mb-3 text-xs text-slate-500">
-          Every school&apos;s page ran in the same order. Lead with what your school is
-          known for — results near the top, or photographs before the written word.
-          The hero stays first.
-        </p>
 
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
-          {order.map((name, i) => {
-            const pinned = PINNED_SECTIONS.includes(name);
-            return (
-              <li key={name} className="flex items-center gap-3 bg-white px-3 py-2.5">
-                <GripVertical className={`h-4 w-4 shrink-0 ${pinned ? 'text-slate-200' : 'text-slate-300'}`} />
-                <span className="w-6 shrink-0 text-xs font-mono text-slate-400">{i + 1}</span>
-                <span className="flex-1 truncate text-sm font-medium text-slate-700">
-                  {SECTION_LABELS[name] ?? name}
-                </span>
-                {pinned ? (
-                  <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    Fixed
-                  </span>
-                ) : (
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      onClick={() => moveSection(i, -1)}
-                      disabled={i <= firstMovable}
-                      aria-label={`Move ${SECTION_LABELS[name] ?? name} up`}
-                      className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-30"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => moveSection(i, 1)}
-                      disabled={i >= order.length - 1}
-                      aria-label={`Move ${SECTION_LABELS[name] ?? name} down`}
-                      className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-30"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        <p className="mt-2 text-xs text-slate-400">
-          A section only appears if it has content. Moving an empty one changes nothing
-          until you add to it.
-        </p>
-      </section>
+      {/* Page order used to sit here as well as on the Page tab, which meant
+          two places to arrange the same sections and no way to tell which had
+          the last word. Structure belongs to Page; this tab is style. */}
 
       {/* Footer and CTA bands */}
       <section>

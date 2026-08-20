@@ -12,10 +12,10 @@ import {
 import type { SiteTheme, BandStyle } from '@/types/siteTheme';
 import type { SiteConfig } from '@/types/school.types';
 import { PREVIEW_MESSAGE, PREVIEW_READY } from '@/hooks/usePreviewTheme';
-import { uploadSchoolSiteImage } from '@/utils/storage.upload';
+import { BlockContent } from './blockEditors';
 import {
   Loader2, Save, Plus, Copy, Trash2, Eye, EyeOff, ArrowUp, ArrowDown,
-  ChevronDown, Monitor, Smartphone, ExternalLink, Lock, Upload, ImageOff,
+  ChevronDown, Monitor, Smartphone, ExternalLink, Lock, ImageOff,
 } from 'lucide-react';
 
 /**
@@ -78,9 +78,11 @@ export default function SiteBlocksPanel() {
   const schoolId = user?.school_id;
 
   const [blocks, setBlocks] = useState<SitePageBlocks>([]);
-  // Kept so a duplicate can be given real content: the first block of a type
-  // holds none of its own and reads these fields instead.
-  const [cfg, setCfg] = useState<SiteConfig>({});
+  // Site-wide, because they belong to the footer and the floating button
+  // rather than to any one block. They lived on the Content tab; without a
+  // home here they would have become uneditable when it was retired.
+  const [whatsapp, setWhatsapp] = useState('');
+  const [social, setSocial] = useState<Record<string, string>>({});
   const [slug, setSlug] = useState('');
   const [theme, setTheme] = useState<SiteTheme>({});
   const [openId, setOpenId] = useState<string | null>(null);
@@ -98,15 +100,26 @@ export default function SiteBlocksPanel() {
       const { data } = await supabase
         .from('schools').select('site_config, slug').eq('id', schoolId).maybeSingle();
 
-      const loaded = (data?.site_config ?? {}) as SiteConfig;
-      setCfg(loaded);
-      const cfg = loaded;
+      const cfg = (data?.site_config ?? {}) as SiteConfig;
       const t = ((cfg as Record<string, unknown>).theme as SiteTheme) ?? {};
       setTheme(t);
       // resolveBlocks returns the stored list, or derives one from the old
       // fields — so a school opening this for the first time sees the page it
       // already has rather than an empty builder.
-      setBlocks(resolveBlocks(cfg, t.sectionOrder));
+      // Materialise what each block is actually showing. Blocks derived from
+      // the old fields carry no content of their own, and a builder that shows
+      // a gallery with no photos in it — because they live somewhere else — is
+      // the split this tab exists to remove. From here every block owns its
+      // content, and saving writes it.
+      const derived = resolveBlocks(cfg, t.sectionOrder);
+      const seen: Record<string, number> = {};
+      setBlocks(derived.map((b) => {
+        const n = seen[b.type] ?? 0;
+        seen[b.type] = n + 1;
+        return { ...b, content: resolveContent(b, cfg, n === 0) };
+      }));
+      setWhatsapp(((cfg as Record<string, unknown>).whatsapp_number as string) ?? '');
+      setSocial(((cfg as Record<string, unknown>).social_links as Record<string, string>) ?? {});
       setSlug((data?.slug as string) ?? '');
     } finally {
       setLoading(false);
@@ -176,15 +189,7 @@ export default function SiteBlocksPanel() {
     const i = blocks.findIndex((b) => b.id === id);
     if (i === -1) return;
 
-    // The first block of a type carries no content of its own, so a plain copy
-    // would be an empty section with no way to fill it. Materialise what it is
-    // actually showing, and the duplicate starts as a real copy the school can
-    // then edit apart from the original.
-    const isFirst = blocks.findIndex((b) => b.type === blocks[i].type) === i;
-    const source = isFirst
-      ? { ...blocks[i], content: resolveContent(blocks[i], cfg, true) }
-      : blocks[i];
-    const copy = duplicateBlock(source);
+    const copy = duplicateBlock(blocks[i]);
     setBlocks([...blocks.slice(0, i + 1), copy, ...blocks.slice(i + 1)]);
     setOpenId(copy.id);
     setDirty(true);
@@ -204,7 +209,12 @@ export default function SiteBlocksPanel() {
       const { data: current } = await supabase
         .from('schools').select('site_config').eq('id', schoolId).maybeSingle();
 
-      const merged = { ...((current?.site_config ?? {}) as object), blocks };
+      const merged = {
+        ...((current?.site_config ?? {}) as object),
+        blocks,
+        whatsapp_number: whatsapp || undefined,
+        social_links: social,
+      };
 
       const { error } = await supabase
         .from('schools').update({ site_config: merged }).eq('id', schoolId);
@@ -260,7 +270,7 @@ export default function SiteBlocksPanel() {
             // An empty block renders nothing at all, which is the single most
             // confusing thing about a builder: you add a gallery, save, and the
             // page looks unchanged with nothing to say why.
-            const empty = !blockHasContent(block, cfg, n === 0);
+            const empty = !blockHasContent(block);
 
             return (
               <div
@@ -325,7 +335,6 @@ export default function SiteBlocksPanel() {
                   <BlockEditor
                     block={block}
                     schoolId={schoolId ?? ''}
-                    isExtra={isExtra}
                     empty={empty}
                     pinned={pinned}
                     onEdit={(patch) => edit(block.id, patch)}
@@ -368,6 +377,55 @@ export default function SiteBlocksPanel() {
             </div>
           )}
         </div>
+
+        {/* Footer and the floating button. Not part of any block, so they sit
+            under the list rather than inside one. */}
+        <Card className="space-y-3 p-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Footer &amp; contact</h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Shown at the bottom of every page.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              WhatsApp number
+            </label>
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              value={whatsapp}
+              placeholder="+231 77 000 0000"
+              onChange={(e) => { setWhatsapp(e.target.value); setDirty(true); }}
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Leave empty and the floating chat button does not appear.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Social links
+            </label>
+            {['facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'tiktok'].map((platform) => (
+              <div key={platform} className="flex items-center gap-2">
+                <span className="w-20 shrink-0 text-xs capitalize text-slate-500">{platform}</span>
+                <input
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  value={social[platform] ?? ''}
+                  placeholder="https://…"
+                  onChange={(e) => {
+                    setSocial((sl) => ({ ...sl, [platform]: e.target.value }));
+                    setDirty(true);
+                  }}
+                />
+              </div>
+            ))}
+            <p className="text-[11px] text-slate-400">
+              Only the ones you fill in are shown.
+            </p>
+          </div>
+        </Card>
       </div>
 
       {/* ── Live preview ─────────────────────────────────────────────── */}
@@ -418,11 +476,10 @@ export default function SiteBlocksPanel() {
 // ── One block's settings ─────────────────────────────────────────────────────
 
 function BlockEditor({
-  block, schoolId, isExtra, pinned, empty, onEdit, onContent, onDesign, onDuplicate, onRemove,
+  block, schoolId, pinned, empty, onEdit, onContent, onDesign, onDuplicate, onRemove,
 }: {
   block: SiteBlock;
   schoolId: string;
-  isExtra: boolean;
   empty: boolean;
   pinned: boolean;
   onEdit: (patch: Partial<SiteBlock>) => void;
@@ -474,97 +531,22 @@ function BlockEditor({
         </div>
       )}
 
-      {/* Content — only for blocks that carry their own. The first of each type
-          reads what the Content tab writes, so editing it here would put the
-          same school's data in two places. */}
-      {block.type === 'textImage' && (
-        <div className="space-y-2.5">
-          <div>
-            <label className={legend}>Words</label>
-            <textarea
-              className={`${field} min-h-[120px]`}
-              value={(block.content.body as string) ?? ''}
-              onChange={(e) => onContent('body', e.target.value)}
-            />
-            <p className="mt-1 text-[11px] text-slate-400">Leave a blank line between paragraphs.</p>
-          </div>
-          <div>
-            <label className={legend}>Picture URL</label>
-            <input
-              className={field}
-              value={(block.content.image_url as string) ?? ''}
-              placeholder="https://…  (optional)"
-              onChange={(e) => onContent('image_url', e.target.value || null)}
-            />
-          </div>
-          <div>
-            <label className={legend}>Picture side</label>
-            <div className="flex gap-2">
-              {(['left', 'right'] as const).map((side) => (
-                <button
-                  key={side}
-                  type="button"
-                  onClick={() => onContent('image_side', side)}
-                  className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-medium capitalize ${
-                    ((block.content.image_side as string) ?? 'right') === side
-                      ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-slate-300 text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  {side}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {empty && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-          Nothing in this block yet, so it will not appear on the page. Add its
-          content below and it shows up straight away in the preview.
+          Nothing in this block yet, so it will not appear on the page. Fill it
+          in below and it shows up straight away in the preview.
         </p>
       )}
 
-      {block.type === 'gallery' && isExtra && (
-        <GalleryImages
-          schoolId={schoolId}
-          images={(block.content.images as GalleryImage[]) ?? []}
-          onChange={(next) => onContent('images', next)}
-        />
-      )}
-
-      {block.type === 'cta' && (
-        <div>
-          <label className={legend}>Button text</label>
-          <input
-            className={field}
-            value={(block.content.button_text as string) ?? ''}
-            placeholder="Apply Now"
-            onChange={(e) => onContent('button_text', e.target.value || undefined)}
-          />
-        </div>
-      )}
-
-      {block.type === 'announcements' && (
-        <div>
-          <label className={legend}>How many to show</label>
-          <input
-            type="number" min={0} className={field}
-            value={String(block.content.limit ?? 6)}
-            onChange={(e) => onContent('limit', Number(e.target.value))}
-          />
-          <p className="mt-1 text-[11px] text-slate-400">0 shows every announcement.</p>
-        </div>
-      )}
-
-      {isExtra && !['textImage', 'cta', 'gallery'].includes(block.type) && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-          This is a second {BLOCK_LABELS[block.type].toLowerCase()}, so it starts empty —
-          it does not share the one on the Content tab. Its own items can be added there
-          in a later update; for now it will not appear on the page until it has content.
-        </p>
-      )}
+      {/* Everything this block holds — its words, pictures and items.
+          Schema driven, so a gallery, a staff list and a set of programmes all
+          behave the same and a new block type needs no new screen. */}
+      <BlockContent
+        type={block.type}
+        content={block.content}
+        schoolId={schoolId}
+        onContent={onContent}
+      />
 
       {/* Per-block design */}
       {(banded || variants) && (
@@ -660,98 +642,5 @@ function ChoiceChip({ active, onClick, label }: { active: boolean; onClick: () =
     >
       {label}
     </button>
-  );
-}
-
-// ── Photos for a duplicated gallery ──────────────────────────────────────────
-
-interface GalleryImage { url: string; caption?: string }
-
-/**
- * Only shown on a second gallery. The first one's photos belong to the school
- * rather than to the block, and are managed on the Content tab — editing them
- * here as well would put the same list in two places.
- */
-function GalleryImages({
-  schoolId, images, onChange,
-}: {
-  schoolId: string;
-  images: GalleryImage[];
-  onChange: (next: GalleryImage[]) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const field = 'w-full rounded bg-black/40 px-2 py-1 text-xs text-white placeholder:text-white/50 focus:outline-none';
-
-  async function upload(files: FileList | null) {
-    if (!files?.length || !schoolId) return;
-    setBusy(true);
-    try {
-      const added: GalleryImage[] = [];
-      for (const file of Array.from(files)) {
-        const url = await uploadSchoolSiteImage(schoolId, file, 'gallery');
-        added.push({ url, caption: '' });
-      }
-      onChange([...images, ...added]);
-      notify.success(added.length === 1 ? 'Photo added.' : `${added.length} photos added.`);
-    } catch (err) {
-      notify.error(err instanceof Error ? err.message : 'Could not upload that photo.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        Photos in this gallery
-      </label>
-
-      {images.length === 0 && (
-        <p className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-[11px] text-slate-400">
-          No photos yet — this gallery stays off the page until it has one.
-        </p>
-      )}
-
-      {images.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {images.map((img, i) => (
-            <div key={i} className="group relative">
-              <img src={img.url} alt="" className="h-20 w-full rounded-lg border border-slate-200 object-cover" />
-              <div className="absolute inset-0 flex items-end rounded-lg bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
-                <div className="flex w-full items-center gap-1 p-1.5">
-                  <input
-                    className={field}
-                    placeholder="Caption"
-                    value={img.caption ?? ''}
-                    onChange={(e) => onChange(images.map((g, n) => (n === i ? { ...g, caption: e.target.value } : g)))}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onChange(images.filter((_, n) => n !== i))}
-                    className="rounded p-1 text-white/80 hover:bg-red-500/80 hover:text-white"
-                    title="Remove"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white">
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-        {busy ? 'Uploading…' : 'Add photos'}
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          disabled={busy}
-          onChange={(e) => { void upload(e.target.files); e.target.value = ''; }}
-        />
-      </label>
-    </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState, Suspense } from 'react';
 import { lazyWithReload } from '@/utils/lazyWithReload';
 import { useSearchParams } from 'react-router-dom';
 import Breadcrumb from '@/components/shared/Breadcrumb';
-import { Loader2, Palette, LayoutTemplate, FileText, KeyRound, ExternalLink, Blocks } from 'lucide-react';
+import { Loader2, Palette, LayoutTemplate, KeyRound, ExternalLink, Blocks } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 /**
@@ -21,25 +21,37 @@ import { useAuth } from '@/hooks/useAuth';
  * Site design now belongs to the proprietor alone: the school owner owns the
  * brand, and IT admin keeps users, cards and systems.
  *
- * The existing panels are reused rather than rewritten. They work, they hold a
- * lot of detail, and merging them into one component would have been a large
- * rewrite with nothing to show for it. What changes is that they are now one
- * screen with one navigation, instead of four entries in two sidebars.
+ * Four tabs, and each owns something the others do not.
+ *
+ *   Page    every section, its words, its pictures, its order and its own look
+ *   Design  style for the whole site — preset, type, corners, backgrounds
+ *   Brand   logo, colours, name, motto, web address
+ *   Login   what staff and students see signing in
+ *
+ * Getting there meant retiring a fifth. Content held the page's words and
+ * pictures while Page blocks held its headings and Design held its order, so a
+ * gallery's photos, title and layout lived on three different screens and the
+ * honest answer to "where do I change this?" was "it depends". Section
+ * ordering existed in two places at once, and visibility in a third.
+ *
+ * A block owns everything about itself now, which is the only arrangement
+ * where that question has one answer. Content's editors moved into the blocks
+ * they belong to; the two site-wide things it held that belong to no block —
+ * the WhatsApp button and the social links — sit under the block list, because
+ * they are the footer rather than a section.
  */
 
 const BrandPanel   = lazyWithReload(() => import('./SiteCustomizer'));
-const ContentPanel = lazyWithReload(() => import('@/pages/it-admin/SiteManagement'));
 const LoginPanel   = lazyWithReload(() => import('@/pages/it-admin/AuthPageDesigner'));
 const ThemePanel   = lazyWithReload(() => import('./SiteThemePanel'));
 const BlocksPanel  = lazyWithReload(() => import('./SiteBlocksPanel'));
 
-type Tab = 'design' | 'blocks' | 'brand' | 'content' | 'login';
+type Tab = 'blocks' | 'design' | 'brand' | 'login';
 
 const TABS: { key: Tab; label: string; icon: React.ElementType; hint: string }[] = [
-  { key: 'design',  label: 'Design',     icon: LayoutTemplate, hint: 'Style, layout and backgrounds' },
-  { key: 'blocks',  label: 'Page blocks', icon: Blocks,        hint: 'Add, remove and reorder sections' },
-  { key: 'brand',   label: 'Brand',      icon: Palette,        hint: 'Logo, colours, name and motto' },
-  { key: 'content', label: 'Content',    icon: FileText,       hint: 'Hero, programmes, gallery, staff' },
+  { key: 'blocks',  label: 'Page',       icon: Blocks,         hint: 'Every section, its words and its pictures' },
+  { key: 'design',  label: 'Design',     icon: LayoutTemplate, hint: 'Style, type and backgrounds for the whole site' },
+  { key: 'brand',   label: 'Brand',      icon: Palette,        hint: 'Logo, colours, name and web address' },
   { key: 'login',   label: 'Login page', icon: KeyRound,       hint: 'What staff and students see signing in' },
 ];
 
@@ -48,11 +60,11 @@ export default function SiteDesigner() {
   const slug = (user as unknown as Record<string, unknown>)?.school_slug as string | undefined;
 
   const [params, setParams] = useSearchParams();
-  const [tab, setTabState] = useState<Tab>((params.get('tab') as Tab) ?? 'design');
+  const [tab, setTabState] = useState<Tab>((params.get('tab') as Tab) ?? 'blocks');
 
   const setTab = (t: Tab) => {
     setTabState(t);
-    setParams(t === 'design' ? {} : { tab: t }, { replace: true });
+    setParams(t === 'blocks' ? {} : { tab: t }, { replace: true });
   };
 
   return (
@@ -105,11 +117,10 @@ export default function SiteDesigner() {
           </div>
         }
       >
-        {tab === 'design'  && <ThemePanel />}
-        {tab === 'blocks'  && <BlocksPanel />}
-        {tab === 'brand'   && <BrandPanel />}
-        {tab === 'content' && <ContentPanel />}
-        {tab === 'login'   && <LoginPanel />}
+        {tab === 'blocks' && <BlocksPanel />}
+        {tab === 'design' && <ThemePanel />}
+        {tab === 'brand'  && <BrandPanel />}
+        {tab === 'login'  && <LoginPanel />}
       </Suspense>
     </div>
   );
